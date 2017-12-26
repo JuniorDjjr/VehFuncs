@@ -5,6 +5,6 @@
 ## Oops!
 Source is not available yet.
 
-For now the repository is being used for wikis, where it teaches how to adapt the models.
+For now the repository is being used for wikis, where it teaches [how to adapt the models](https://github.com/JuniorDjjr/VehFuncs/wiki).
 When the code is polished, it will be published for everyone to contribute.
 
