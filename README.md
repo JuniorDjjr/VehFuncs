@@ -7,3 +7,5 @@ https://www.mixmods.com.br/2018/01/VehFuncs.html
 https://gtaforums.com/topic/904475-vehfuncs/
 
 This project uses [plugin-sdk](https://github.com/DK22Pac/plugin-sdk).  
+
+Learn how to adapt a vehicle for this mod, here: https://github.com/JuniorDjjr/VehFuncs/wiki  
