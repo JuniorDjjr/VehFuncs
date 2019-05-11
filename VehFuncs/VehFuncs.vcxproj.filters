@@ -1,0 +1,150 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="AtomicsVisibility.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="DigitalSpeedo.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="FixMaterials.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="RecursiveExtras.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Utilities.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="VehFuncs.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="GSXAPI.cpp">
+      <Filter>API</Filter>
+    </ClCompile>
+    <ClCompile Include="IndieVehHandlingsAPI.cpp">
+      <Filter>API</Filter>
+    </ClCompile>
+    <ClCompile Include="Wheel.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="ApplyGSX.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="GearAndFan.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="HandsFix.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Shake.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Pedal.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Footpegs.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="CustomSeed.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="MatrixBackup.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Characteristics.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Patches.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="LoadModel.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="PerlinNoise\SimplexNoise.cpp">
+      <Filter>ThirtyParty</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AtomicsVisibility.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="DigitalSpeedo.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="FixMaterials.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="injectorAddons.hpp">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="RecursiveExtras.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Utilities.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="GSXAPI.h">
+      <Filter>API</Filter>
+    </ClInclude>
+    <ClInclude Include="IndieVehHandlingsAPI.h">
+      <Filter>API</Filter>
+    </ClInclude>
+    <ClInclude Include="VehFuncsCommon.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="VehFuncs.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="CStoredCar.h">
+      <Filter>API</Filter>
+    </ClInclude>
+    <ClInclude Include="ApplyGSX.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="GearAndFan.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Shake.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Pedal.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Footpegs.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="CustomSeed.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="MatrixBackup.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Characteristics.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Patches.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="LoadModel.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="PerlinNoise\SimplexNoise.h">
+      <Filter>ThirtyParty</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source">
+      <UniqueIdentifier>{5071d391-0ba1-4ed1-a9b0-799b2f62378d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="API">
+      <UniqueIdentifier>{a018a5f8-c0a1-4366-8d5a-67fcb5d26555}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirtyParty">
+      <UniqueIdentifier>{bb2fb479-6fa9-464c-bbd7-e89a5248244e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Changes.txt" />
+  </ItemGroup>
+</Project>
