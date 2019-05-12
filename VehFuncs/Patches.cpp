@@ -237,10 +237,17 @@ namespace Patches
 				strncpy(modelTxdName, txdName, (len));
 				modelTxdName[len] = 0;
 
+				CBaseModelInfo *modelInfo;
+
 				uint32_t minVehModel = ReadMemory<uint32_t>(0x4C93CB + 1);
 				uint32_t maxVehModel = ReadMemory<uint32_t>(0x4C93C2 + 1);
 
-				CBaseModelInfo *modelInfo = CModelInfo::GetModelInfo(modelTxdName, minVehModel, maxVehModel);
+				if (maxVehModel == 630) { //default
+					modelInfo = CModelInfo::GetModelInfo(modelTxdName, minVehModel, maxVehModel);
+				}
+				else { //patched
+					modelInfo = CModelInfo::GetModelInfo(modelTxdName, NULL); // Paintjobs working on any ID
+				}
 				if (modelInfo) 
 				{
 					if (modelInfo->GetModelType() == 6)
