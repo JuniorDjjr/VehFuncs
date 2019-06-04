@@ -16,11 +16,11 @@
 #include "DigitalSpeedo.h"
 #include "Characteristics.h"
 #include "RecursiveExtras.h"
-#include "Hitch.h"
 #include "GearAndFan.h"
 #include "Shake.h"
 #include "Pedal.h"
 #include "Footpegs.h"
+#include "PopupLights.h"
  
 // Dependences
 #include "../injector/assembly.hpp"
@@ -41,10 +41,12 @@
 #pragma warning( disable : 4244 ) // data loss
 
 // Global vars
-uint32_t AtomicAlphaCallBack;
+uintptr_t AtomicAlphaCallBack;
 VehicleExtendedData<ExtendedData> remInfo;
 fstream lg;
-
+bool fixIVF = true;
+CVehicle *curVehicle;
+static std::list<std::pair<unsigned int *, unsigned int>> resetMats;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -93,6 +95,47 @@ public:
 			MakeJMP(0x006D2374, Patches::IsLawEnforcement);
 			Patches::PatchForCoplights();
 
+			// Popup lights
+			MakeInline<0x006E1CD4, 0x006E1CD4 + 6>([](reg_pack& regs)
+			{
+				//mov eax, [esi+590h]
+				regs.eax = *(uint32_t*)(regs.esi + 0x590);
+
+				CVehicle *veh = (CVehicle*)regs.esi;
+				CEntity *entity = (CEntity*)veh;
+				ExtendedData &xdata = remInfo.Get(veh);
+
+				if (xdata.popupFrame[0] != nullptr)
+				{
+					bool noLights = false;
+					CAutomobile *automobile = (CAutomobile*)veh;
+
+					if (automobile->m_damageManager.GetLightStatus(LIGHT_FRONT_LEFT))
+					{
+						if (xdata.popupProgress[LIGHT_FRONT_RIGHT] != 1.0f)
+						{
+							noLights = true;
+						}
+					}
+					else if (automobile->m_damageManager.GetLightStatus(LIGHT_FRONT_RIGHT))
+					{
+						if (xdata.popupProgress[LIGHT_FRONT_LEFT] != 1.0f)
+						{
+							noLights = true;
+						}
+					}
+					else
+					{
+						if (xdata.popupProgress[LIGHT_FRONT_LEFT] != 1.0f && xdata.popupProgress[LIGHT_FRONT_RIGHT] != 1.0f)
+						{
+							noLights = true;
+						}
+					}
+
+					if (noLights) *(uint32_t*)(regs.esp - 0x4) = 0x6E28EF; //don't process lights
+				}
+			});
+
 			// Hitch patch
 			int *vmt = (int*)0x00871120;
 			int *getlink = vmt + (0xF0 / sizeof(vmt));
@@ -128,6 +171,7 @@ public:
 		{
 			if (vehicle->m_nVehicleSubClass != VEHICLE_HELI) // SilentPatch incompatibility with plugin-sdk...
 			{
+				curVehicle = vehicle;
 				ExtendedData &xdata = remInfo.Get(vehicle);
 
 				// Set custom seed
@@ -172,6 +216,7 @@ public:
 		{
 			if (vehicle->m_nVehicleSubClass != VEHICLE_HELI) // SilentPatch incompatibility with plugin-sdk...
 			{
+				curVehicle = vehicle;
 				ExtendedData &xdata = remInfo.Get(vehicle);
 				tHandlingData * handling;
 				bool bReSearch = false;
@@ -214,7 +259,7 @@ public:
 					if (xdata.nodesProcessInRender)
 					{
 						// Fix materials
-						FixMaterials(vehicle->m_pRwClump, true);
+						FixMaterials(vehicle->m_pRwClump);
 
 						// Post set
 						SetCharacteristicsInRender(vehicle, bReSearch);
@@ -389,6 +434,9 @@ public:
 					if (!xdata.fpeg2Frame.empty()) { ProcessFootpegs(vehicle, xdata.fpeg2Frame, 2); }
 				}
 
+				// Process popup lights
+				if (xdata.popupFrame[0]) { ProcessPopup(vehicle, &xdata); }
+
 				// Process body tilt
 				//if (xdata.bodyTilt > 0.0f) { ProcessBodyTilt(vehicle); }
 
@@ -396,6 +444,24 @@ public:
 				///////////////////////////////////////////////////////////////////////////////////////
 			}
         };
+
+		Events::vehicleRenderEvent.before += [](CVehicle *vehicle)
+		{
+			// Events::vehicleRenderEvent.after isn't working...
+			for (auto &p : resetMats)
+				*p.first = p.second;
+			resetMats.clear();
+
+			ExtendedData &xdata = remInfo.Get(vehicle);
+			if (xdata.taxiSignMaterial)
+			{
+				if (vehicle->m_nRenderLightsFlags > 0 && !vehicle->ms_forceVehicleLightsOff)
+				{
+					resetMats.push_back(std::make_pair(reinterpret_cast<unsigned int *>(&xdata.taxiSignMaterial->surfaceProps.ambient), *reinterpret_cast<unsigned int *>(&xdata.taxiSignMaterial->surfaceProps.ambient)));
+					xdata.taxiSignMaterial->surfaceProps.ambient = 10.0f;
+				}
+			}
+		};
 
 
 		// Flush log during unfocus (ie minimizing)
@@ -626,6 +692,23 @@ public:
 						}
 					}
 				}
+
+				// Popup lights
+				found = name.find("f_pop");
+				if (found != string::npos)
+				{
+					if (name[found + 5] == 'l') {
+						lg << "Popup lights: Found 'f_popl' \n";
+						xdata.popupFrame[0] = frame;
+					}
+					else
+					{
+						lg << "Popup lights: Found 'f_popr' \n";
+						xdata.popupFrame[1] = frame;
+					}
+					FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
+				}
+
 			}// end of "f_"
 
 			// Characteristics

@@ -114,6 +114,7 @@
     <ClCompile Include="MatrixBackup.cpp" />
     <ClCompile Include="Pedal.cpp" />
     <ClCompile Include="PerlinNoise\SimplexNoise.cpp" />
+    <ClCompile Include="PopupLights.cpp" />
     <ClCompile Include="RecursiveExtras.cpp" />
     <ClCompile Include="Shake.cpp" />
     <ClCompile Include="Utilities.cpp" />
@@ -138,6 +139,7 @@
     <ClInclude Include="MatrixBackup.h" />
     <ClInclude Include="Pedal.h" />
     <ClInclude Include="PerlinNoise\SimplexNoise.h" />
+    <ClInclude Include="PopupLights.h" />
     <ClInclude Include="RecursiveExtras.h" />
     <ClInclude Include="Shake.h" />
     <ClInclude Include="Utilities.h" />

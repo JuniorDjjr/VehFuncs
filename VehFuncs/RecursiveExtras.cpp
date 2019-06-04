@@ -57,8 +57,19 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 		int totalClass = 0;
 		while (tempNode) 
 		{
-			classNodes.push_back(tempNode);
 			const string tempNodeName = GetFrameNodeName(tempNode);
+			if (tempNodeName[0] == '!')
+			{
+				RwFrame *tempCharacFrame = tempNode->child;
+				while (tempCharacFrame)
+				{
+					FindVehicleCharacteristicsFromNode(tempCharacFrame, vehicle, bReSearch);
+					tempCharacFrame = tempCharacFrame->next;
+				}
+				tempNode = tempNode->next;
+				continue;
+			}
+			classNodes.push_back(tempNode);
 			found = tempNodeName.find("[");
 			if (found != string::npos) 
 			{

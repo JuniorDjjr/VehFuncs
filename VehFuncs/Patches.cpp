@@ -123,8 +123,7 @@ namespace Patches
 		WriteMemory<uint32_t>(0x006ACCCC, (uint32_t)UseCopLights, true);
 
 		// Normal cops
-		MakeNOP(0x006AB5BE, 8);
-		MakeInline<0x006AB5BE>([](reg_pack& regs)
+		MakeInline<0x006AB5BE, 0x006AB5BE+8>([](reg_pack& regs)
 		{
 			CVehicle *veh = (CVehicle*)regs.esi;
 			ExtendedData &xdata = remInfo.Get(veh);

@@ -64,6 +64,9 @@
     <ClCompile Include="PerlinNoise\SimplexNoise.cpp">
       <Filter>ThirtyParty</Filter>
     </ClCompile>
+    <ClCompile Include="PopupLights.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AtomicsVisibility.h">
@@ -131,6 +134,9 @@
     </ClInclude>
     <ClInclude Include="PerlinNoise\SimplexNoise.h">
       <Filter>ThirtyParty</Filter>
+    </ClInclude>
+    <ClInclude Include="PopupLights.h">
+      <Filter>Source</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

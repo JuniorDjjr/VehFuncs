@@ -82,6 +82,13 @@ public:
 	RwFrame * speedoDigits[3];
 	RpAtomic * speedoAtomics[10];
 
+	// Taxi sign material
+	RpMaterial *taxiSignMaterial;
+
+	// Popup lights
+	float popupProgress[2];
+	RwFrame * popupFrame[2];
+
 	// Flags
 	struct {
 		unsigned char bBusRender : 1;
@@ -146,7 +153,14 @@ public:
 		// Flags
 		flags.bBusRender = 0;
 
+		// Popup lights
+		popupProgress[0] = 0.0f;
+		popupProgress[1] = 0.0f;
+		popupFrame[0] = nullptr;
+		popupFrame[1] = nullptr;
+
 		hitchFrame = nullptr;
+		taxiSignMaterial = nullptr;
 	}
 
 	// ---- ReInit
@@ -163,7 +177,10 @@ public:
 		memset(speedoDigits, 0, sizeof(speedoDigits));
 		memset(speedoAtomics, 0, sizeof(speedoAtomics));
 
+		popupFrame[0] = nullptr;
+		popupFrame[1] = nullptr;
 		hitchFrame = nullptr;
+		taxiSignMaterial = nullptr;
 		gearFrame.clear();
 		fanFrame.clear();
 		shakeFrame.clear();

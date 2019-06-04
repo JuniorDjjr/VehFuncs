@@ -39,174 +39,179 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 
 	//lg << "Charac: Processing node: " << name << "\n";
 
-	if (!bReSearch)
+	found = name.find("="); // For performance
+	if (found != string::npos)
 	{
-		// Paintjob
-		found = name.find("_pj=");
-		if (found != string::npos)
+		if (!bReSearch)
 		{
-			int paintjob;
-			int digit1 = name[found + 4] - '0';
-
-			if (name[found + 5] == '-') {
-				int digit2 = name[found + 6] - '0';
-				paintjob = Random(digit1, digit2);
-				lg << "Charac: Found 'pj' (paintjob). Calculated from '-' result '" << paintjob << "' at '" << name << "'\n";
-			}
-			else
-			{
-				paintjob = digit1;
-				lg << "Charac: Found 'pj' (paintjob). Set '" << digit1 << "' at '" << name << "'\n";
-			}
-
-			ExtendedData &xdata = remInfo.Get(vehicle);
-			xdata.paintjob = paintjob;
-		}
-
-		// Colors
-		found = name.find("_cl=");
-		if (found != string::npos)
-		{
-			ExtendedData &xdata = remInfo.Get(vehicle);
-
-			int j = 0;
-			char s[32] = { 0 };
-			stringstream ss(&name[found + 4]);
-			while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  xdata.color[j] = num; j++; } catch (const exception &) { xdata.color[j] = -1; j++; } }
-
-			lg << "Charac: Found 'cl' (colors) " << xdata.color[0] << " " << xdata.color[1] << " " << xdata.color[2] << " " << xdata.color[3] << "\n";
-		}
-
-		// Driver
-		found = name.find("_drv=");
-		if (found != string::npos)
-		{
-			list<int> driverList;
-
-			char s[32] = { 0 };
-			stringstream ss(&name[found + 5]);
-			while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  driverList.push_back(num); } catch (const exception &) { break; } }
-
-			int rand = Random(0, (driverList.size() - 1));
-
-			list<int>::iterator it = driverList.begin();
-			advance(it, rand);
-			int driverModel = *it;
-
-			lg << "Charac: Found 'drv' (driver), selected '" << driverModel << "' at '" << name << "'\n";
-			ExtendedData &xdata = remInfo.Get(vehicle);
-			xdata.driverModel = driverModel;
-		}
-
-		// Occupants
-		found = name.find("_oc=");
-		if (found != string::npos)
-		{
-			ExtendedData &xdata = remInfo.Get(vehicle);
-
-			char s[32] = { 0 };
-			stringstream ss(&name[found + 4]);
-			while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  xdata.occupantsModels.push_back(num); } catch (const exception &) { break; } }
-
-			lg << "Charac: Found 'oc' (occupants), variations " << xdata.occupantsModels.size() << " at '" << name << "'\n";
-
-			found = name.find(".");
+			// Paintjob
+			found = name.find("_pj=");
 			if (found != string::npos)
 			{
-				xdata.passAddChance = name[found + 1] - '0';
+				int paintjob;
+				int digit1 = name[found + 4] - '0';
+
+				if (name[found + 5] == '-') {
+					int digit2 = name[found + 6] - '0';
+					paintjob = Random(digit1, digit2);
+					lg << "Charac: Found 'pj' (paintjob). Calculated from '-' result '" << paintjob << "' at '" << name << "'\n";
+				}
+				else
+				{
+					paintjob = digit1;
+					lg << "Charac: Found 'pj' (paintjob). Set '" << digit1 << "' at '" << name << "'\n";
+				}
+
+				ExtendedData &xdata = remInfo.Get(vehicle);
+				xdata.paintjob = paintjob;
 			}
-		}
 
-		// Patches: Bus render
-		found = name.find("_busrender");
-		if (found != string::npos)
-		{
-			lg << "Charac: Found 'busrender' (force bus render) at '" << name << "'\n";
-			ExtendedData &xdata = remInfo.Get(vehicle);
-			xdata.flags.bBusRender = true;
-		}
-
-		// MDPM custom chances
-		found = name.find("_mdpmnpc=");
-		if (found != string::npos)
-		{
-			int i = 9;
-			int num = stoi(&name[found + i]);
-
-			i++;
-			do {
-				i++;
-			} while (name[found + i] != ',');
-
-			i++;
-			float minVol = stof(&name[found + i]);
-			i++;
-
-			do {
-				i++;
-			} while (name[found + i] != '-');
-			i++;
-
-			float maxVol = stof(&name[found + i]);
-
-			lg << "MDPM: Found '_mdpmnpc' (MDPM NPC) chances '" << num << " vol " << minVol << "-" << maxVol << "'\n";
-			ExtendedData &xdata = remInfo.Get(vehicle);
-			xdata.mdpmCustomChances = num;
-			xdata.mdpmCustomMinVol = minVol;
-			xdata.mdpmCustomMaxVol = maxVol;
-		}
-
-		// Dirty (drt=5-9)
-		found = name.find("_drt=");
-		if (found != string::npos)
-		{
-			float fdigit1;
-			float fdigit2;
-			float dirtyLevel;
-
-			int digit1 = name[found + 5] - '0';
-
-			fdigit1 = digit1 * 1.6666f;
-
-			if (name[found + 6] == '-') 
+			// Colors
+			found = name.find("_cl=");
+			if (found != string::npos)
 			{
-				int digit2 = name[found + 7] - '0';
-				fdigit2 = digit2 * 1.6666f;
-				dirtyLevel = CGeneral::GetRandomNumberInRange(fdigit1, fdigit2);
-				lg << "Charac: Found 'drt' (dirty). Calculated from '-' result '" << dirtyLevel << "' at '" << name << "'\n";
-			}
-			else 
-			{
-				dirtyLevel = fdigit1;
-				lg << "Charac: Found 'drt' (dirty). Set '" << dirtyLevel << "' at '" << name << "'\n";
+				ExtendedData &xdata = remInfo.Get(vehicle);
+
+				int j = 0;
+				char s[32] = { 0 };
+				stringstream ss(&name[found + 4]);
+				while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  xdata.color[j] = num; j++; } catch (const exception &) { xdata.color[j] = -1; j++; } }
+
+				lg << "Charac: Found 'cl' (colors) " << xdata.color[0] << " " << xdata.color[1] << " " << xdata.color[2] << " " << xdata.color[3] << "\n";
 			}
 
-			ExtendedData &xdata = remInfo.Get(vehicle);
-			xdata.dirtyLevel = dirtyLevel;
+			// Driver
+			found = name.find("_drv=");
+			if (found != string::npos)
+			{
+				list<int> driverList;
+
+				char s[32] = { 0 };
+				stringstream ss(&name[found + 5]);
+				while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  driverList.push_back(num); } catch (const exception &) { break; } }
+
+				int rand = Random(0, (driverList.size() - 1));
+
+				list<int>::iterator it = driverList.begin();
+				advance(it, rand);
+				int driverModel = *it;
+
+				lg << "Charac: Found 'drv' (driver), selected '" << driverModel << "' at '" << name << "'\n";
+				ExtendedData &xdata = remInfo.Get(vehicle);
+				xdata.driverModel = driverModel;
+			}
+
+			// Occupants
+			found = name.find("_oc=");
+			if (found != string::npos)
+			{
+				ExtendedData &xdata = remInfo.Get(vehicle);
+
+				char s[32] = { 0 };
+				stringstream ss(&name[found + 4]);
+				while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  xdata.occupantsModels.push_back(num); } catch (const exception &) { break; } }
+
+				lg << "Charac: Found 'oc' (occupants), variations " << xdata.occupantsModels.size() << " at '" << name << "'\n";
+
+				found = name.find(".");
+				if (found != string::npos)
+				{
+					xdata.passAddChance = name[found + 1] - '0';
+				}
+			}
+
+			// MDPM custom chances
+			found = name.find("_mdpmnpc=");
+			if (found != string::npos)
+			{
+				int i = 9;
+				int num = stoi(&name[found + i]);
+
+				i++;
+				do {
+					i++;
+				} while (name[found + i] != ',');
+
+				i++;
+				float minVol = stof(&name[found + i]);
+				i++;
+
+				do {
+					i++;
+				} while (name[found + i] != '-');
+				i++;
+
+				float maxVol = stof(&name[found + i]);
+
+				lg << "MDPM: Found '_mdpmnpc' (MDPM NPC) chances '" << num << " vol " << minVol << "-" << maxVol << "'\n";
+				ExtendedData &xdata = remInfo.Get(vehicle);
+				xdata.mdpmCustomChances = num;
+				xdata.mdpmCustomMinVol = minVol;
+				xdata.mdpmCustomMaxVol = maxVol;
+			}
+
+			// Dirty (drt=5-9)
+			found = name.find("_drt=");
+			if (found != string::npos)
+			{
+				float fdigit1;
+				float fdigit2;
+				float dirtyLevel;
+
+				int digit1 = name[found + 5] - '0';
+
+				fdigit1 = digit1 * 1.6666f;
+
+				if (name[found + 6] == '-')
+				{
+					int digit2 = name[found + 7] - '0';
+					fdigit2 = digit2 * 1.6666f;
+					dirtyLevel = CGeneral::GetRandomNumberInRange(fdigit1, fdigit2);
+					lg << "Charac: Found 'drt' (dirty). Calculated from '-' result '" << dirtyLevel << "' at '" << name << "'\n";
+				}
+				else
+				{
+					dirtyLevel = fdigit1;
+					lg << "Charac: Found 'drt' (dirty). Set '" << dirtyLevel << "' at '" << name << "'\n";
+				}
+
+				ExtendedData &xdata = remInfo.Get(vehicle);
+				xdata.dirtyLevel = dirtyLevel;
+			}
 		}
+
+
+		// Double exhaust smoke
+		found = name.find("_dexh=");
+		if (found != string::npos)
+		{
+			lg << "Charac: Found 'dexh' (double exhaust) at '" << name << "'\n";
+			ExtendedData &xdata = remInfo.Get(vehicle);
+			int enable = name[found + 6] - '0';
+			if (enable) xdata.doubleExhaust = true;
+			else xdata.doubleExhaust = false;
+		}
+
+		// Body tilt (not finished)
+		/*found = name.find("_btilt=");
+		if (found != string::npos)
+		{
+			lg << "Charac: Found 'btilt' (body tilt) at '" << name << "'\n";
+			ExtendedData &xdata = remInfo.Get(vehicle);
+			xdata.bodyTilt = stof(&name[found + 7]);
+		}*/
+
 	}
 
 
-	// Double exhaust smoke
-	found = name.find("_dexh=");
-	if (found != string::npos) 
+	// Patches: Bus render
+	found = name.find("_busrender");
+	if (found != string::npos)
 	{
-		lg << "Charac: Found 'dexh' (double exhaust) at '" << name << "'\n";
+		lg << "Charac: Found 'busrender' (force bus render) at '" << name << "'\n";
 		ExtendedData &xdata = remInfo.Get(vehicle);
-		int enable = name[found + 6] - '0';
-		if (enable) xdata.doubleExhaust = true;
-		else xdata.doubleExhaust = false;
+		xdata.flags.bBusRender = true;
 	}
-
-	// Body tilt (not finished)
-	/*found = name.find("_btilt=");
-	if (found != string::npos) 
-	{
-		lg << "Charac: Found 'btilt' (body tilt) at '" << name << "'\n";
-		ExtendedData &xdata = remInfo.Get(vehicle);
-		xdata.bodyTilt = stof(&name[found + 7]);
-	}*/
-
 
 	return;
 }

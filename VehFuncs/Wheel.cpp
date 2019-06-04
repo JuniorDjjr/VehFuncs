@@ -50,10 +50,24 @@ void SetWheel(RwFrame * frame[6], CVehicle * vehicle)
 						}
 						if (wheelId)
 						{
-							lg << "Wheel: Copying wheel: " << wheelId << " \n";
-							RwFrame * wheelFrame = reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[wheelId];
-							CloneNode(frame[j]->child, vehicle->m_pRwClump, wheelFrame);
-							CVisibilityPlugins::SetFrameHierarchyId(frame[j]->child, wheelId);
+							RwFrame * wheelFrame;
+							if (subClass == 9 || subClass == 10) {
+								wheelFrame = CClumpModelInfo::GetFrameFromId(vehicle->m_pRwClump, wheelId);
+							}
+							else
+							{
+								wheelFrame = reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[wheelId]; // this doesn't work for bikes, idkw
+							}
+
+							if (wheelFrame) {
+								lg << "Wheel: Copying wheel: " << wheelId << " \n";
+								CloneNode(frame[j]->child, vehicle->m_pRwClump, wheelFrame);
+								CVisibilityPlugins::SetFrameHierarchyId(frame[j]->child, wheelId);
+							}
+							else
+							{
+								lg << "Wheel: ERROR: Unable to find wheel node for: " << wheelId << " \n";
+							}
 						}
 					}
 				}
