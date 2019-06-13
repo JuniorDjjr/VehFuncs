@@ -3,6 +3,9 @@
 #include "MatrixBackup.h"
 #include <time.h>
 
+// Mod funcs
+#include "Footpegs.h"
+
 using namespace plugin;
 using namespace std;
 using namespace injector;
@@ -20,12 +23,14 @@ struct FramePlugin
 	MatrixBackup * origMatrix;
 
 	// plugin interface
-	static RwFrame * Init(RwFrame *frame) {
+	static RwFrame * Init(RwFrame *frame)
+	{
 		FRAME_EXTENSION(frame)->origMatrix = nullptr;
 		return frame;
 	}
 
-	static RwFrame * Destroy(RwFrame *frame) {
+	static RwFrame * Destroy(RwFrame *frame)
+	{
 		if (FRAME_EXTENSION(frame)->origMatrix)
 		{
 			delete FRAME_EXTENSION(frame)->origMatrix;
@@ -33,7 +38,8 @@ struct FramePlugin
 		return frame;
 	}
 
-	static RwFrame * Copy(RwFrame *copy, RwFrame *frame) {
+	static RwFrame * Copy(RwFrame *copy, RwFrame *frame)
+	{
 		return copy;
 	}
 };
@@ -90,8 +96,10 @@ public:
 	RwFrame * popupFrame[2];
 
 	// Flags
-	struct {
+	struct
+	{
 		unsigned char bBusRender : 1;
+		unsigned char bUpgradesUpdated : 1;
 	} flags;
 
 	RwFrame * hitchFrame;
@@ -100,11 +108,13 @@ public:
 	list<RwFrame*> shakeFrame;
 	list<RwFrame*> gaspedalFrame;
 	list<RwFrame*> brakepedalFrame;
-	list<RwFrame*> fpeg1Frame;
-	list<RwFrame*> fpeg2Frame;
+	list<F_footpegs*> fpegFront;
+	list<F_footpegs*> fpegBack;
+	list<RwFrame*> spoilerFrames;
 	
 	// ---- Init
-	ExtendedData(CVehicle *vehicle) {
+	ExtendedData(CVehicle *vehicle)
+	{
 
 		// Process flags
 		nodesProcessed = false;
@@ -161,6 +171,16 @@ public:
 
 		hitchFrame = nullptr;
 		taxiSignMaterial = nullptr;
+
+		// Lists
+		gearFrame.clear();
+		fanFrame.clear();
+		shakeFrame.clear();
+		gaspedalFrame.clear();
+		brakepedalFrame.clear();
+		fpegFront.clear();
+		fpegBack.clear();
+		spoilerFrames.clear();
 	}
 
 	// ---- ReInit
@@ -181,13 +201,15 @@ public:
 		popupFrame[1] = nullptr;
 		hitchFrame = nullptr;
 		taxiSignMaterial = nullptr;
+
 		gearFrame.clear();
 		fanFrame.clear();
 		shakeFrame.clear();
 		gaspedalFrame.clear();
 		brakepedalFrame.clear();
-		fpeg1Frame.clear();
-		fpeg2Frame.clear();
+		fpegFront.clear();
+		fpegBack.clear();
+		spoilerFrames.clear();
 	}
 };
 

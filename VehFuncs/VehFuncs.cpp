@@ -44,7 +44,7 @@
 uintptr_t AtomicAlphaCallBack;
 VehicleExtendedData<ExtendedData> remInfo;
 fstream lg;
-bool fixIVF = true;
+bool fixIVFmats = false;
 CVehicle *curVehicle;
 static std::list<std::pair<unsigned int *, unsigned int>> resetMats;
 
@@ -80,20 +80,25 @@ public:
 			// -- Patches
 			lg << "Core: Applying Patches\n";
 
+
 			// Preprocess hierarchy don't remove frames
 			MakeJMP(0x004C8E30, CustomCollapseFramesCB);
+
 
 			// Preprocess hierarchy find damage atomics to apply damageable
 			MakeCALL(0x4C9173, Patches::FindDamage::CustomFindDamageAtomics, true);
 			WriteMemory<uint32_t>(0x4C916D + 1, memory_pointer(Patches::FindDamage::CustomFindDamageAtomicsCB).as_int(), true);
 
+
 			// Render bus driver
 			MakeNOP(0x0064BCB3, 6);
 			MakeCALL(0x0064BCB3, Patches::RenderBus);
 
+
 			// Cop functions
 			MakeJMP(0x006D2374, Patches::IsLawEnforcement);
 			Patches::PatchForCoplights();
+
 
 			// Popup lights
 			MakeInline<0x006E1CD4, 0x006E1CD4 + 6>([](reg_pack& regs)
@@ -136,14 +141,38 @@ public:
 				}
 			});
 
+
+			// Upgrade updated
+			MakeInline<0x006E32AB, 0x006E32AB + 8>([](reg_pack& regs)
+			{
+				*(uint32_t*)(regs.esp + 0x14) = -1; //mov     dword ptr [esp+14h], 0FFFFFFFFh
+
+				CVehicle *veh = (CVehicle *)regs.edi;
+				ExtendedData &xdata = remInfo.Get(veh);
+				xdata.flags.bUpgradesUpdated = true;
+			});
+
+			MakeInline<0x006DF96C, 0x006DF96C + 6>([](reg_pack& regs)
+			{
+				regs.eax = *(uint16_t*)(regs.esi + 0x12); //mov     ax, [esi+12h]
+				regs.esi = regs.eax; //mov     esi, eax
+
+				CVehicle *veh = (CVehicle *)regs.edi;
+				ExtendedData &xdata = remInfo.Get(veh);
+				xdata.flags.bUpgradesUpdated = true;
+			});
+
+
 			// Hitch patch
 			int *vmt = (int*)0x00871120;
 			int *getlink = vmt + (0xF0 / sizeof(vmt));
 			Patches::Hitch::setOriginalFun((Patches::Hitch::GetTowBarPos_t)ReadMemory<int*>(getlink, true));
 			WriteMemory(getlink, memory_pointer(Patches::Hitch::GetTowBarPosToHook).as_int(), true);
 
+
 			lg << "Core: Started\n";
 		};
+
 
 
 		// -- On plugins attach
@@ -153,15 +182,24 @@ public:
 		};
 
 
+
 		// -- On game process
-		Events::gameProcessEvent += []() 
+		Events::gameProcessEvent.before += []() 
 		{
-			static bool IVFunhooked = false;
-			if (!IVFunhooked) 
+			static bool IVFunhook = true;
+			if (IVFunhook)
 			{
-				WriteMemory(0x004C9148, (int)0x004C8E30, true); // unhook IVF collapse frames
-				lg << "Core: Unhook\n";
-				IVFunhooked = true;
+				if (ReadMemory<uint32_t>(0x004C9148, true) != 0x004C8E30)
+				{
+					lg << "Core: IVF installed\n";
+					WriteMemory(0x004C9148, (int)0x004C8E30, true); // unhook IVF collapse frames
+				}
+				else
+				{
+					lg << "Core: IVF not installed\n";
+					fixIVFmats = true;
+				}
+				IVFunhook = false;
 			}
 		};
 
@@ -211,9 +249,11 @@ public:
 		};
 
 
+
 		// On vehicle render
-        Events::vehicleRenderEvent += [](CVehicle *vehicle)
+        Events::vehicleRenderEvent.after += [](CVehicle *vehicle)
 		{
+			// Do stuff
 			if (vehicle->m_nVehicleSubClass != VEHICLE_HELI) // SilentPatch incompatibility with plugin-sdk...
 			{
 				curVehicle = vehicle;
@@ -430,12 +470,40 @@ public:
 				// Process footpegs
 				if (vehicle->m_nVehicleSubClass == VEHICLE_BIKE || vehicle->m_nVehicleSubClass == VEHICLE_BMX)
 				{
-					if (!xdata.fpeg1Frame.empty()) { ProcessFootpegs(vehicle, xdata.fpeg1Frame, 1); }
-					if (!xdata.fpeg2Frame.empty()) { ProcessFootpegs(vehicle, xdata.fpeg2Frame, 2); }
+					if (!xdata.fpegFront.empty()) { ProcessFootpegs(vehicle, xdata.fpegFront, 1); }
+					if (!xdata.fpegBack.empty()) { ProcessFootpegs(vehicle, xdata.fpegBack, 2); }
 				}
 
 				// Process popup lights
 				if (xdata.popupFrame[0]) { ProcessPopup(vehicle, &xdata); }
+
+				// Upgrades updated
+				if (xdata.flags.bUpgradesUpdated)
+				{
+					// Process hide spoiler for tuning
+					if (!xdata.spoilerFrames.empty())
+					{
+						bool visible;
+						if (vehicle->GetUpgrade(6) > 0) //spoiler upgrade
+							visible = false;
+						else
+							visible = true;
+
+						for (list<RwFrame*>::iterator it = xdata.spoilerFrames.begin(); it != xdata.spoilerFrames.end(); ++it)
+						{
+							RwFrame * frame = *it;
+							if (frame->object.parent)
+							{
+								SetFrameFirstAtomicVisibility(frame, visible);
+							}
+							else
+							{
+								xdata.spoilerFrames.remove(*it);
+							}
+						}
+					}
+					xdata.flags.bUpgradesUpdated = false;
+				}
 
 				// Process body tilt
 				//if (xdata.bodyTilt > 0.0f) { ProcessBodyTilt(vehicle); }
@@ -447,7 +515,7 @@ public:
 
 		Events::vehicleRenderEvent.before += [](CVehicle *vehicle)
 		{
-			// Events::vehicleRenderEvent.after isn't working...
+			// Reset - doesn't work on after, I don't know why...
 			for (auto &p : resetMats)
 				*p.first = p.second;
 			resetMats.clear();
@@ -455,14 +523,13 @@ public:
 			ExtendedData &xdata = remInfo.Get(vehicle);
 			if (xdata.taxiSignMaterial)
 			{
-				if (vehicle->m_nRenderLightsFlags > 0 && !vehicle->ms_forceVehicleLightsOff)
+				if (reinterpret_cast<CAutomobile*>(vehicle)->taxiAvaliable & 1)
 				{
 					resetMats.push_back(std::make_pair(reinterpret_cast<unsigned int *>(&xdata.taxiSignMaterial->surfaceProps.ambient), *reinterpret_cast<unsigned int *>(&xdata.taxiSignMaterial->surfaceProps.ambient)));
 					xdata.taxiSignMaterial->surfaceProps.ambient = 10.0f;
 				}
 			}
 		};
-
 
 		// Flush log during unfocus (ie minimizing)
 		Events::onPauseAllSounds += []
@@ -477,6 +544,7 @@ public:
 			if (reInit)
 			{
 				lg << "Core: Reinitializing game...\n";
+				lg.flush();
 				// ...?
 			}
 			else reInit = true;
@@ -626,14 +694,14 @@ public:
 					FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
 				}
 
-				if (vehicle->m_nVehicleSubClass == VEHICLE_BIKE || vehicle->m_nVehicleSubClass == VEHICLE_BMX) {
+				if (vehicle->m_nVehicleSubClass == VEHICLE_BIKE || vehicle->m_nVehicleSubClass == VEHICLE_BMX || vehicle->m_nVehicleSubClass == VEHICLE_QUAD) {
 
 					// footpeg driver
 					found = name.find("f_fpeg1");
 					if (found != string::npos) 
 					{
 						lg << "Footpegs: Found 'f_fpeg1' (footpeg driver) \n";
-						xdata.fpeg1Frame.push_back(frame);
+						xdata.fpegFront.push_back(new F_footpegs(frame));
 
 						FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
 					}
@@ -643,7 +711,7 @@ public:
 					if (found != string::npos) 
 					{
 						lg << "Footpegs: Found 'f_fpeg2' (footpeg passenger) \n";
-						xdata.fpeg2Frame.push_back(frame);
+						xdata.fpegBack.push_back(new F_footpegs(frame));
 
 						FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
 					}
@@ -707,6 +775,14 @@ public:
 						xdata.popupFrame[1] = frame;
 					}
 					FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
+				}
+
+				// Spoiler
+				found = name.find("f_spoiler");
+				if (found != string::npos)
+				{
+					lg << "Spoiler: Found 'f_spoiler' \n";
+					xdata.spoilerFrames.push_back(frame);
 				}
 
 			}// end of "f_"

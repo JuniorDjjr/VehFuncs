@@ -1,7 +1,7 @@
 #include "VehFuncsCommon.h"
 #include "FixMaterials.h"
 
-extern bool fixIVF;
+extern bool fixIVFmats;
 extern CVehicle *curVehicle;
 
 enum MatFuncType {
@@ -9,7 +9,7 @@ enum MatFuncType {
 	ivf,
 	taxi
 };
-MatFuncType CheckMaterials(RpMaterial * material);
+MatFuncType CheckMaterials(RpMaterial * material, RpAtomic * atomic);
 
 void FixMaterials(RpClump * clump) 
 {
@@ -22,10 +22,11 @@ RpMaterial *MaterialCallback(RpMaterial *material, void *data)
 {
 	ExtendedData &xdata = remInfo.Get(curVehicle);
 
-	switch (CheckMaterials(material))
+	switch (CheckMaterials(material, (RpAtomic *)data))
 	{
 	case ivf:
 		material->color.red = 0xFF; material->color.green = 0xFF; material->color.blue = 0xFF;
+		lg << "Found IVF material \n";
 		break;
 	case taxi:
 		xdata.taxiSignMaterial = material;
@@ -42,41 +43,46 @@ RpAtomic *AtomicCallback(RpAtomic *atomic, void *data)
 {
 	if (atomic->geometry) 
 	{
-		atomic->geometry->flags |= rpGEOMETRYMODULATEMATERIALCOLOR;
-		RpGeometryForAllMaterials(atomic->geometry, MaterialCallback, data);
+		RpGeometryForAllMaterials(atomic->geometry, MaterialCallback, atomic);
 	}
 	return atomic;
 }
 
-MatFuncType CheckMaterials(RpMaterial * material)
+MatFuncType CheckMaterials(RpMaterial * material, RpAtomic *atomic)
 {
-	// Fix Improved Vehicle Features material colors
-	if (fixIVF)
+	if (material->color.red != 255 || material->color.green != 255 || material->color.blue != 255)
 	{
-		if (material->color.red == 255)
+		atomic->geometry->flags |= rpGEOMETRYMODULATEMATERIALCOLOR;
+
+		// Fix Improved Vehicle Features material colors
+		// We are not fixing emergency lights here, at least for now, because need more conditions and that case is not important (like, the color is red)
+		if (fixIVFmats)
 		{
-			if (material->color.blue == 0)
+			if (material->color.red == 255)
 			{
-				if (material->color.green >= 173 && material->color.green <= 175) return ivf;
-				if (material->color.green >= 56 && material->color.green <= 60) return ivf;
+				if (material->color.blue == 0)
+				{
+					if (material->color.green >= 173 && material->color.green <= 174) return ivf;
+					if (material->color.green >= 56 && material->color.green <= 59) return ivf;
+				}
 			}
-		}
-		else if (material->color.green == 255)
-		{
-			if (material->color.blue == 0)
+			else if (material->color.green == 255)
 			{
-				if (material->color.red >= 181 && material->color.red <= 185) return ivf;
+				if (material->color.blue == 0)
+				{
+					if (material->color.red >= 181 && material->color.red <= 184) return ivf;
+				}
+				if (material->color.red == 0)
+				{
+					if (material->color.blue >= 198 && material->color.blue <= 199) return ivf;
+				}
 			}
-			if (material->color.red == 0)
+			else if (material->color.blue == 255)
 			{
-				if (material->color.blue >= 198 && material->color.blue <= 200) return ivf;
-			}
-		}
-		else if (material->color.blue == 255)
-		{
-			if (material->color.red == 0)
-			{
-				if (material->color.green >= 16 && material->color.green <= 18) return ivf;
+				if (material->color.red == 0)
+				{
+					if (material->color.green >= 16 && material->color.green <= 18) return ivf;
+				}
 			}
 		}
 	}
