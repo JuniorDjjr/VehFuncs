@@ -22,7 +22,6 @@ void ProcessPopup(CVehicle *vehicle, ExtendedData *xdata)
 				//f_popr=ax45z10s2
 				const string name = GetFrameNodeName(frame);
 
-
 				// Get values (we always need it)
 				if (name[6] == '=')
 				{
@@ -101,11 +100,11 @@ void ProcessPopup(CVehicle *vehicle, ExtendedData *xdata)
 
 
 				// Up or down
-				if (lightsOn) 
+				if (lightsOn)
 					xdata->popupProgress[i] += speed;
 				else
 					xdata->popupProgress[i] -= speed;
-				
+
 
 				// Update progress and move it
 				RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);

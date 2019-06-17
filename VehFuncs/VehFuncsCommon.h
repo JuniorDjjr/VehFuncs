@@ -5,6 +5,7 @@
 
 // Mod funcs
 #include "Footpegs.h"
+#include "Anims.h"
 
 using namespace plugin;
 using namespace std;
@@ -99,9 +100,12 @@ public:
 	struct
 	{
 		unsigned char bBusRender : 1;
+		unsigned char bDamageUpdated : 1;
 		unsigned char bUpgradesUpdated : 1;
+		unsigned char bPreservePaintjobColor : 1;
 	} flags;
 
+	RwFrame *triforkFrame;
 	RwFrame * hitchFrame;
 	list<RwFrame*> gearFrame;
 	list<RwFrame*> fanFrame;
@@ -111,6 +115,7 @@ public:
 	list<F_footpegs*> fpegFront;
 	list<F_footpegs*> fpegBack;
 	list<RwFrame*> spoilerFrames;
+	list<F_an*> anims;
 	
 	// ---- Init
 	ExtendedData(CVehicle *vehicle)
@@ -168,6 +173,7 @@ public:
 		popupProgress[1] = 0.0f;
 		popupFrame[0] = nullptr;
 		popupFrame[1] = nullptr;
+		triforkFrame = nullptr;
 
 		hitchFrame = nullptr;
 		taxiSignMaterial = nullptr;
@@ -181,6 +187,7 @@ public:
 		fpegFront.clear();
 		fpegBack.clear();
 		spoilerFrames.clear();
+		anims.clear();
 	}
 
 	// ---- ReInit
@@ -201,6 +208,7 @@ public:
 		popupFrame[1] = nullptr;
 		hitchFrame = nullptr;
 		taxiSignMaterial = nullptr;
+		triforkFrame = nullptr;
 
 		gearFrame.clear();
 		fanFrame.clear();
@@ -210,10 +218,10 @@ public:
 		fpegFront.clear();
 		fpegBack.clear();
 		spoilerFrames.clear();
+		anims.clear();
 	}
 };
 
-extern VehicleExtendedData<ExtendedData> &fun();
 extern fstream &logfile();
 extern list<string> &getClassList();
 extern VehicleExtendedData<ExtendedData> remInfo;

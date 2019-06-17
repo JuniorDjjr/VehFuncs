@@ -24,13 +24,45 @@ RpMaterial *MaterialCallback(RpMaterial *material, void *data)
 
 	switch (CheckMaterials(material, (RpAtomic *)data))
 	{
-	case ivf:
-		material->color.red = 0xFF; material->color.green = 0xFF; material->color.blue = 0xFF;
+	case MatFuncType::ivf:
+		/*if (material->texture)
+		{
+			string name = material->texture->name;
+			if (name[15] == '8')
+			{
+				if (name.length() == 16)
+				{
+					size_t found = name.find("vehiclelights128");
+					if (found != string::npos)
+					{
+						lg << "Not valid IVF material \n";
+						break;
+					}
+				}
+			}
+			else
+			{
+				if (name[15] == 'n')
+				{
+					if (name.length() == 18)
+					{
+						size_t found = name.find("vehiclelightson128");
+						if (found != string::npos)
+						{
+							lg << "Not valid on IVF material \n";
+							break;
+						}
+					}
+				}
+			}
+			break;
+		}*/
 		lg << "Found IVF material \n";
+		material->color.red = 0xFF; material->color.green = 0xFF; material->color.blue = 0xFF;
 		break;
-	case taxi:
+	case MatFuncType::taxi:
 		xdata.taxiSignMaterial = material;
-		lg << "Taxi: Found sign material \n";
+		//lg << "Taxi: Found sign material \n";
 		break;
 	default:
 		break;
@@ -52,8 +84,6 @@ MatFuncType CheckMaterials(RpMaterial * material, RpAtomic *atomic)
 {
 	if (material->color.red != 255 || material->color.green != 255 || material->color.blue != 255)
 	{
-		atomic->geometry->flags |= rpGEOMETRYMODULATEMATERIALCOLOR;
-
 		// Fix Improved Vehicle Features material colors
 		// We are not fixing emergency lights here, at least for now, because need more conditions and that case is not important (like, the color is red)
 		if (fixIVFmats)
@@ -62,29 +92,30 @@ MatFuncType CheckMaterials(RpMaterial * material, RpAtomic *atomic)
 			{
 				if (material->color.blue == 0)
 				{
-					if (material->color.green >= 173 && material->color.green <= 174) return ivf;
-					if (material->color.green >= 56 && material->color.green <= 59) return ivf;
+					if (material->color.green >= 173 && material->color.green <= 175) return MatFuncType::ivf;
+					if (material->color.green >= 56 && material->color.green <= 60) return MatFuncType::ivf;
 				}
 			}
 			else if (material->color.green == 255)
 			{
 				if (material->color.blue == 0)
 				{
-					if (material->color.red >= 181 && material->color.red <= 184) return ivf;
+					if (material->color.red >= 181 && material->color.red <= 185) return MatFuncType::ivf;
 				}
 				if (material->color.red == 0)
 				{
-					if (material->color.blue >= 198 && material->color.blue <= 199) return ivf;
+					if (material->color.blue >= 198 && material->color.blue <= 200) return MatFuncType::ivf;
 				}
 			}
 			else if (material->color.blue == 255)
 			{
 				if (material->color.red == 0)
 				{
-					if (material->color.green >= 16 && material->color.green <= 18) return ivf;
+					if (material->color.green >= 16 && material->color.green <= 18) return MatFuncType::ivf;
 				}
 			}
 		}
+		atomic->geometry->flags |= rpGEOMETRYMODULATEMATERIALCOLOR;
 	}
 
 	if (material->texture)
@@ -99,10 +130,10 @@ MatFuncType CheckMaterials(RpMaterial * material, RpAtomic *atomic)
 			found = texName.find("92sign64");
 			if (found != string::npos)
 			{
-				return taxi;
+				return MatFuncType::taxi;
 			}
 		}
 	}
 
-	return nothing;
+	return MatFuncType::nothing;
 }

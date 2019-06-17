@@ -19,7 +19,7 @@ void ProcessShake(CVehicle *vehicle, list<RwFrame*> frames)
 		{
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
 
-			if (vehicle->m_nFlags.bEngineOn && !vehicle->m_nFlags.bEngineBroken)
+			if (vehicle->m_nFlags.bEngineOn && vehicle->m_fHealth > 0 && !vehicle->m_nFlags.bEngineBroken && !vehicle->m_nFlags.bIsDrowning)
 			{
 				// Get noise
 				float noise = SimplexNoise::noise(xdata.dotLife);

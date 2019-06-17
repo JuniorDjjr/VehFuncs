@@ -12,7 +12,7 @@ void ProcessPedal(CVehicle *vehicle, list<RwFrame*> frames, int mode)
 		{
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
 
-			if (vehicle->m_nFlags.bEngineOn && !vehicle->m_nFlags.bEngineBroken)
+			if (vehicle->m_nFlags.bEngineOn && vehicle->m_fHealth > 0 && !vehicle->m_nFlags.bEngineBroken && !vehicle->m_nFlags.bIsDrowning)
 			{
 				ExtendedData &xdata = remInfo.Get(vehicle);
 

@@ -4,7 +4,7 @@
 #include "MatrixBackup.h"
 #include "Footpegs.h"
 
-const float DEFAULT_SPEED = 0.02f;
+const float DEFAULT_SPEED = 0.01f;
 
 void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> items, int mode)
 {
@@ -171,8 +171,8 @@ void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> items, int mode)
 					RwFrameTranslate(frame, &vec, rwCOMBINEPRECONCAT);
 				}
 				if (ax != 0) RwFrameRotate(frame, (RwV3d *)0x008D2E00, (0.0f + progress * ax), rwCOMBINEPRECONCAT);
-				if (ax != 0) RwFrameRotate(frame, (RwV3d *)0x008D2E0C, (0.0f + progress * ay), rwCOMBINEPRECONCAT);
-				if (ax != 0) RwFrameRotate(frame, (RwV3d *)0x008D2E18, (0.0f + progress * az), rwCOMBINEPRECONCAT);
+				if (ay != 0) RwFrameRotate(frame, (RwV3d *)0x008D2E0C, (0.0f + progress * ay), rwCOMBINEPRECONCAT);
+				if (az != 0) RwFrameRotate(frame, (RwV3d *)0x008D2E18, (0.0f + progress * az), rwCOMBINEPRECONCAT);
 			}
 			RwFrameUpdateObjects(frame);
 		}

@@ -9,7 +9,8 @@
 #include "IndieVehHandlingsAPI.h"
 #include "CustomSeed.h"
 #include "Matrixbackup.h"
-  
+#include "CheckRepair.h"
+
 // Mod funcs
 #include "Patches.h"
 #include "FixMaterials.h"
@@ -21,6 +22,9 @@
 #include "Pedal.h"
 #include "Footpegs.h"
 #include "PopupLights.h"
+#include "Trifork.h"
+#include "Spoiler.h"
+#include "Anims.h"
  
 // Dependences
 #include "../injector/assembly.hpp"
@@ -44,7 +48,7 @@
 uintptr_t AtomicAlphaCallBack;
 VehicleExtendedData<ExtendedData> remInfo;
 fstream lg;
-bool fixIVFmats = false;
+bool fixIVFmats, bFirstFrame = false;
 CVehicle *curVehicle;
 static std::list<std::pair<unsigned int *, unsigned int>> resetMats;
 
@@ -73,6 +77,7 @@ public:
 			srand(time(0));
 			StoreHandlingData();
 			ApplyGSX();
+			ApplyCheckRepair();
 			
 			AtomicAlphaCallBack = ReadMemory<int>(0x4C7842, false);
 
@@ -186,8 +191,7 @@ public:
 		// -- On game process
 		Events::gameProcessEvent.before += []() 
 		{
-			static bool IVFunhook = true;
-			if (IVFunhook)
+			if (!bFirstFrame)
 			{
 				if (ReadMemory<uint32_t>(0x004C9148, true) != 0x004C8E30)
 				{
@@ -199,7 +203,7 @@ public:
 					lg << "Core: IVF not installed\n";
 					fixIVFmats = true;
 				}
-				IVFunhook = false;
+				bFirstFrame = true;
 			}
 		};
 
@@ -298,9 +302,6 @@ public:
 					// Post set
 					if (xdata.nodesProcessInRender)
 					{
-						// Fix materials
-						FixMaterials(vehicle->m_pRwClump);
-
 						// Post set
 						SetCharacteristicsInRender(vehicle, bReSearch);
 
@@ -450,72 +451,56 @@ public:
 
 				///////////////////////////////////////////////////////////////////////////////////////
 
-				if (vehicle->m_nFlags.bEngineOn && !vehicle->m_nFlags.bEngineBroken)
+				if (vehicle->m_nFlags.bEngineOn)
 				{
 					// Process gear
-					if (!xdata.gearFrame.empty()) { ProcessRotatePart(vehicle, xdata.gearFrame, true); }
+					if (!xdata.gearFrame.empty()) ProcessRotatePart(vehicle, xdata.gearFrame, true);
 
 					// Process fan
-					if (!xdata.fanFrame.empty()) { ProcessRotatePart(vehicle, xdata.fanFrame, false); }
+					if (!xdata.fanFrame.empty()) ProcessRotatePart(vehicle, xdata.fanFrame, false);
 				}
 				// Process shake
-				if (!xdata.shakeFrame.empty()) { ProcessShake(vehicle, xdata.shakeFrame); }
+				if (!xdata.shakeFrame.empty()) ProcessShake(vehicle, xdata.shakeFrame);
 
 				// Process gas pedal
-				if (!xdata.gaspedalFrame.empty()) { ProcessPedal(vehicle, xdata.gaspedalFrame, 1); }
+				if (!xdata.gaspedalFrame.empty()) ProcessPedal(vehicle, xdata.gaspedalFrame, 1);
 
 				// Process brake pedal
-				if (!xdata.brakepedalFrame.empty()) { ProcessPedal(vehicle, xdata.brakepedalFrame, 2); }
+				if (!xdata.brakepedalFrame.empty()) ProcessPedal(vehicle, xdata.brakepedalFrame, 2);
+
+				if (vehicle->m_fHealth > 0 && !vehicle->m_nFlags.bEngineBroken && !vehicle->m_nFlags.bIsDrowning)
+				{
+					// Process anims
+					if (!xdata.anims.empty()) ProcessAnims(vehicle, xdata.anims);
+
+					// Process popup lights
+					if (xdata.popupFrame[0]) ProcessPopup(vehicle, &xdata);
+				}
+
+				// Process trifork
+				if (xdata.triforkFrame) ProcessTrifork(vehicle, xdata.triforkFrame);
 
 				// Process footpegs
 				if (vehicle->m_nVehicleSubClass == VEHICLE_BIKE || vehicle->m_nVehicleSubClass == VEHICLE_BMX)
 				{
-					if (!xdata.fpegFront.empty()) { ProcessFootpegs(vehicle, xdata.fpegFront, 1); }
-					if (!xdata.fpegBack.empty()) { ProcessFootpegs(vehicle, xdata.fpegBack, 2); }
+					if (!xdata.fpegFront.empty()) ProcessFootpegs(vehicle, xdata.fpegFront, 1);
+					if (!xdata.fpegBack.empty()) ProcessFootpegs(vehicle, xdata.fpegBack, 2);
 				}
 
-				// Process popup lights
-				if (xdata.popupFrame[0]) { ProcessPopup(vehicle, &xdata); }
-
-				// Upgrades updated
-				if (xdata.flags.bUpgradesUpdated)
+				if (xdata.flags.bUpgradesUpdated || xdata.flags.bDamageUpdated)
 				{
-					// Process hide spoiler for tuning
-					if (!xdata.spoilerFrames.empty())
-					{
-						bool visible;
-						if (vehicle->GetUpgrade(6) > 0) //spoiler upgrade
-							visible = false;
-						else
-							visible = true;
-
-						for (list<RwFrame*>::iterator it = xdata.spoilerFrames.begin(); it != xdata.spoilerFrames.end(); ++it)
-						{
-							RwFrame * frame = *it;
-							if (frame->object.parent)
-							{
-								SetFrameFirstAtomicVisibility(frame, visible);
-							}
-							else
-							{
-								xdata.spoilerFrames.remove(*it);
-							}
-						}
-					}
-					xdata.flags.bUpgradesUpdated = false;
+					ProcessSpoiler(vehicle, xdata.spoilerFrames, true);
 				}
-
-				// Process body tilt
-				//if (xdata.bodyTilt > 0.0f) { ProcessBodyTilt(vehicle); }
-
 
 				///////////////////////////////////////////////////////////////////////////////////////
+				xdata.flags.bDamageUpdated = false;
+				xdata.flags.bUpgradesUpdated = false;
 			}
         };
 
 		Events::vehicleRenderEvent.before += [](CVehicle *vehicle)
 		{
-			// Reset - doesn't work on after, I don't know why...
+			// Reset - doesn't work on .after, I don't know why...
 			for (auto &p : resetMats)
 				*p.first = p.second;
 			resetMats.clear();
@@ -529,6 +514,20 @@ public:
 					xdata.taxiSignMaterial->surfaceProps.ambient = 10.0f;
 				}
 			}
+
+			// Post set, before render
+			if (xdata.nodesProcessInRender)
+			{
+				// Fix materials
+				FixMaterials(vehicle->m_pRwClump);
+			}
+
+			if (xdata.flags.bUpgradesUpdated || xdata.flags.bDamageUpdated)
+			{
+				ProcessSpoiler(vehicle, xdata.spoilerFrames, false);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
 		};
 
 		// Flush log during unfocus (ie minimizing)
@@ -610,9 +609,9 @@ public:
 								}
 								lg << "\n";
 
-								lg << "Extras: --- Starting process --- \n";
+								lg << "Extras: --- Starting - veh ID " << vehicle->m_nModelIndex << "\n";
 								ProcessExtraRecursive(frame, vehicle);
-								lg << "Extras: --- Ending process --- \n";
+								lg << "Extras: --- Ending \n";
 							}
 							else lg << "Extras: (error) 'f_extras' has no childs \n";
 						}
@@ -694,8 +693,129 @@ public:
 					FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
 				}
 
-				if (vehicle->m_nVehicleSubClass == VEHICLE_BIKE || vehicle->m_nVehicleSubClass == VEHICLE_BMX || vehicle->m_nVehicleSubClass == VEHICLE_QUAD) {
+				found = name.find("f_an"); //f_an1a=
+				if (found != string::npos)
+				{
+					if (name[6] == '=')
+					{
+						int mode = stoi(&name[4]);
+						int submode = (name[5] - 'a');
 
+						switch (mode)
+						{
+						case 0:
+							lg << "Anims: Found 'f_an" << mode << "': ping pong \n";
+							break;
+						case 1:
+							switch (submode)
+							{
+							case 0:
+								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off \n";
+								break;
+							case 1:
+								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off or alarm on \n";
+								break;
+							default:
+								lg << "Anims: Found 'f_an" << mode << " ERROR: submode not found \n";
+								submode = -1;
+								break;
+							}
+							break;
+						case 2:
+							switch (submode)
+							{
+							case 0:
+								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": driver \n";
+								break;
+							case 1:
+								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 1 \n";
+								break;
+							case 2:
+								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 2 \n";
+								break;
+							case 3:
+								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 3 \n";
+								break;
+							default:
+								lg << "Anims: Found 'f_an" << mode << " ERROR: submode not found \n";
+								submode = -1;
+								break;
+							}
+							break;
+						case 3:
+							switch (submode)
+							{
+							case 0:
+								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed \n";
+								break;
+							case 1:
+								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed and f_spoiler \n";
+								xdata.spoilerFrames.push_back(frame);
+								break;
+							default:
+								lg << "Anims: Found 'f_an" << mode << " ERROR: submode not found \n";
+								submode = -1;
+								break;
+							}
+							break;
+						case 4:
+							switch (submode)
+							{
+							case 0:
+								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": brake \n";
+								break;
+							case 1:
+								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed brake \n";
+								break;
+							case 2:
+								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed brake and f_spoiler \n";
+								xdata.spoilerFrames.push_back(frame);
+								break;
+							default:
+								lg << "Anims: Found 'f_an" << mode << " ERROR: submode not found \n";
+								submode = -1;
+								break;
+							}
+							break;
+						default:
+							lg << "Anims: Found 'f_an' ERROR: mode not found \n";
+							mode = -1;
+							break;
+						}
+
+						if (mode >= 0 && submode >= 0)
+						{
+							F_an *an = new F_an(frame);
+							an->mode = mode;
+							an->submode = submode;
+
+							xdata.anims.push_back(an);
+							FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
+						}
+					}
+				}
+
+				//if (vehicle->m_nVehicleSubClass == VEHICLE_QUAD) // Quadbike on SetModelEvent is 0, idkw
+				//{
+					// tricycle fork
+					found = name.find("f_trifork");
+					if (found != string::npos)
+					{
+						lg << "Trifork: Found 'f_trifork' \n";
+						xdata.triforkFrame = frame;
+
+						//if (!frame->child)
+						//{
+							RwFrame *wheelFrame = CClumpModelInfo::GetFrameFromId(vehicle->m_pRwClump, 5);
+							RwFrameAddChild(frame->child, wheelFrame->child);
+						//}
+
+						FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
+					}
+				//}
+
+				if (vehicle->m_nVehicleSubClass == VEHICLE_BIKE || vehicle->m_nVehicleSubClass == VEHICLE_BMX || vehicle->m_nVehicleSubClass == VEHICLE_QUAD)
+				{
 					// footpeg driver
 					found = name.find("f_fpeg1");
 					if (found != string::npos) 

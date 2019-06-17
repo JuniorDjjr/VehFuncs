@@ -98,9 +98,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Anims.cpp" />
     <ClCompile Include="ApplyGSX.cpp" />
     <ClCompile Include="AtomicsVisibility.cpp" />
     <ClCompile Include="Characteristics.cpp" />
+    <ClCompile Include="CheckRepair.cpp" />
     <ClCompile Include="CustomSeed.cpp" />
     <ClCompile Include="DigitalSpeedo.cpp" />
     <ClCompile Include="FixMaterials.cpp" />
@@ -108,6 +110,7 @@
     <ClCompile Include="GearAndFan.cpp" />
     <ClCompile Include="GSXAPI.cpp" />
     <ClCompile Include="HandsFix.cpp" />
+    <ClCompile Include="Trifork.cpp" />
     <ClCompile Include="LoadModel.cpp" />
     <ClCompile Include="Patches.cpp" />
     <ClCompile Include="IndieVehHandlingsAPI.cpp" />
@@ -117,14 +120,17 @@
     <ClCompile Include="PopupLights.cpp" />
     <ClCompile Include="RecursiveExtras.cpp" />
     <ClCompile Include="Shake.cpp" />
+    <ClCompile Include="Spoiler.cpp" />
     <ClCompile Include="Utilities.cpp" />
     <ClCompile Include="VehFuncs.cpp" />
     <ClCompile Include="Wheel.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Anims.h" />
     <ClInclude Include="ApplyGSX.h" />
     <ClInclude Include="AtomicsVisibility.h" />
     <ClInclude Include="Characteristics.h" />
+    <ClInclude Include="CheckRepair.h" />
     <ClInclude Include="CStoredCar.h" />
     <ClInclude Include="CustomSeed.h" />
     <ClInclude Include="DigitalSpeedo.h" />
@@ -132,6 +138,8 @@
     <ClInclude Include="Footpegs.h" />
     <ClInclude Include="GearAndFan.h" />
     <ClInclude Include="GSXAPI.h" />
+    <ClInclude Include="Trifork.h" />
+    <ClInclude Include="injectorAddons\injectorAddons.hpp" />
     <ClInclude Include="LoadModel.h" />
     <ClInclude Include="Patches.h" />
     <ClInclude Include="IndieVehHandlingsAPI.h" />
@@ -142,6 +150,7 @@
     <ClInclude Include="PopupLights.h" />
     <ClInclude Include="RecursiveExtras.h" />
     <ClInclude Include="Shake.h" />
+    <ClInclude Include="Spoiler.h" />
     <ClInclude Include="Utilities.h" />
     <ClInclude Include="VehFuncs.h" />
     <ClInclude Include="VehFuncsCommon.h" />

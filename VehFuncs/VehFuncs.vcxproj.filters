@@ -67,6 +67,18 @@
     <ClCompile Include="PopupLights.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="CheckRepair.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Spoiler.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Trifork.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Anims.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AtomicsVisibility.h">
@@ -138,6 +150,21 @@
     <ClInclude Include="PopupLights.h">
       <Filter>Source</Filter>
     </ClInclude>
+    <ClInclude Include="CheckRepair.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="injectorAddons\injectorAddons.hpp">
+      <Filter>Injector</Filter>
+    </ClInclude>
+    <ClInclude Include="Spoiler.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Trifork.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Anims.h">
+      <Filter>Source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">
@@ -148,6 +175,9 @@
     </Filter>
     <Filter Include="ThirtyParty">
       <UniqueIdentifier>{bb2fb479-6fa9-464c-bbd7-e89a5248244e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Injector">
+      <UniqueIdentifier>{b2c2a417-da15-477d-be92-3c28e89a21a8}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

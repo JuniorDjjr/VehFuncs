@@ -49,21 +49,26 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 			if (found != string::npos)
 			{
 				int paintjob;
+				bool preserveColor = false;
 				int digit1 = name[found + 4] - '0';
 
-				if (name[found + 5] == '-') {
+				if (name[found + 5] == '-')
+				{
 					int digit2 = name[found + 6] - '0';
 					paintjob = Random(digit1, digit2);
 					lg << "Charac: Found 'pj' (paintjob). Calculated from '-' result '" << paintjob << "' at '" << name << "'\n";
+					if (name[found + 7] == 'c') preserveColor = true;
 				}
 				else
 				{
+					if (name[found + 5] == 'c') preserveColor = true;
 					paintjob = digit1;
 					lg << "Charac: Found 'pj' (paintjob). Set '" << digit1 << "' at '" << name << "'\n";
 				}
 
 				ExtendedData &xdata = remInfo.Get(vehicle);
 				xdata.paintjob = paintjob;
+				xdata.flags.bPreservePaintjobColor = preserveColor;
 			}
 
 			// Colors
@@ -260,9 +265,9 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 		// Paintjob
 		if (xdata.paintjob >= 0) 
 		{
-			lg << "Charac: Applying paintjob: " << (int)xdata.paintjob << "\n";
+			lg << "Charac: Applying paintjob: " << (int)xdata.paintjob << " keep color " << (bool)xdata.flags.bPreservePaintjobColor << "\n";
 			vehicle->SetRemap(xdata.paintjob-1);
-			vehicle->m_nPrimaryColor = 1;
+			if (!xdata.flags.bPreservePaintjobColor) vehicle->m_nPrimaryColor = 1;
 		}
 
 		// Dirty
