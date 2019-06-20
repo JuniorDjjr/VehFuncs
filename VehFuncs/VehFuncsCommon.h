@@ -32,7 +32,7 @@ struct FramePlugin
 
 	static RwFrame * Destroy(RwFrame *frame)
 	{
-		if (FRAME_EXTENSION(frame)->origMatrix)
+		if (FRAME_EXTENSION(frame)->origMatrix != nullptr)
 		{
 			delete FRAME_EXTENSION(frame)->origMatrix;
 		}
@@ -49,8 +49,8 @@ class ExtendedData {
 public:
 
 	// Process flags
-	bool nodesProcessed;
-	bool nodesProcessedSecFrame;
+	bool nodesProcess;
+	bool nodesProcessForIndieHandling;
 	bool nodesProcessInRender;
 
 	// Management
@@ -120,11 +120,9 @@ public:
 	// ---- Init
 	ExtendedData(CVehicle *vehicle)
 	{
-
 		// Process flags
-		nodesProcessed = false;
-		nodesProcessedSecFrame = false;
-		nodesProcessInRender = true;
+		nodesProcess = true;
+		nodesProcessForIndieHandling = true;
 
 		// Management
 		randomSeed = rand();

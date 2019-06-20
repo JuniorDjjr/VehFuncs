@@ -14,4 +14,4 @@ struct MatrixBackup
 
 void RestoreMatrixBackup(RwMatrix* dest, MatrixBackup* backup);
 
-MatrixBackup* CreateMatrixBackup(RwMatrix* origin);
+bool CreateMatrixBackup(RwFrame* frame);

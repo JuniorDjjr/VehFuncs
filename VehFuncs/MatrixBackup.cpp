@@ -1,9 +1,10 @@
 #include "Matrixbackup.h"
+#include "VehFuncsCommon.h"
 extern std::fstream lg;
 
 void RestoreMatrixBackup(RwMatrix* dest, MatrixBackup* backup)
 {
-	if (backup) 
+	if (backup != nullptr) 
 	{
 		dest->at.x = backup->at.x;
 		dest->at.y = backup->at.y;
@@ -31,11 +32,12 @@ void RestoreMatrixBackup(RwMatrix* dest, MatrixBackup* backup)
 	return;
 }
 
-MatrixBackup* CreateMatrixBackup(RwMatrix* origin) 
+bool CreateMatrixBackup(RwFrame* frame) 
 {
 	MatrixBackup *backup = new MatrixBackup();
 	if (backup)
 	{
+		RwMatrix* origin = &frame->modelling;
 		backup->at.x = origin->at.x;
 		backup->at.y = origin->at.y;
 		backup->at.z = origin->at.z;
@@ -52,13 +54,15 @@ MatrixBackup* CreateMatrixBackup(RwMatrix* origin)
 		backup->up.y = origin->up.y;
 		backup->up.z = origin->up.z;
 
-		return backup;
+		FRAME_EXTENSION(frame)->origMatrix = backup;
+		return true;
 	}
 	else
 	{
 		lg << "Error: Unable to init new matrix backup A\n";
 		lg.flush();
-		return nullptr;
+		FRAME_EXTENSION(frame)->origMatrix = nullptr;
+		return false;
 	}
 }
 

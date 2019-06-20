@@ -14,24 +14,6 @@
 
 ///////////////////////////////////////////// Find Vehicle Characteristics
 
-int Characteristics_GetPassengerFromName(const string name, size_t found)
-{
-	list<int> passList;
-
-	char s[32] = { 0 };
-	stringstream ss(&name[found + 5]);
-	while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  passList.push_back(num); } catch (const exception &) { break; } }
-
-	int rand = Random(0, (passList.size() - 1));
-
-	list<int>::iterator it = passList.begin();
-	advance(it, rand);
-	int passModel = *it;
-
-	lg << "Charac: Found 'pg#' (passenger), selected '" << passModel << "' at '" << name << "'\n";
-	return passModel;
-}
-
 void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, bool bReSearch) 
 {
 	const string name = GetFrameNodeName(frame);
@@ -52,9 +34,15 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				bool preserveColor = false;
 				int digit1 = name[found + 4] - '0';
 
+				ExtendedData &xdata = remInfo.Get(vehicle);
+
 				if (name[found + 5] == '-')
 				{
 					int digit2 = name[found + 6] - '0';
+
+					srand((xdata.randomSeed + xdata.randomSeedUsage));
+					xdata.randomSeedUsage++;
+
 					paintjob = Random(digit1, digit2);
 					lg << "Charac: Found 'pj' (paintjob). Calculated from '-' result '" << paintjob << "' at '" << name << "'\n";
 					if (name[found + 7] == 'c') preserveColor = true;
@@ -66,7 +54,6 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 					lg << "Charac: Found 'pj' (paintjob). Set '" << digit1 << "' at '" << name << "'\n";
 				}
 
-				ExtendedData &xdata = remInfo.Get(vehicle);
 				xdata.paintjob = paintjob;
 				xdata.flags.bPreservePaintjobColor = preserveColor;
 			}
@@ -95,6 +82,11 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				stringstream ss(&name[found + 5]);
 				while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  driverList.push_back(num); } catch (const exception &) { break; } }
 
+				ExtendedData &xdata = remInfo.Get(vehicle);
+
+				srand((xdata.randomSeed + xdata.randomSeedUsage));
+				xdata.randomSeedUsage++;
+
 				int rand = Random(0, (driverList.size() - 1));
 
 				list<int>::iterator it = driverList.begin();
@@ -102,7 +94,6 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				int driverModel = *it;
 
 				lg << "Charac: Found 'drv' (driver), selected '" << driverModel << "' at '" << name << "'\n";
-				ExtendedData &xdata = remInfo.Get(vehicle);
 				xdata.driverModel = driverModel;
 			}
 
@@ -163,6 +154,8 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				float fdigit2;
 				float dirtyLevel;
 
+				ExtendedData &xdata = remInfo.Get(vehicle);
+
 				int digit1 = name[found + 5] - '0';
 
 				fdigit1 = digit1 * 1.6666f;
@@ -171,6 +164,10 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				{
 					int digit2 = name[found + 7] - '0';
 					fdigit2 = digit2 * 1.6666f;
+
+					srand((xdata.randomSeed + xdata.randomSeedUsage));
+					xdata.randomSeedUsage++;
+
 					dirtyLevel = CGeneral::GetRandomNumberInRange(fdigit1, fdigit2);
 					lg << "Charac: Found 'drt' (dirty). Calculated from '-' result '" << dirtyLevel << "' at '" << name << "'\n";
 				}
@@ -180,7 +177,6 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 					lg << "Charac: Found 'drt' (dirty). Set '" << dirtyLevel << "' at '" << name << "'\n";
 				}
 
-				ExtendedData &xdata = remInfo.Get(vehicle);
 				xdata.dirtyLevel = dirtyLevel;
 			}
 		}
@@ -317,6 +313,9 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 					{ 
 						if (xdata.driverModel <= 0) 
 						{
+							srand((xdata.randomSeed + xdata.randomSeedUsage));
+							xdata.randomSeedUsage++;
+
 							int rand = Random(0, (xdata.occupantsModels.size() - 1));
 
 							list<int>::iterator it = xdata.occupantsModels.begin();

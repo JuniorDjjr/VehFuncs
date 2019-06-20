@@ -122,7 +122,7 @@ MatFuncType CheckMaterials(RpMaterial * material, RpAtomic *atomic)
 	{
 		string texName = material->texture->name;
 
-		if (texName.length() > 5)
+		if (texName.length() > 7)
 		{
 			size_t found;
 

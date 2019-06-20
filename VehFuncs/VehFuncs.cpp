@@ -72,7 +72,7 @@ public:
 		// -- On game init
 		Events::initGameEvent += []
 		{
-			lg << "Core: Init\n";
+			lg << "Core: VF v1.3.3\n";
 
 			srand(time(0));
 			StoreHandlingData();
@@ -208,304 +208,225 @@ public:
 		};
 
 
+
 		// -- On vehicle set model
 		Events::vehicleSetModelEvent += [](CVehicle *vehicle, int modelId) 
 		{
-			if (vehicle->m_nVehicleSubClass != VEHICLE_HELI) // SilentPatch incompatibility with plugin-sdk...
+			ExtendedData &xdata = remInfo.Get(vehicle);
+			xdata.nodesProcess = true;
+			xdata.nodesProcessForIndieHandling = true;
+			xdata.ReInitForReSearch();
+			//lg << "Core: Model set\n";
+		};
+
+
+
+		// -- On vehicle render
+		Events::vehicleRenderEvent.before += [](CVehicle *vehicle)
+		{
+			// Reset material stuff (after render) - doesn't work on .after, I don't know why...
+			for (auto &p : resetMats)
+				*p.first = p.second;
+			resetMats.clear();
+
+			// Init
+			curVehicle = vehicle;
+			ExtendedData &xdata = remInfo.Get(vehicle);
+			tHandlingData * handling;
+			bool bReSearch = false;
+
+			// For IndieVehHandling / Get re-search
+			if (IsIndieHandling(vehicle, &handling))
 			{
-				curVehicle = vehicle;
-				ExtendedData &xdata = remInfo.Get(vehicle);
+				bReSearch = ExtraInfoBitReSearch(vehicle, handling);
 
-				// Set custom seed
-				list<CustomSeed> &customSeedList = getCustomSeedList();
-				if (customSeedList.size() > 0) 
+				if (!xdata.nodesProcessForIndieHandling || bReSearch)
 				{
-					lg << "Custom Seed: Running custom seed list \n";
+					SetCharacteristicsForIndieHandling(vehicle, bReSearch);
+					xdata.nodesProcessForIndieHandling = false;
+				}
+			}
 
-					for (list<CustomSeed>::iterator it = customSeedList.begin(); it != customSeedList.end(); ++it)
+			// Set custom seed
+			list<CustomSeed> &customSeedList = getCustomSeedList();
+			if (customSeedList.size() > 0)
+			{
+				lg << "Custom Seed: Running custom seed list \n";
+
+				for (list<CustomSeed>::iterator it = customSeedList.begin(); it != customSeedList.end(); ++it)
+				{
+					CustomSeed customSeed = *it;
+
+					if (reinterpret_cast<int>(vehicle) == customSeed.pvehicle)
 					{
-						CustomSeed customSeed = *it;
+						lg << "Custom Seed: Seed " << customSeed.seed << " set to " << customSeed.pvehicle << "\n";
+						xdata.randomSeed = customSeed.seed;
+						customSeedList.remove(*it);
 
-						if (reinterpret_cast<int>(vehicle) == customSeed.pvehicle) 
-						{
-							lg << "Custom Seed: Seed " << customSeed.seed << " was set to " << customSeed.pvehicle << "\n";
-							xdata.randomSeed = customSeed.seed;
-							customSeedList.remove(*it);
-
-							if (customSeedList.size() <= 0) break;
-						}
+						if (customSeedList.size() <= 0) break;
 					}
 				}
+			}
 
+			// Search nodes
+			if (xdata.nodesProcess || bReSearch)
+			{
+				if (bReSearch)
+				{
+					// Reset extended data
+					xdata.ReInitForReSearch();
+				}
 				// Clear temp class list
 				list<string> &classList = getClassList();
 				classList.clear();
 
 				// Process all nodes
-				RwFrame * rootFrame = GetObjectParent(&vehicle->m_pRwClump->object);
-				FindNodesRecursive(rootFrame, vehicle, false, false);
+				xdata.randomSeedUsage = 0;
+				RwFrame *rootFrame = (RwFrame *)vehicle->m_pRwClump->object.parent;
+				FindNodesRecursive(rootFrame, vehicle, bReSearch, false);
+
+				if (!bReSearch)
+				{
+					// Set wheels
+					if (xdata.wheelFrame[0]) SetWheel(xdata.wheelFrame, vehicle);
+
+					// Fix materials
+					FixMaterials(vehicle->m_pRwClump);
+				}
 
 				// Post set
-				//SetCharacteristics(vehicle, false); //nothing yet
-				xdata.nodesProcessInRender = true;
-				xdata.nodesProcessed = true;
-			}
-		};
+				SetCharacteristicsInRender(vehicle, bReSearch);
+				xdata.nodesProcess = false;
 
 
+				// TEST
+				/*
+				RwStream *splate = RwStreamOpen(RwStreamType::rwSTREAMFILENAME, RwStreamAccessType::rwSTREAMREAD, "grass0_1.dff");
+				RpClump *cplate;
+				RpAtomic *aplate;
 
-		// On vehicle render
-        Events::vehicleRenderEvent.after += [](CVehicle *vehicle)
-		{
-			// Do stuff
-			if (vehicle->m_nVehicleSubClass != VEHICLE_HELI) // SilentPatch incompatibility with plugin-sdk...
-			{
-				curVehicle = vehicle;
-				ExtendedData &xdata = remInfo.Get(vehicle);
-				tHandlingData * handling;
-				bool bReSearch = false;
+				if (RwStreamFindChunk(splate, 0x10, 0, 0)) {
 
-				if (IsIndieHandling(vehicle, &handling)) 
-				{
-					bReSearch = ExtraInfoBitReSearch(vehicle, handling);
+					cplate = RpClumpStreamRead(splate);
+					aplate = GetFirstAtomic(cplate);
 
-					// for IndieVehHandlings
-					if (!xdata.nodesProcessedSecFrame || bReSearch) 
-					{
-						SetCharacteristicsForIndieHandling(vehicle, bReSearch);
-						xdata.nodesProcessedSecFrame = true;
-					}
-				}
+					if (aplate) {
 
-				// Process
-				if (bReSearch)
-				{
-					// Reset extended data
-					xdata.ReInitForReSearch();
+						CAutomobile *aveh = (CAutomobile*)vehicle;
+						RwFrame *boot = aveh->m_aCarNodes[CAR_BONNET];
 
-					// Clear temp class list
-					list<string> &classList = getClassList();
-					classList.clear();
+						if (boot) {
 
-					// Process all nodes
-					xdata.randomSeedUsage = 0;
-					RwFrame * rootFrame = GetObjectParent(&vehicle->m_pRwClump->object);
-					FindNodesRecursive(rootFrame, vehicle, bReSearch, false);
+							RwFrame *newFrame = RwFrameCreate();
+							RpAtomic *plateAtomic = RpAtomicClone(aplate);
 
-					// Post set
-					//SetCharacteristics(vehicle, bReSearch);
-					SetCharacteristicsInRender(vehicle, bReSearch);
-					xdata.nodesProcessInRender = true;
-				}
-				else
-				{
-					// Post set
-					if (xdata.nodesProcessInRender)
-					{
-						// Post set
-						SetCharacteristicsInRender(vehicle, bReSearch);
-
-						// Set wheels
-						if (xdata.wheelFrame[0]) SetWheel(xdata.wheelFrame, vehicle);
-
-						xdata.nodesProcessInRender = false;
-
-						// TEST
-						/*
-						RwStream *splate = RwStreamOpen(RwStreamType::rwSTREAMFILENAME, RwStreamAccessType::rwSTREAMREAD, "grass0_1.dff");
-						RpClump *cplate;
-						RpAtomic *aplate;
-
-						if (RwStreamFindChunk(splate, 0x10, 0, 0)) {
-
-							cplate = RpClumpStreamRead(splate);
-							aplate = GetFirstAtomic(cplate);
-
-							if (aplate) {
-
-								CAutomobile *aveh = (CAutomobile*)vehicle;
-								RwFrame *boot = aveh->m_aCarNodes[CAR_BONNET];
-
-								if (boot) {
-
-									RwFrame *newFrame = RwFrameCreate();
-									RpAtomic *plateAtomic = RpAtomicClone(aplate);
-
-									RpAtomicSetFrame(plateAtomic, newFrame);
-									RpClumpAddAtomic(vehicle->m_pRwClump, plateAtomic);
-									RwFrameAddChild(boot, newFrame);
+							RpAtomicSetFrame(plateAtomic, newFrame);
+							RpClumpAddAtomic(vehicle->m_pRwClump, plateAtomic);
+							RwFrameAddChild(boot, newFrame);
 
 
-									int slot = CTxdStore::AddTxdSlot("platetest");
-									CTxdStore::LoadTxd(slot, "plant1.txd");
-									CTxdStore::AddRef(slot);
-									CTxdStore::SetCurrentTxd(slot);
-									RwTexture *text = plugin::CallAndReturn<RwTexture*, 0x7F3AC0, const char*, const char*>("txgrass1_3", 0);
-									CTxdStore::PopCurrentTxd();
+							int slot = CTxdStore::AddTxdSlot("platetest");
+							CTxdStore::LoadTxd(slot, "plant1.txd");
+							CTxdStore::AddRef(slot);
+							CTxdStore::SetCurrentTxd(slot);
+							RwTexture *text = plugin::CallAndReturn<RwTexture*, 0x7F3AC0, const char*, const char*>("txgrass1_3", 0);
+							CTxdStore::PopCurrentTxd();
 
-									CAutomobile *aveh = (CAutomobile*)vehicle;
-									RwFrame *boot = aveh->m_aCarNodes[CAR_BONNET];
+							CAutomobile *aveh = (CAutomobile*)vehicle;
+							RwFrame *boot = aveh->m_aCarNodes[CAR_BONNET];
 
-									if (boot) {
+							if (boot) {
 
-										RwFrame *newFrame = RwFrameCreate();
-										RpAtomic *plateAtomic = RpAtomicClone(aplate);
+								RwFrame *newFrame = RwFrameCreate();
+								RpAtomic *plateAtomic = RpAtomicClone(aplate);
 
-										RpAtomicSetFrame(plateAtomic, newFrame);
-										RpClumpAddAtomic(vehicle->m_pRwClump, plateAtomic);
-										RwFrameAddChild(boot, newFrame);
+								RpAtomicSetFrame(plateAtomic, newFrame);
+								RpClumpAddAtomic(vehicle->m_pRwClump, plateAtomic);
+								RwFrameAddChild(boot, newFrame);
 
-										RpGeometryLock(plateAtomic->geometry, 0xFFF);
-										plateAtomic->geometry->flags = plateAtomic->geometry->flags & 0xFFFFFFCF | 0x40;
-										RpGeometryUnlock(plateAtomic->geometry);
+								RpGeometryLock(plateAtomic->geometry, 0xFFF);
+								plateAtomic->geometry->flags = plateAtomic->geometry->flags & 0xFFFFFFCF | 0x40;
+								RpGeometryUnlock(plateAtomic->geometry);
 
-										int slot = CTxdStore::AddTxdSlot("platetest");
-										CTxdStore::LoadTxd(slot, "plant1.txd");
-										CTxdStore::AddRef(slot);
-										CTxdStore::SetCurrentTxd(slot);
-										RwTexture *text = plugin::CallAndReturn<RwTexture*, 0x7F3AC0, const char*, const char*>("txgrass1_3", 0);
-										CTxdStore::PopCurrentTxd();
+								int slot = CTxdStore::AddTxdSlot("platetest");
+								CTxdStore::LoadTxd(slot, "plant1.txd");
+								CTxdStore::AddRef(slot);
+								CTxdStore::SetCurrentTxd(slot);
+								RwTexture *text = plugin::CallAndReturn<RwTexture*, 0x7F3AC0, const char*, const char*>("txgrass1_3", 0);
+								CTxdStore::PopCurrentTxd();
 
-										lg << "Shared Extras Texture: " << text << "\n";
-										fs.flush();
+								lg << "Shared Extras Texture: " << text << "\n";
+								fs.flush();
 
-										text->filterAddressing = 2;
+								text->filterAddressing = 2;
 
-										if (text) {
-											RwRGBA *rgb = new RwRGBA{ 255,255,255 };
-											plateAtomic->geometry->matList.materials[0]->color = *rgb;
-											plateAtomic->geometry->matList.materials[0]->texture = text;
-										}
-
-									}
-
+								if (text) {
+									RwRGBA *rgb = new RwRGBA{ 255,255,255 };
+									plateAtomic->geometry->matList.materials[0]->color = *rgb;
+									plateAtomic->geometry->matList.materials[0]->texture = text;
 								}
+
 							}
 
 						}
-						RwStreamClose(splate, 0);
-
-						lg << "Shared Extras: " << aplate << "\n";
-						fs.flush();
-					*/
 					}
 
 				}
+				RwStreamClose(splate, 0);
 
+				lg << "Shared Extras: " << aplate << "\n";
+				fs.flush();
+			*/
+			}
 
-				///////////////////////////////////////////////////////////////////////////////////////
+			///////////////////////////////////////////////////////////////////////////////////////
 
-				// Process smooth pedal
-				int gasSoundProgress = vehicle->m_vehicleAudio.field_14C;
-				int rpmSound = vehicle->m_vehicleAudio.field_148;
+			// Process store smooth pedal
+			int gasSoundProgress = vehicle->m_vehicleAudio.field_14C;
+			int rpmSound = vehicle->m_vehicleAudio.field_148;
 
-				if (gasSoundProgress == 0 && vehicle->m_fMovingSpeed > 0.2f && rpmSound != -1)
-				{ // fix me: the last gear (max speed) is ignored
-					xdata.smoothGasPedal = 0.0f;
+			if (gasSoundProgress == 0 && vehicle->m_fMovingSpeed > 0.2f && rpmSound != -1)
+			{ // fix me: the last gear (max speed) is ignored
+				xdata.smoothGasPedal = 0.0f;
+			}
+			else
+			{
+				float gasPedal = abs(vehicle->m_fGasPedal);
+				if (gasPedal > 0.0f)
+				{
+					xdata.smoothGasPedal += (CTimer::ms_fTimeStep / 1.6666f) * (gasPedal / 6.0f);
+					if (xdata.smoothGasPedal > 1.0f) xdata.smoothGasPedal = 1.0f;
+					else if (xdata.smoothGasPedal > gasPedal) xdata.smoothGasPedal = gasPedal;
 				}
 				else
 				{
-					float gasPedal = abs(vehicle->m_fGasPedal);
-					if (gasPedal > 0.0f)
+					if (xdata.smoothGasPedal > 0.0f)
 					{
-						xdata.smoothGasPedal += (CTimer::ms_fTimeStep / 1.6666f) * (gasPedal / 6.0f);
-						if (xdata.smoothGasPedal > 1.0f) xdata.smoothGasPedal = 1.0f;
-						else if (xdata.smoothGasPedal > gasPedal) xdata.smoothGasPedal = gasPedal;
-					}
-					else
-					{
-						if (xdata.smoothGasPedal > 0.0f)
-						{
-							xdata.smoothGasPedal -= (CTimer::ms_fTimeStep / 1.6666f) * 0.3;
-							if (xdata.smoothGasPedal < 0.0f) xdata.smoothGasPedal = 0.0f;
-						}
+						xdata.smoothGasPedal -= (CTimer::ms_fTimeStep / 1.6666f) * 0.3;
+						if (xdata.smoothGasPedal < 0.0f) xdata.smoothGasPedal = 0.0f;
 					}
 				}
-
-				float brakePedal = abs(vehicle->m_fBreakPedal);
-				if (brakePedal > 0.0f)
-				{
-					xdata.smoothBrakePedal += (CTimer::ms_fTimeStep / 1.6666f) * (brakePedal / 6.0f);
-					if (xdata.smoothBrakePedal > 1.0f) xdata.smoothBrakePedal = 1.0f;
-					else if (xdata.smoothBrakePedal > brakePedal) xdata.smoothBrakePedal = brakePedal;
-				}
-				else 
-				{
-					if (xdata.smoothBrakePedal > 0.0f) 
-					{
-						xdata.smoothBrakePedal -= (CTimer::ms_fTimeStep / 1.6666f) * 0.3;
-						if (xdata.smoothBrakePedal < 0.0f) xdata.smoothBrakePedal = 0.0f;
-					}
-				}
-
-				///////////////////////////////////////////////////////////////////////////////////////
-
-				// Process speedo
-				if (xdata.speedoFrame != nullptr) 
-				{
-					if (xdata.speedoDigits != nullptr) 
-					{
-						ProcessDigitalSpeedo(vehicle, xdata.speedoFrame);
-					}
-				}
-
-				///////////////////////////////////////////////////////////////////////////////////////
-
-				if (vehicle->m_nFlags.bEngineOn)
-				{
-					// Process gear
-					if (!xdata.gearFrame.empty()) ProcessRotatePart(vehicle, xdata.gearFrame, true);
-
-					// Process fan
-					if (!xdata.fanFrame.empty()) ProcessRotatePart(vehicle, xdata.fanFrame, false);
-				}
-				// Process shake
-				if (!xdata.shakeFrame.empty()) ProcessShake(vehicle, xdata.shakeFrame);
-
-				// Process gas pedal
-				if (!xdata.gaspedalFrame.empty()) ProcessPedal(vehicle, xdata.gaspedalFrame, 1);
-
-				// Process brake pedal
-				if (!xdata.brakepedalFrame.empty()) ProcessPedal(vehicle, xdata.brakepedalFrame, 2);
-
-				if (vehicle->m_fHealth > 0 && !vehicle->m_nFlags.bEngineBroken && !vehicle->m_nFlags.bIsDrowning)
-				{
-					// Process anims
-					if (!xdata.anims.empty()) ProcessAnims(vehicle, xdata.anims);
-
-					// Process popup lights
-					if (xdata.popupFrame[0]) ProcessPopup(vehicle, &xdata);
-				}
-
-				// Process trifork
-				if (xdata.triforkFrame) ProcessTrifork(vehicle, xdata.triforkFrame);
-
-				// Process footpegs
-				if (vehicle->m_nVehicleSubClass == VEHICLE_BIKE || vehicle->m_nVehicleSubClass == VEHICLE_BMX)
-				{
-					if (!xdata.fpegFront.empty()) ProcessFootpegs(vehicle, xdata.fpegFront, 1);
-					if (!xdata.fpegBack.empty()) ProcessFootpegs(vehicle, xdata.fpegBack, 2);
-				}
-
-				if (xdata.flags.bUpgradesUpdated || xdata.flags.bDamageUpdated)
-				{
-					ProcessSpoiler(vehicle, xdata.spoilerFrames, true);
-				}
-
-				///////////////////////////////////////////////////////////////////////////////////////
-				xdata.flags.bDamageUpdated = false;
-				xdata.flags.bUpgradesUpdated = false;
 			}
-        };
 
-		Events::vehicleRenderEvent.before += [](CVehicle *vehicle)
-		{
-			// Reset - doesn't work on .after, I don't know why...
-			for (auto &p : resetMats)
-				*p.first = p.second;
-			resetMats.clear();
+			float brakePedal = abs(vehicle->m_fBreakPedal);
+			if (brakePedal > 0.0f)
+			{
+				xdata.smoothBrakePedal += (CTimer::ms_fTimeStep / 1.6666f) * (brakePedal / 6.0f);
+				if (xdata.smoothBrakePedal > 1.0f) xdata.smoothBrakePedal = 1.0f;
+				else if (xdata.smoothBrakePedal > brakePedal) xdata.smoothBrakePedal = brakePedal;
+			}
+			else
+			{
+				if (xdata.smoothBrakePedal > 0.0f)
+				{
+					xdata.smoothBrakePedal -= (CTimer::ms_fTimeStep / 1.6666f) * 0.3;
+					if (xdata.smoothBrakePedal < 0.0f) xdata.smoothBrakePedal = 0.0f;
+				}
+			}
 
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			///////////////////////////////////////////////////////////////////////////////////////
+
+			// Process material stuff (before render)
 			if (xdata.taxiSignMaterial)
 			{
 				if (reinterpret_cast<CAutomobile*>(vehicle)->taxiAvaliable & 1)
@@ -515,29 +436,87 @@ public:
 				}
 			}
 
-			// Post set, before render
-			if (xdata.nodesProcessInRender)
+			// Process speedo
+			if (xdata.speedoFrame != nullptr)
 			{
-				// Fix materials
-				FixMaterials(vehicle->m_pRwClump);
+				if (xdata.speedoDigits != nullptr)
+				{
+					ProcessDigitalSpeedo(vehicle, xdata.speedoFrame);
+				}
 			}
 
+			if (vehicle->m_nFlags.bEngineOn)
+			{
+				// Process gear
+				if (!xdata.gearFrame.empty()) ProcessRotatePart(vehicle, xdata.gearFrame, true);
+
+				// Process fan
+				if (!xdata.fanFrame.empty()) ProcessRotatePart(vehicle, xdata.fanFrame, false);
+			}
+			// Process shake
+			if (!xdata.shakeFrame.empty()) ProcessShake(vehicle, xdata.shakeFrame);
+
+			// Process gas pedal
+			if (!xdata.gaspedalFrame.empty()) ProcessPedal(vehicle, xdata.gaspedalFrame, 1);
+
+			// Process brake pedal
+			if (!xdata.brakepedalFrame.empty()) ProcessPedal(vehicle, xdata.brakepedalFrame, 2);
+
+			if (vehicle->m_fHealth > 0 && !vehicle->m_nFlags.bEngineBroken && !vehicle->m_nFlags.bIsDrowning)
+			{
+				// Process anims
+				if (!xdata.anims.empty()) ProcessAnims(vehicle, xdata.anims);
+
+				// Process popup lights
+				if (xdata.popupFrame[0]) ProcessPopup(vehicle, &xdata);
+			}
+
+			// Process trifork
+			if (xdata.triforkFrame) ProcessTrifork(vehicle, xdata.triforkFrame);
+
+			// Process footpegs
+			if (vehicle->m_nVehicleSubClass == VEHICLE_BIKE || vehicle->m_nVehicleSubClass == VEHICLE_BMX)
+			{
+				if (!xdata.fpegFront.empty()) ProcessFootpegs(vehicle, xdata.fpegFront, 1);
+				if (!xdata.fpegBack.empty()) ProcessFootpegs(vehicle, xdata.fpegBack, 2);
+			}
+
+			// Process tuning spoiler (before render)
 			if (xdata.flags.bUpgradesUpdated || xdata.flags.bDamageUpdated)
 			{
 				ProcessSpoiler(vehicle, xdata.spoilerFrames, false);
 			}
 
-			///////////////////////////////////////////////////////////////////////////////////////
 		};
 
-		// Flush log during unfocus (ie minimizing)
+		///////////////////////////////////////////////////////////////////////////////////////
+
+		Events::vehicleRenderEvent.after += [](CVehicle *vehicle)
+		{
+			curVehicle = vehicle;
+			ExtendedData &xdata = remInfo.Get(vehicle);
+
+			// Process tuning spoiler (after render)
+			if (xdata.flags.bUpgradesUpdated || xdata.flags.bDamageUpdated)
+			{
+				ProcessSpoiler(vehicle, xdata.spoilerFrames, true);
+			}
+
+			// Post reset flags
+			xdata.flags.bDamageUpdated = false;
+			xdata.flags.bUpgradesUpdated = false;
+		};
+
+		///////////////////////////////////////////////////////////////////////////////////////
+
+		// -- Flush log during unfocus (ie minimizing)
 		Events::onPauseAllSounds += []
 		{
 			lg.flush();
 		};
 
-
-		// On game reload
+		/*
+		// -- On game reload
 		Events::reInitGameEvent += [] // It's also called first time the game is initialized
 		{
 			if (reInit)
@@ -548,6 +527,7 @@ public:
 			}
 			else reInit = true;
 		};
+		*/
     }
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -668,9 +648,9 @@ public:
 				if (found != string::npos) 
 				{
 					lg << "Shake: Found 'f_shake' \n";
-					xdata.shakeFrame.push_back(frame);
-
-					FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
+					if (CreateMatrixBackup(frame)) {
+						xdata.shakeFrame.push_back(frame);
+					}
 				}
 
 				// Gaspedal
@@ -678,9 +658,9 @@ public:
 				if (found != string::npos) 
 				{
 					lg << "Pedal: Found 'f_gas' \n";
-					xdata.gaspedalFrame.push_back(frame);
-
-					FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
+					if (CreateMatrixBackup(frame)) {
+						xdata.gaspedalFrame.push_back(frame);
+					}
 				}
 
 				// brakepedal
@@ -688,9 +668,9 @@ public:
 				if (found != string::npos) 
 				{
 					lg << "Pedal: Found 'f_brake' \n";
-					xdata.brakepedalFrame.push_back(frame);
-
-					FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
+					if (CreateMatrixBackup(frame)) {
+						xdata.brakepedalFrame.push_back(frame);
+					}
 				}
 
 				found = name.find("f_an"); //f_an1a=
@@ -785,12 +765,14 @@ public:
 
 						if (mode >= 0 && submode >= 0)
 						{
-							F_an *an = new F_an(frame);
-							an->mode = mode;
-							an->submode = submode;
+							if (CreateMatrixBackup(frame))
+							{
+								F_an *an = new F_an(frame);
+								an->mode = mode;
+								an->submode = submode;
 
-							xdata.anims.push_back(an);
-							FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
+								xdata.anims.push_back(an);
+							}
 						}
 					}
 				}
@@ -802,15 +784,16 @@ public:
 					if (found != string::npos)
 					{
 						lg << "Trifork: Found 'f_trifork' \n";
-						xdata.triforkFrame = frame;
+						if (CreateMatrixBackup(frame))
+						{
+							xdata.triforkFrame = frame;
 
-						//if (!frame->child)
-						//{
+							//if (!frame->child)
+							//{
 							RwFrame *wheelFrame = CClumpModelInfo::GetFrameFromId(vehicle->m_pRwClump, 5);
 							RwFrameAddChild(frame->child, wheelFrame->child);
-						//}
-
-						FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
+							//}
+						}
 					}
 				//}
 
@@ -821,9 +804,9 @@ public:
 					if (found != string::npos) 
 					{
 						lg << "Footpegs: Found 'f_fpeg1' (footpeg driver) \n";
-						xdata.fpegFront.push_back(new F_footpegs(frame));
-
-						FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
+						if (CreateMatrixBackup(frame)) {
+							xdata.fpegFront.push_back(new F_footpegs(frame));
+						}
 					}
 
 					// footpeg passenger
@@ -831,14 +814,14 @@ public:
 					if (found != string::npos) 
 					{
 						lg << "Footpegs: Found 'f_fpeg2' (footpeg passenger) \n";
-						xdata.fpegBack.push_back(new F_footpegs(frame));
-
-						FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
+						if (CreateMatrixBackup(frame)) {
+							xdata.fpegBack.push_back(new F_footpegs(frame));
+						}
 					}
 				}
 
 				// Hitch
-				found = name.find("f_hitch");
+				found = name.find("f_hitch"); 
 				if (found != string::npos) 
 				{
 					lg << "FunctionalHitch: Found 'f_hitch' \n";
@@ -885,16 +868,17 @@ public:
 				found = name.find("f_pop");
 				if (found != string::npos)
 				{
-					if (name[found + 5] == 'l') {
-						lg << "Popup lights: Found 'f_popl' \n";
-						xdata.popupFrame[0] = frame;
+					if (CreateMatrixBackup(frame)) {
+						if (name[found + 5] == 'l') {
+							lg << "Popup lights: Found 'f_popl' \n";
+							xdata.popupFrame[0] = frame;
+						}
+						else
+						{
+							lg << "Popup lights: Found 'f_popr' \n";
+							xdata.popupFrame[1] = frame;
+						}
 					}
-					else
-					{
-						lg << "Popup lights: Found 'f_popr' \n";
-						xdata.popupFrame[1] = frame;
-					}
-					FRAME_EXTENSION(frame)->origMatrix = CreateMatrixBackup(&frame->modelling);
 				}
 
 				// Spoiler
