@@ -9,7 +9,8 @@
 #include "IndieVehHandlingsAPI.h"
 #include "CustomSeed.h"
 #include "Matrixbackup.h"
-#include "CheckRepair.h"
+#include "Utilities.h"
+//#include "CheckRepair.h"
 
 // Mod funcs
 #include "Patches.h"
@@ -25,9 +26,11 @@
 #include "Trifork.h"
 #include "Spoiler.h"
 #include "Anims.h"
+#include "Steer.h"
  
 // Dependences
 #include "../injector/assembly.hpp"
+#include "extensions/ScriptCommands.h"
 #include "CVisibilityPlugins.h"
 #include "CTxdStore.h"
 #include "NodeName.h"
@@ -45,10 +48,11 @@
 #pragma warning( disable : 4244 ) // data loss
 
 // Global vars
+int G_i = 0;
 uintptr_t AtomicAlphaCallBack;
 VehicleExtendedData<ExtendedData> remInfo;
 fstream lg;
-bool fixIVFmats, bFirstFrame = false;
+bool IVFinstalled, APPinstalled, bFirstFrame, bFirstScriptFrame = false;
 CVehicle *curVehicle;
 static std::list<std::pair<unsigned int *, unsigned int>> resetMats;
 
@@ -72,12 +76,12 @@ public:
 		// -- On game init
 		Events::initGameEvent += []
 		{
-			lg << "Core: VF v1.3.3\n";
+			lg << "VF v1.4\n";
 
 			srand(time(0));
 			StoreHandlingData();
 			ApplyGSX();
-			ApplyCheckRepair();
+			//ApplyCheckRepair();
 			
 			AtomicAlphaCallBack = ReadMemory<int>(0x4C7842, false);
 
@@ -168,6 +172,31 @@ public:
 			});
 
 
+			// RpClumpRender
+			MakeNOP(0x00749B3E, 9, true);
+			MakeJMP(0x00749B3E, Patches::NeverRender);
+
+			
+
+			// Upgrade replace
+			// Add
+			MakeCALL(0x006D386C, CustomRwFrameForAllChildren_AddUpgrade);
+			// Remove
+			MakeCALL(0x006D3A18, CustomRwFrameForAllChildren_RemoveUpgrade);
+			// Add original
+			MakeInline<0x006D3A35, 0x006D3A35 + 18>([](reg_pack& regs)
+			{
+				RwFrame *sourceFrame = (RwFrame *)regs.eax;
+				RwFrame *destFrame = (RwFrame *)regs.edi;
+				RpClump *destClump = (RpClump *)regs.edx;
+				//CloneNode(sourceFrame, destClump, destFrame, true, true);
+				*(uint32_t*)0xC1CB58 = (uint32_t)destClump;
+				RwFrameForAllObjects(sourceFrame, CopyObjectsCB, destFrame);
+			});
+			WriteMemory<uint8_t>(0x6D3A47 + 2, 0x28, true);
+			
+
+			
 			// Hitch patch
 			int *vmt = (int*)0x00871120;
 			int *getlink = vmt + (0xF0 / sizeof(vmt));
@@ -188,8 +217,8 @@ public:
 
 
 
-		// -- On game process
-		Events::gameProcessEvent.before += []() 
+		// -- On game init
+		Events::initGameEvent.after += []()
 		{
 			if (!bFirstFrame)
 			{
@@ -197,16 +226,40 @@ public:
 				{
 					lg << "Core: IVF installed\n";
 					WriteMemory(0x004C9148, (int)0x004C8E30, true); // unhook IVF collapse frames
+					IVFinstalled = true;
 				}
 				else
 				{
 					lg << "Core: IVF not installed\n";
-					fixIVFmats = true;
+					IVFinstalled = false;
 				}
+				lg.flush();
 				bFirstFrame = true;
 			}
 		};
 
+
+		// -- On process script (gameProcessEvent isn't compatible with SAMP)
+		Events::processScriptsEvent.after += [] {
+			if (!bFirstScriptFrame)
+			{
+				unsigned int script;
+				const unsigned int GET_SCRIPT_STRUCT_NAMED = 0x10AAA;
+				Command<GET_SCRIPT_STRUCT_NAMED>("NEWSVAN", &script);
+				if (script)
+				{
+					lg << "Core: APP installed\n";
+					APPinstalled = true;
+				}
+				else
+				{
+					lg << "Core: APP not installed\n";
+					APPinstalled = false;
+				}
+				lg.flush();
+				bFirstScriptFrame = true;
+			}
+		};
 
 
 		// -- On vehicle set model
@@ -224,6 +277,7 @@ public:
 		// -- On vehicle render
 		Events::vehicleRenderEvent.before += [](CVehicle *vehicle)
 		{
+
 			// Reset material stuff (after render) - doesn't work on .after, I don't know why...
 			for (auto &p : resetMats)
 				*p.first = p.second;
@@ -482,10 +536,13 @@ public:
 			}
 
 			// Process tuning spoiler (before render)
-			if (xdata.flags.bUpgradesUpdated || xdata.flags.bDamageUpdated)
+			if (xdata.flags.bUpgradesUpdated)
 			{
 				ProcessSpoiler(vehicle, xdata.spoilerFrames, false);
 			}
+
+			// Process trifork
+			if (xdata.steer) ProcessSteer(vehicle, xdata.steer);
 
 		};
 
@@ -497,7 +554,7 @@ public:
 			ExtendedData &xdata = remInfo.Get(vehicle);
 
 			// Process tuning spoiler (after render)
-			if (xdata.flags.bUpgradesUpdated || xdata.flags.bDamageUpdated)
+			if (xdata.flags.bUpgradesUpdated)
 			{
 				ProcessSpoiler(vehicle, xdata.spoilerFrames, true);
 			}
@@ -889,7 +946,62 @@ public:
 					xdata.spoilerFrames.push_back(frame);
 				}
 
-			}// end of "f_"
+				// Steer
+				found = name.find("f_steer");
+				if (found != string::npos)
+				{
+					lg << "Steer: Found 'f_steer' \n";
+					if (CreateMatrixBackup(frame)) {
+						xdata.steer = frame;
+					}
+				}
+
+			} // end of "f_"
+			else // retrocompatibility
+			{
+				if (!IVFinstalled) {
+					ExtendedData &xdata = remInfo.Get(vehicle);
+					found = name.find("movsteer");
+					if (found != string::npos)
+					{
+						found = name.find("movsteer");
+						if (found != string::npos)
+						{
+							if (name[8] == '_') {
+								if (isdigit(name[9])) {
+									lg << "Retrocompatibility: Found 'movsteer_*' \n";
+									if (CreateMatrixBackup(frame)) {
+										xdata.steer = frame;
+									}
+								}
+							}
+							else {
+								if (!xdata.steer) {
+									lg << "Retrocompatibility: Found 'movsteer' \n";
+									if (CreateMatrixBackup(frame)) {
+										xdata.steer = frame;
+									}
+								}
+							}
+						}
+					}
+				}
+				if (!APPinstalled) {
+					ExtendedData &xdata = remInfo.Get(vehicle);
+					found = name.find("steering_dummy");
+					if (found != string::npos)
+					{
+						if (frame->child) {
+							if (!xdata.steer) {
+								lg << "Retrocompatibility: Found 'steering' \n";
+								if (CreateMatrixBackup(frame->child)) {
+									xdata.steer = frame->child;
+								}
+							}
+						}
+					}
+				}
+			}
 
 			// Characteristics
 			FindVehicleCharacteristicsFromNode(frame, vehicle, bReSearch);
@@ -906,6 +1018,61 @@ public:
 
 } vehfuncs;
 
+
+RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
+{
+	if (RwFrame * newFrame = frame->child)  CustomRwFrameForAllChildren_AddUpgrade_Recurse(newFrame, callback, data);
+	return frame;
+}
+
+RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade_Recurse(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
+{
+	FRAME_EXTENSION(frame)->flags.bNeverRender = true;
+
+	if (RwFrame * newFrame = frame->child)  CustomRwFrameForAllChildren_AddUpgrade_Recurse(newFrame, callback, data);
+	if (RwFrame * newFrame = frame->next)   CustomRwFrameForAllChildren_AddUpgrade_Recurse(newFrame, callback, data);
+	return frame;
+}
+
+
+RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
+{
+	if (RwFrame * newFrame = frame)  CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(newFrame, callback, data);
+	return frame;
+}
+
+RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
+{
+	FRAME_EXTENSION(frame)->flags.bNeverRender = false;
+
+	if (RwFrame * newFrame = frame->child)  CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(newFrame, callback, data);
+	if (RwFrame * newFrame = frame->next)   CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(newFrame, callback, data);
+	return frame;
+}
+
+
+
+
+RwFrame *__cdecl CustomRwFrameForAllObjects_Upgrades(RwFrame *frame, RpAtomicCallBack callback, void *data)
+{
+	if (!rwLinkListEmpty(&frame->objectList))
+	{
+		RwObjectHasFrame * atomic;
+
+		RwLLLink * current = rwLinkListGetFirstLLLink(&frame->objectList);
+		RwLLLink * end = rwLinkListGetTerminator(&frame->objectList);
+
+		current = rwLinkListGetFirstLLLink(&frame->objectList);
+		while (current != end) {
+			atomic = rwLLLinkGetData(current, RwObjectHasFrame, lFrame);
+
+			if (!callback((RpAtomic *)atomic, data)) break;
+
+			current = rwLLLinkGetNext(current);
+		}
+	}
+	return frame;
+}
 
 RwFrame *__cdecl CustomCollapseFramesCB(RwFrame *frame, void *data)
 {

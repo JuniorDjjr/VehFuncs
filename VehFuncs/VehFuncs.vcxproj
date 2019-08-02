@@ -110,6 +110,7 @@
     <ClCompile Include="GearAndFan.cpp" />
     <ClCompile Include="GSXAPI.cpp" />
     <ClCompile Include="HandsFix.cpp" />
+    <ClCompile Include="Steer.cpp" />
     <ClCompile Include="Trifork.cpp" />
     <ClCompile Include="LoadModel.cpp" />
     <ClCompile Include="Patches.cpp" />
@@ -138,6 +139,7 @@
     <ClInclude Include="Footpegs.h" />
     <ClInclude Include="GearAndFan.h" />
     <ClInclude Include="GSXAPI.h" />
+    <ClInclude Include="Steer.h" />
     <ClInclude Include="Trifork.h" />
     <ClInclude Include="injectorAddons\injectorAddons.hpp" />
     <ClInclude Include="LoadModel.h" />

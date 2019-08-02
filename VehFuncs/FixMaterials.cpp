@@ -1,7 +1,7 @@
 #include "VehFuncsCommon.h"
 #include "FixMaterials.h"
 
-extern bool fixIVFmats;
+extern bool IVFinstalled;
 extern CVehicle *curVehicle;
 
 enum MatFuncType {
@@ -86,7 +86,7 @@ MatFuncType CheckMaterials(RpMaterial * material, RpAtomic *atomic)
 	{
 		// Fix Improved Vehicle Features material colors
 		// We are not fixing emergency lights here, at least for now, because need more conditions and that case is not important (like, the color is red)
-		if (fixIVFmats)
+		if (!IVFinstalled)
 		{
 			if (material->color.red == 255)
 			{

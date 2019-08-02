@@ -8,11 +8,9 @@ void ProcessSpoiler(CVehicle *vehicle, list<RwFrame*> items, bool after)
 	if (!items.empty())
 	{
 		bool visible = true;
-		bool forceHide = false;
 
 		if (vehicle->GetUpgrade(6) > 0) //spoiler upgrade
 		{
-			forceHide = true;
 			visible = false;
 		}
 		else
@@ -28,19 +26,13 @@ void ProcessSpoiler(CVehicle *vehicle, list<RwFrame*> items, bool after)
 			RwFrame * frame = *it;
 			if (frame->object.parent)
 			{
-				if (forceHide)
+				if (!visible)
 				{
-					RpAtomic * atomic = (RpAtomic*)GetFirstObject(frame);
-					if (CVisibilityPlugins::GetAtomicId(atomic) & 2)
-					{
-						if (reinterpret_cast<CAutomobile*>(vehicle)->m_damageManager.GetDoorStatus(eDoors::BOOT)) // is damaged
-						{
-							SetFrameFirstAtomicVisibility(frame, false); // force hide damaged
-							continue;
-						}
-					}
+					HideAllNodesRecursive_Forced(frame, true);
 				}
-				SetFrameFirstAtomicVisibilityButFixedDamage(frame, visible, vehicle);
+				else {
+					ShowAllNodesRecursive_Forced(frame, true);
+				}
 			}
 			else
 			{

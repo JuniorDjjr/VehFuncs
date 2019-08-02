@@ -22,11 +22,18 @@ struct FramePlugin
 {
 	// plugin data
 	MatrixBackup * origMatrix;
+	struct
+	{
+		unsigned char bNeverRender : 1;
+		unsigned char bIsVarWheel : 1;
+	} flags;
 
 	// plugin interface
 	static RwFrame * Init(RwFrame *frame)
 	{
 		FRAME_EXTENSION(frame)->origMatrix = nullptr;
+		FRAME_EXTENSION(frame)->flags.bNeverRender = false;
+		FRAME_EXTENSION(frame)->flags.bIsVarWheel = false;
 		return frame;
 	}
 
@@ -95,6 +102,9 @@ public:
 	// Popup lights
 	float popupProgress[2];
 	RwFrame * popupFrame[2];
+
+	// Steer
+	RwFrame * steer;
 
 	// Flags
 	struct
@@ -173,6 +183,7 @@ public:
 		popupFrame[1] = nullptr;
 		triforkFrame = nullptr;
 
+		steer = nullptr;
 		hitchFrame = nullptr;
 		taxiSignMaterial = nullptr;
 
@@ -207,6 +218,7 @@ public:
 		hitchFrame = nullptr;
 		taxiSignMaterial = nullptr;
 		triforkFrame = nullptr;
+		steer = nullptr;
 
 		gearFrame.clear();
 		fanFrame.clear();

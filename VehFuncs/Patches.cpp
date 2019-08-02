@@ -46,11 +46,46 @@ namespace Patches
 	}
 
 
+	void __cdecl NeverRenderCheck(RpAtomic *atomic)
+	{
+		RwFrame *frame = (RwFrame *)atomic->object.object.parent;
+		valid = !FRAME_EXTENSION(frame)->flags.bNeverRender;
+	}
+
+	void __declspec(naked) NeverRender()
+	{
+		__asm {
+
+			push edi // RpAtomic
+			call NeverRenderCheck
+			add esp, 4 // params
+
+			mov     eax, [edi+4]
+			push    eax
+			mov     edx, 7F0990h
+			call    edx
+
+			cmp     valid, 1
+			je      NeverRender_IsValid
+			add esp, 4
+			push    749B4Eh
+			ret
+				
+			NeverRender_IsValid:
+			push    749B47h
+			ret
+		}
+	}
+
 	void __cdecl IsLawEnforcementCheck(CVehicle *veh)
 	{
-		valid = 0;
-		ExtendedData &xdata = remInfo.Get(veh);
-		valid = xdata.coplightFrame ? 1 : 0;
+		valid = false;
+		if (veh && veh->m_nModelIndex > 0) {
+			ExtendedData &xdata = remInfo.Get(veh);
+			if (&xdata != nullptr) {
+				if (xdata.coplightFrame != nullptr) valid = true;
+			}
+		}
 	}
 
 	void __declspec(naked) IsLawEnforcement()
@@ -69,8 +104,8 @@ namespace Patches
 			cmp     valid, 1
 			je      IsLawEnforcement_IsValid
 			add     eax, -427
-			mov     edx, 6D2379h
-			jmp     edx
+			push    6D2379h
+			ret
 
 			IsLawEnforcement_IsValid:
 			mov     al, 1

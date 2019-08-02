@@ -30,3 +30,12 @@ extern "C" void __declspec(dllexport) Ext_SetCarSeed(CVehicle * vehicle, int see
 		customSeedList.push_back(*newCustomSeed);
 	}
 }
+
+/*
+The function name appears for crash dumps as modloader.log, and people mistakenly think the name is related to the crash.
+Thinking about it, here it is...
+*/
+extern "C" int32_t __declspec(dllexport) ignore2(int32_t i)
+{
+	return 1;
+}

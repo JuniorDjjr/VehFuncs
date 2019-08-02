@@ -79,6 +79,9 @@
     <ClCompile Include="Anims.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="Steer.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AtomicsVisibility.h">
@@ -163,6 +166,9 @@
       <Filter>Source</Filter>
     </ClInclude>
     <ClInclude Include="Anims.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Steer.h">
       <Filter>Source</Filter>
     </ClInclude>
   </ItemGroup>

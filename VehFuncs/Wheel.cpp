@@ -61,7 +61,7 @@ void SetWheel(RwFrame * frame[6], CVehicle * vehicle)
 
 							if (wheelFrame) {
 								lg << "Wheel: Copying wheel: " << wheelId << " \n";
-								CloneNode(frame[j]->child, vehicle->m_pRwClump, wheelFrame);
+								CloneNode(frame[j]->child, vehicle->m_pRwClump, wheelFrame, false, true);
 								CVisibilityPlugins::SetFrameHierarchyId(frame[j]->child, wheelId);
 							}
 							else

@@ -5,6 +5,7 @@ namespace Patches {
 	extern uint32_t defaultCopLightSwitch;
 	void FixRemapTxdName();
 	void PatchForCoplights();
+	void __declspec() NeverRender();
 	void __declspec() UseCopLights();
 	void __declspec() RenderBus();
 	void __declspec() IsLawEnforcement();
