@@ -9,7 +9,7 @@
 
 void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch)
 {
-	ExtendedData &xdata = remInfo.Get(vehicle);
+	ExtendedData &xdata = xData.Get(vehicle);
 
 	const string name = GetFrameNodeName(frame);
 	size_t found;

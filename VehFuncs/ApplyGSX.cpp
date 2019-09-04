@@ -12,7 +12,7 @@ void callback(const GSX::externalCallbackStructure *test)
 
 	if (test->veh)
 	{
-		ExtendedData &xdata = remInfo.Get(test->veh);
+		ExtendedData &xdata = xData.Get(test->veh);
 
 		switch (test->status)
 		{

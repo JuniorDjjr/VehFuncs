@@ -34,7 +34,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				bool preserveColor = false;
 				int digit1 = name[found + 4] - '0';
 
-				ExtendedData &xdata = remInfo.Get(vehicle);
+				ExtendedData &xdata = xData.Get(vehicle);
 
 				if (name[found + 5] == '-')
 				{
@@ -62,7 +62,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 			found = name.find("_cl=");
 			if (found != string::npos)
 			{
-				ExtendedData &xdata = remInfo.Get(vehicle);
+				ExtendedData &xdata = xData.Get(vehicle);
 
 				int j = 0;
 				char s[32] = { 0 };
@@ -82,7 +82,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				stringstream ss(&name[found + 5]);
 				while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  driverList.push_back(num); } catch (const exception &) { break; } }
 
-				ExtendedData &xdata = remInfo.Get(vehicle);
+				ExtendedData &xdata = xData.Get(vehicle);
 
 				srand((xdata.randomSeed + xdata.randomSeedUsage));
 				xdata.randomSeedUsage++;
@@ -101,7 +101,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 			found = name.find("_oc=");
 			if (found != string::npos)
 			{
-				ExtendedData &xdata = remInfo.Get(vehicle);
+				ExtendedData &xdata = xData.Get(vehicle);
 
 				char s[32] = { 0 };
 				stringstream ss(&name[found + 4]);
@@ -140,7 +140,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				float maxVol = stof(&name[found + i]);
 
 				lg << "MDPM: Found '_mdpmnpc' (MDPM NPC) chances '" << num << " vol " << minVol << "-" << maxVol << "'\n";
-				ExtendedData &xdata = remInfo.Get(vehicle);
+				ExtendedData &xdata = xData.Get(vehicle);
 				xdata.mdpmCustomChances = num;
 				xdata.mdpmCustomMinVol = minVol;
 				xdata.mdpmCustomMaxVol = maxVol;
@@ -154,7 +154,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				float fdigit2;
 				float dirtyLevel;
 
-				ExtendedData &xdata = remInfo.Get(vehicle);
+				ExtendedData &xdata = xData.Get(vehicle);
 
 				int digit1 = name[found + 5] - '0';
 
@@ -187,7 +187,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 		if (found != string::npos)
 		{
 			lg << "Charac: Found 'dexh' (double exhaust) at '" << name << "'\n";
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			ExtendedData &xdata = xData.Get(vehicle);
 			int enable = name[found + 6] - '0';
 			if (enable) xdata.doubleExhaust = true;
 			else xdata.doubleExhaust = false;
@@ -198,7 +198,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 		if (found != string::npos)
 		{
 			lg << "Charac: Found 'btilt' (body tilt) at '" << name << "'\n";
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			ExtendedData &xdata = xData.Get(vehicle);
 			xdata.bodyTilt = stof(&name[found + 7]);
 		}*/
 
@@ -210,7 +210,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 	if (found != string::npos)
 	{
 		lg << "Charac: Found 'busrender' (force bus render) at '" << name << "'\n";
-		ExtendedData &xdata = remInfo.Get(vehicle);
+		ExtendedData &xdata = xData.Get(vehicle);
 		xdata.flags.bBusRender = true;
 	}
 
@@ -224,7 +224,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 
 /*void SetCharacteristicsInSetModel(CVehicle * vehicle, bool bReSearch)
 {
-	ExtendedData &xdata = remInfo.Get(vehicle);
+	ExtendedData &xdata = xData.Get(vehicle);
 
 	return;
 }*/
@@ -232,7 +232,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 
 void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 {
-	ExtendedData &xdata = remInfo.Get(vehicle);
+	ExtendedData &xdata = xData.Get(vehicle);
 
 	if (!bReSearch) 
 	{
@@ -415,7 +415,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 
 void SetCharacteristicsForIndieHandling(CVehicle * vehicle, bool bReSearch)
 {
-	ExtendedData &xdata = remInfo.Get(vehicle);
+	ExtendedData &xdata = xData.Get(vehicle);
 
 	if (!bReSearch)
 	{

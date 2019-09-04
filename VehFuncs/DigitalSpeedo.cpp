@@ -11,7 +11,7 @@ void SetupDigitalSpeedo(CVehicle * vehicle, RwFrame * frame)
 {
 	lg << "DigitalSpeedo: Setup...\n";
 
-	ExtendedData &xdata = remInfo.Get(vehicle);
+	ExtendedData &xdata = xData.Get(vehicle);
 
 	frame = frame->child;
 	if (frame != nullptr) 
@@ -101,7 +101,7 @@ void SetupDigitalSpeedo(CVehicle * vehicle, RwFrame * frame)
 
 void ProcessDigitalSpeedo(CVehicle * vehicle, RwFrame * frame)
 {
-	ExtendedData &xdata = remInfo.Get(vehicle);
+	ExtendedData &xdata = xData.Get(vehicle);
 
 	//lg << "DigitalSpeedo: Reseting...\n";
 

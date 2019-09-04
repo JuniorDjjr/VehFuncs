@@ -6,7 +6,7 @@
 
 void ProcessShake(CVehicle *vehicle, list<RwFrame*> frames)
 {
-	ExtendedData &xdata = remInfo.Get(vehicle);
+	ExtendedData &xdata = xData.Get(vehicle);
 
 	// Process dot
 	xdata.dotLife += CTimer::ms_fTimeStep * (0.2f * ((xdata.smoothGasPedal * 2.0f) + 1.0f));
@@ -19,7 +19,7 @@ void ProcessShake(CVehicle *vehicle, list<RwFrame*> frames)
 		{
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
 
-			if (vehicle->m_nFlags.bEngineOn && vehicle->m_fHealth > 0 && !vehicle->m_nFlags.bEngineBroken && !vehicle->m_nFlags.bIsDrowning)
+			if (vehicle->m_nVehicleFlags.bEngineOn && vehicle->m_fHealth > 0 && !vehicle->m_nVehicleFlags.bEngineBroken && !vehicle->m_nVehicleFlags.bIsDrowning)
 			{
 				// Get noise
 				float noise = SimplexNoise::noise(xdata.dotLife);
@@ -74,7 +74,7 @@ void ProcessShake(CVehicle *vehicle, list<RwFrame*> frames)
 		}
 		else
 		{
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			ExtendedData &xdata = xData.Get(vehicle);
 			xdata.shakeFrame.remove(*it);
 		}
 	}

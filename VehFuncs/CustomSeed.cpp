@@ -9,7 +9,7 @@ extern list<CustomSeed> &getCustomSeedList()
 
 extern "C" int32_t __declspec(dllexport) Ext_GetCarSeed(CVehicle * vehicle) 
 {
-	ExtendedData &xdata = remInfo.Get(vehicle);
+	ExtendedData &xdata = xData.Get(vehicle);
 
 	lg << "Custom Seed: Get seed value: " << xdata.randomSeed << " for vehicle " << vehicle << "\n";
 

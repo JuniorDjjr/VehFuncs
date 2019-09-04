@@ -45,7 +45,7 @@ void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> items, int mode)
 
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
 
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			ExtendedData &xdata = xData.Get(vehicle);
 
 
 			//f_fpeg1=ax45z10s2
@@ -178,7 +178,7 @@ void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> items, int mode)
 		}
 		else
 		{
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			ExtendedData &xdata = xData.Get(vehicle);
 			F_footpegs *footpegs = *it;
 			delete footpegs;
 			if (mode == 1) xdata.fpegFront.remove(*it); else xdata.fpegBack.remove(*it);

@@ -76,7 +76,7 @@ void SetWheel(RwFrame * frame[6], CVehicle * vehicle)
 				continue;
 			}
 		}
-		ExtendedData &xdata = remInfo.Get(vehicle);
+		ExtendedData &xdata = xData.Get(vehicle);
 		xdata.wheelFrame[j] = nullptr;
 	}
 }

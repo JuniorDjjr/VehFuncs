@@ -20,7 +20,7 @@ void FixMaterials(RpClump * clump)
 
 RpMaterial *MaterialCallback(RpMaterial *material, void *data)
 {
-	ExtendedData &xdata = remInfo.Get(curVehicle);
+	ExtendedData &xdata = xData.Get(curVehicle);
 
 	switch (CheckMaterials(material, (RpAtomic *)data))
 	{

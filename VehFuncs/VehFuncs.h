@@ -13,10 +13,10 @@ RwFrame *__cdecl CustomRwFrameForAllObjects_Upgrades(RwFrame *frame, RpAtomicCal
 
 unsigned int FramePluginOffset;
 
-extern VehicleExtendedData<ExtendedData> &getremInfo()
+extern VehicleExtendedData<ExtendedData> &getExtData()
 {
-	static VehicleExtendedData<ExtendedData> remInfo;
-	return remInfo;
+	static VehicleExtendedData<ExtendedData> xData;
+	return xData;
 }
 
 extern fstream &logfile()

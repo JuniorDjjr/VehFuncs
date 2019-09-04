@@ -83,7 +83,7 @@ void ProcessPopup(CVehicle *vehicle, ExtendedData *xdata)
 
 				// Process if valid
 				bool lightsOn;
-				if (vehicle->m_nFlags.bLightsOn || vehicle->m_nOverrideLights == 2)
+				if (vehicle->m_nVehicleFlags.bLightsOn || vehicle->m_nOverrideLights == 2)
 				{
 					if (xdata->popupProgress[i] == 1.0f) continue;
 					lightsOn = true;

@@ -39,7 +39,7 @@ void ProcessTrifork(CVehicle *vehicle, RwFrame* frame)
 	}
 	else
 	{
-		ExtendedData &xdata = remInfo.Get(vehicle);
+		ExtendedData &xdata = xData.Get(vehicle);
 		xdata.triforkFrame = nullptr;
 	}
 }

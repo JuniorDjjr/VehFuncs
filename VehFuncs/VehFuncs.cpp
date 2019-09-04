@@ -33,6 +33,7 @@
 #include "extensions/ScriptCommands.h"
 #include "CVisibilityPlugins.h"
 #include "CTxdStore.h"
+#include "CModelInfo.h"
 #include "NodeName.h"
 #include "CGeneral.h"
 #include "CTask.h"
@@ -50,7 +51,7 @@
 // Global vars
 int G_i = 0;
 uintptr_t AtomicAlphaCallBack;
-VehicleExtendedData<ExtendedData> remInfo;
+VehicleExtendedData<ExtendedData> xData;
 fstream lg;
 bool IVFinstalled, APPinstalled, bFirstFrame, bFirstScriptFrame = false;
 CVehicle *curVehicle;
@@ -67,16 +68,15 @@ public:
 		// -- On plugin init
 		lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 		static bool reInit = false;
-		remInfo = getremInfo();
+		xData = getExtData();
 
-		// Fix remaps on txd files named with digits.
 		Patches::FixRemapTxdName();
 
 
 		// -- On game init
 		Events::initGameEvent += []
 		{
-			lg << "VF v1.4\n";
+			lg << "VF v1.4.1\n";
 
 			srand(time(0));
 			StoreHandlingData();
@@ -117,7 +117,7 @@ public:
 
 				CVehicle *veh = (CVehicle*)regs.esi;
 				CEntity *entity = (CEntity*)veh;
-				ExtendedData &xdata = remInfo.Get(veh);
+				ExtendedData &xdata = xData.Get(veh);
 
 				if (xdata.popupFrame[0] != nullptr)
 				{
@@ -157,7 +157,7 @@ public:
 				*(uint32_t*)(regs.esp + 0x14) = -1; //mov     dword ptr [esp+14h], 0FFFFFFFFh
 
 				CVehicle *veh = (CVehicle *)regs.edi;
-				ExtendedData &xdata = remInfo.Get(veh);
+				ExtendedData &xdata = xData.Get(veh);
 				xdata.flags.bUpgradesUpdated = true;
 			});
 
@@ -167,7 +167,7 @@ public:
 				regs.esi = regs.eax; //mov     esi, eax
 
 				CVehicle *veh = (CVehicle *)regs.edi;
-				ExtendedData &xdata = remInfo.Get(veh);
+				ExtendedData &xdata = xData.Get(veh);
 				xdata.flags.bUpgradesUpdated = true;
 			});
 
@@ -212,6 +212,7 @@ public:
 		// -- On plugins attach
 		Events::attachRwPluginsEvent += []() 
 		{
+			// Apply
 			FramePluginOffset = RwFrameRegisterPlugin(sizeof(FramePlugin), PLUGIN_ID_STR, (RwPluginObjectConstructor)FramePlugin::Init, (RwPluginObjectDestructor)FramePlugin::Destroy, (RwPluginObjectCopy)FramePlugin::Copy);
 		};
 
@@ -265,7 +266,7 @@ public:
 		// -- On vehicle set model
 		Events::vehicleSetModelEvent += [](CVehicle *vehicle, int modelId) 
 		{
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			ExtendedData &xdata = xData.Get(vehicle);
 			xdata.nodesProcess = true;
 			xdata.nodesProcessForIndieHandling = true;
 			xdata.ReInitForReSearch();
@@ -285,7 +286,7 @@ public:
 
 			// Init
 			curVehicle = vehicle;
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			ExtendedData &xdata = xData.Get(vehicle);
 			tHandlingData * handling;
 			bool bReSearch = false;
 
@@ -499,7 +500,7 @@ public:
 				}
 			}
 
-			if (vehicle->m_nFlags.bEngineOn)
+			if (vehicle->m_nVehicleFlags.bEngineOn)
 			{
 				// Process gear
 				if (!xdata.gearFrame.empty()) ProcessRotatePart(vehicle, xdata.gearFrame, true);
@@ -516,7 +517,7 @@ public:
 			// Process brake pedal
 			if (!xdata.brakepedalFrame.empty()) ProcessPedal(vehicle, xdata.brakepedalFrame, 2);
 
-			if (vehicle->m_fHealth > 0 && !vehicle->m_nFlags.bEngineBroken && !vehicle->m_nFlags.bIsDrowning)
+			if (vehicle->m_fHealth > 0 && !vehicle->m_nVehicleFlags.bEngineBroken && !vehicle->m_nVehicleFlags.bIsDrowning)
 			{
 				// Process anims
 				if (!xdata.anims.empty()) ProcessAnims(vehicle, xdata.anims);
@@ -551,7 +552,7 @@ public:
 		Events::vehicleRenderEvent.after += [](CVehicle *vehicle)
 		{
 			curVehicle = vehicle;
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			ExtendedData &xdata = xData.Get(vehicle);
 
 			// Process tuning spoiler (after render)
 			if (xdata.flags.bUpgradesUpdated)
@@ -603,7 +604,7 @@ public:
 
 			if (name[0] == 'f' && name[1] == '_') 
 			{
-				ExtendedData &xdata = remInfo.Get(vehicle);
+				ExtendedData &xdata = xData.Get(vehicle);
 				if (!bReSearch) 
 				{
 					// Don't process extras if seed is 0 (for Tuning Mod and other mods)
@@ -960,7 +961,7 @@ public:
 			else // retrocompatibility
 			{
 				if (!IVFinstalled) {
-					ExtendedData &xdata = remInfo.Get(vehicle);
+					ExtendedData &xdata = xData.Get(vehicle);
 					found = name.find("movsteer");
 					if (found != string::npos)
 					{
@@ -987,7 +988,7 @@ public:
 					}
 				}
 				if (!APPinstalled) {
-					ExtendedData &xdata = remInfo.Get(vehicle);
+					ExtendedData &xdata = xData.Get(vehicle);
 					found = name.find("steering_dummy");
 					if (found != string::npos)
 					{

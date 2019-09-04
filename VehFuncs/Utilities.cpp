@@ -43,21 +43,21 @@ extern "C" int32_t __declspec(dllexport) Ext_GetVehicleSpeedRealistic(CVehicle *
 
 extern "C" int32_t __declspec(dllexport) Ext_GetMDPMnpcCustomChance(CVehicle * vehicle)
 {
-	ExtendedData &xdata = remInfo.Get(vehicle);
+	ExtendedData &xdata = xData.Get(vehicle);
 	
 	return xdata.mdpmCustomChances;
 }
 
 extern "C" int32_t __declspec(dllexport) Ext_GetMDPMnpcCustomMinVol(CVehicle * vehicle)
 {
-	ExtendedData &xdata = remInfo.Get(vehicle);
+	ExtendedData &xdata = xData.Get(vehicle);
 
 	return *reinterpret_cast<int32_t*>(addressof(xdata.mdpmCustomMinVol));
 }
 
 extern "C" int32_t __declspec(dllexport) Ext_GetMDPMnpcCustomMaxVol(CVehicle * vehicle) 
 {
-	ExtendedData &xdata = remInfo.Get(vehicle);
+	ExtendedData &xdata = xData.Get(vehicle);
 
 	return *reinterpret_cast<int32_t*>(addressof(xdata.mdpmCustomMaxVol));
 }

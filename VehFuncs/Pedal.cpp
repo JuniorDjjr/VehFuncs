@@ -12,9 +12,9 @@ void ProcessPedal(CVehicle *vehicle, list<RwFrame*> frames, int mode)
 		{
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
 
-			if (vehicle->m_nFlags.bEngineOn && vehicle->m_fHealth > 0 && !vehicle->m_nFlags.bEngineBroken && !vehicle->m_nFlags.bIsDrowning)
+			if (vehicle->m_nVehicleFlags.bEngineOn && vehicle->m_fHealth > 0 && !vehicle->m_nVehicleFlags.bEngineBroken && !vehicle->m_nVehicleFlags.bIsDrowning)
 			{
-				ExtendedData &xdata = remInfo.Get(vehicle);
+				ExtendedData &xdata = xData.Get(vehicle);
 
 				const string name = GetFrameNodeName(frame);
 				size_t found;
@@ -63,7 +63,7 @@ void ProcessPedal(CVehicle *vehicle, list<RwFrame*> frames, int mode)
 		}
 		else
 		{
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			ExtendedData &xdata = xData.Get(vehicle);
 			if (mode == 1) xdata.gaspedalFrame.remove(*it); else xdata.brakepedalFrame.remove(*it);
 		}
 	}

@@ -63,14 +63,14 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 				{
 				case 0:
 					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off \n";
-					if (!vehicle->m_nFlags.bEngineOn)
+					if (!vehicle->m_nVehicleFlags.bEngineOn)
 						open = true;
 					else
 						open = false;
 					break;
 				case 1:
 					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off or alarm on \n";
-					if (!vehicle->m_nFlags.bEngineOn)
+					if (!vehicle->m_nVehicleFlags.bEngineOn)
 						open = true;
 					else
 						open = false;
@@ -162,7 +162,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
 
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			ExtendedData &xdata = xData.Get(vehicle);
 
 
 			//f_an1a=ax45z10s2
@@ -257,7 +257,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 		}
 		else
 		{
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			ExtendedData &xdata = xData.Get(vehicle);
 			F_an *an = *it;
 			delete an;
 			xdata.anims.remove(*it);

@@ -12,7 +12,7 @@ namespace Patches
 	void __cdecl RenderBusCheck(CVehicle *veh)
 	{
 		valid = 0;
-		if (veh->m_nFlags.bIsBus) 
+		if (veh->m_nVehicleFlags.bIsBus) 
 		{
 			int model = veh->m_nModelIndex;
 			if (model == MODEL_BUS)
@@ -21,7 +21,7 @@ namespace Patches
 			}
 			else
 			{
-				ExtendedData &xdata = remInfo.Get(veh);
+				ExtendedData &xdata = xData.Get(veh);
 				valid = xdata.flags.bBusRender ? 1 : 0;
 			}
 		}
@@ -81,7 +81,7 @@ namespace Patches
 	{
 		valid = false;
 		if (veh && veh->m_nModelIndex > 0) {
-			ExtendedData &xdata = remInfo.Get(veh);
+			ExtendedData &xdata = xData.Get(veh);
 			if (&xdata != nullptr) {
 				if (xdata.coplightFrame != nullptr) valid = true;
 			}
@@ -119,9 +119,9 @@ namespace Patches
 	void __cdecl UseCopLightsCheck(CVehicle *veh)
 	{
 		valid = 0;
-		if (veh->m_nFlags.bSirenOrAlarm) 
+		if (veh->m_nVehicleFlags.bSirenOrAlarm) 
 		{
-			ExtendedData &xdata = remInfo.Get(veh);
+			ExtendedData &xdata = xData.Get(veh);
 			valid = xdata.coplightFrame ? 1 : 0;
 		}
 	}
@@ -161,7 +161,7 @@ namespace Patches
 		MakeInline<0x006AB5BE, 0x006AB5BE+8>([](reg_pack& regs)
 		{
 			CVehicle *veh = (CVehicle*)regs.esi;
-			ExtendedData &xdata = remInfo.Get(veh);
+			ExtendedData &xdata = xData.Get(veh);
 
 			if (xdata.coplightFrame) 
 			{
@@ -221,7 +221,7 @@ namespace Patches
 		{
 			CVehicle *veh = (CVehicle*)regs.esi;
 
-			ExtendedData &xdata = remInfo.Get(veh);
+			ExtendedData &xdata = xData.Get(veh);
 
 			RwV3d *in = (RwV3d*)(regs.esp + 0x2C);
 
@@ -247,53 +247,65 @@ namespace Patches
 
 	void FixRemapTxdName()
 	{
-		MakeInline<0x004C9360>([](reg_pack& regs)
+		// Fix remaps on txd files named with digits.
+		//Patches::FixRemapTxdName();
+		MakeInline<0x004C9363>([](reg_pack& regs)
 		{
-			const char *txdName = *(const char **)(regs.esp + 0x4);
-			uint16_t txdId = *(uint16_t*)(regs.esp + 0x8);
+			const char *txdName = *(const char **)(regs.esp + 0x18 + 0x4);
+			uint16_t txdId = *(uint16_t*)(regs.esp + 0x18 + 0x8);
 
 			size_t len = strlen(txdName);
-			if (isdigit(txdName[len - 1]))
+
+			if (len > 1 && isdigit(txdName[len - 1]))
 			{
-				do
+				// ignore 'radar' txds, just a little performance improvement, because 'GetModelInfo' isn't so fast
+				if (len >= 7 && txdName[0] == 'r' && txdName[1] == 'a' && txdName[2] == 'd' && txdName[3] == 'a' && txdName[4] == 'r')
 				{
-					len--;
-					if (txdName[len] == '_') 
+					lg << txdName << "\n";
+					lg.flush();
+				}
+				else
+				{
+					do
 					{
 						len--;
-						break;
+						if (txdName[len] == '_')
+						{
+							len--;
+							break;
+						}
+					} while (isdigit(txdName[len]));
+
+					len++;
+
+					char modelTxdName[32];
+					strncpy(modelTxdName, txdName, (len));
+					modelTxdName[len] = 0;
+
+					CBaseModelInfo *modelInfo;
+
+					uint32_t minVehModel = ReadMemory<uint32_t>(0x4C93CB + 1);
+					uint32_t maxVehModel = ReadMemory<uint32_t>(0x4C93C2 + 1);
+
+					if (maxVehModel == 630) { //default
+						modelInfo = CModelInfo::GetModelInfo(modelTxdName, minVehModel, maxVehModel);
 					}
-				} while (isdigit(txdName[len]));
-
-				len++;
-
-				char modelTxdName[32];
-				strncpy(modelTxdName, txdName, (len));
-				modelTxdName[len] = 0;
-
-				CBaseModelInfo *modelInfo;
-
-				uint32_t minVehModel = ReadMemory<uint32_t>(0x4C93CB + 1);
-				uint32_t maxVehModel = ReadMemory<uint32_t>(0x4C93C2 + 1);
-
-				if (maxVehModel == 630) { //default
-					modelInfo = CModelInfo::GetModelInfo(modelTxdName, minVehModel, maxVehModel);
-				}
-				else { //patched
-					modelInfo = CModelInfo::GetModelInfo(modelTxdName, NULL); // Paintjobs working on any ID
-				}
-				if (modelInfo) 
-				{
-					if (modelInfo->GetModelType() == 6)
+					else { //patched
+						modelInfo = CModelInfo::GetModelInfo(modelTxdName, NULL); // Paintjobs working on any ID
+					}
+					if (modelInfo)
 					{
-						CVehicleModelInfo *vehModelInfo = (CVehicleModelInfo *)modelInfo;
-						vehModelInfo->AddRemap(txdId);
+						if (modelInfo->GetModelType() == 6)
+						{
+							CVehicleModelInfo *vehModelInfo = (CVehicleModelInfo *)modelInfo;
+							vehModelInfo->AddRemap(txdId);
+						}
 					}
 				}
 
 			}
+			*(uint32_t*)(regs.esp - 0x4) = 0x004C93FD;
 		});
-		WriteMemory<uint8_t>(0x4C9365, 0xC3, true); //retn
 	}
 
 	// -- Hitch (by Fabio)
@@ -309,7 +321,7 @@ namespace Patches
 
 		static bool isCustomCar(CAutomobile *mob, RwV3d &point)
 		{
-			ExtendedData &xdata = remInfo.Get(mob);
+			ExtendedData &xdata = xData.Get(mob);
 			if (xdata.hitchFrame == nullptr) return false;
 
 			RpAtomic * atomic = (RpAtomic*)GetFirstObject(xdata.hitchFrame);

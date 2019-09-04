@@ -23,7 +23,7 @@ void ProcessRotatePart(CVehicle *vehicle, list<RwFrame*> frames, bool isGear)
 
 			if (isGear == true) 
 			{
-				ExtendedData &xdata = remInfo.Get(vehicle);
+				ExtendedData &xdata = xData.Get(vehicle);
 				speedMult += CTimer::ms_fTimeStep * abs(xdata.smoothGasPedal * 13.0f);
 			}
 
@@ -54,7 +54,7 @@ void ProcessRotatePart(CVehicle *vehicle, list<RwFrame*> frames, bool isGear)
 		}
 		else
 		{
-			ExtendedData &xdata = remInfo.Get(vehicle);
+			ExtendedData &xdata = xData.Get(vehicle);
 			if (isGear) xdata.gearFrame.remove(*it);
 			else xdata.fanFrame.remove(*it);
 		}

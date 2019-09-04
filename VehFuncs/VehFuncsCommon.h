@@ -230,9 +230,11 @@ public:
 		spoilerFrames.clear();
 		anims.clear();
 	}
+
+	// TODO clear lists on destroy
 };
 
 extern fstream &logfile();
 extern list<string> &getClassList();
-extern VehicleExtendedData<ExtendedData> remInfo;
+extern VehicleExtendedData<ExtendedData> xData;
 extern fstream lg;
