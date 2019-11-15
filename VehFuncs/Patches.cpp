@@ -3,6 +3,9 @@
 #include "NodeName.h"
 #include "CModelInfo.h"
 #include "Patches.h"
+#include "CVisibilityPlugins.h"
+#include "CCamera.h"
+#include <math.h>
 #include "../injector/assembly.hpp"
 
 namespace Patches
@@ -49,7 +52,31 @@ namespace Patches
 	void __cdecl NeverRenderCheck(RpAtomic *atomic)
 	{
 		RwFrame *frame = (RwFrame *)atomic->object.object.parent;
-		valid = !FRAME_EXTENSION(frame)->flags.bNeverRender;
+		if (FRAME_EXTENSION(frame)->flags.bNeverRender) {
+			valid = false;
+			return;
+		}
+		if (atomic->clump->object.type == 2 && FRAME_EXTENSION(frame)->LODdist != 0) {
+			float LODdist = FRAME_EXTENSION(frame)->LODdist * 3.0f * TheCamera.m_fLODDistMultiplier;
+			//lg << pow(LODdist, 3) << " " << *(float*)0x00C88024 << "\n";
+			if (LODdist > 0) // >
+			{
+				if (*(float*)0x00C88024 < pow(LODdist, 3)) {
+					valid = false;
+					return;
+				}
+			}
+			else // <
+			{
+				LODdist *= -1.0f;
+				if (*(float*)0x00C88024 > pow(LODdist, 3)) {
+					valid = false;
+					return;
+				}
+			}
+		}
+		valid = true;
+		return;
 	}
 
 	void __declspec(naked) NeverRender()
@@ -103,8 +130,9 @@ namespace Patches
 
 			cmp     valid, 1
 			je      IsLawEnforcement_IsValid
-			add     eax, -427
-			push    6D2379h
+			cmp     eax, 0AEh
+
+			push    6D237Eh
 			ret
 
 			IsLawEnforcement_IsValid:
@@ -261,8 +289,6 @@ namespace Patches
 				// ignore 'radar' txds, just a little performance improvement, because 'GetModelInfo' isn't so fast
 				if (len >= 7 && txdName[0] == 'r' && txdName[1] == 'a' && txdName[2] == 'd' && txdName[3] == 'a' && txdName[4] == 'r')
 				{
-					lg << txdName << "\n";
-					lg.flush();
 				}
 				else
 				{
@@ -312,6 +338,7 @@ namespace Patches
 	namespace Hitch
 	{
 		auto GetTowBarPosOriginal = GetTowBarPos_t(nullptr);
+		auto GetTowBarPosOriginal_Trailer = GetTowBarPos_t(nullptr);
 
 		static CAutomobile *veh = nullptr;
 		static RwV3d *p = nullptr;
@@ -346,7 +373,10 @@ namespace Patches
 				return true;
 			}
 
-			return GetTowBarPosOriginal(thisA, point, a3, a4);
+			if (thisA->m_nVehicleSubClass != VEHICLE_TRAILER)
+				return GetTowBarPosOriginal(thisA, point, a3, a4);
+			else
+				return GetTowBarPosOriginal_Trailer(thisA, point, a3, a4);
 		}
 
 		static void wrapper()
@@ -390,6 +420,10 @@ namespace Patches
 		extern void setOriginalFun(GetTowBarPos_t f)
 		{
 			GetTowBarPosOriginal = f;
+		}
+		extern void setOriginalFun_Trailer(GetTowBarPos_t f)
+		{
+			GetTowBarPosOriginal_Trailer = f;
 		}
 	}
 

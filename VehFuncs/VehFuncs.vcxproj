@@ -42,14 +42,14 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='GTASA Release|Win32'">
-    <OutDir>E:\Documents\GTA Brasil new</OutDir>
+    <OutDir>C:\Users\JuniorDjjr\Documents\GTA San Andreas\modloader\VehFuncs\</OutDir>
     <IntDir>$(ProjectDir).obj\GTASA\Release\</IntDir>
     <TargetName>VehFuncs</TargetName>
     <TargetExt>.asi</TargetExt>
     <IncludePath>$(VC_IncludePath);$(WindowsSdk_71A_IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='GTASA zDebug|Win32'">
-    <OutDir>E:\Documents\GTA Brasil new</OutDir>
+    <OutDir>C:\Users\JuniorDjjr\Documents\GTA San Andreas\modloader\VehFuncs\</OutDir>
     <IntDir>$(ProjectDir).obj\GTASA\Debug\</IntDir>
     <TargetName>VehFuncs</TargetName>
     <TargetExt>.asi</TargetExt>

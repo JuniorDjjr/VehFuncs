@@ -53,7 +53,7 @@ int G_i = 0;
 uintptr_t AtomicAlphaCallBack;
 VehicleExtendedData<ExtendedData> xData;
 fstream lg;
-bool IVFinstalled, APPinstalled, bFirstFrame, bFirstScriptFrame = false;
+bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false;
 CVehicle *curVehicle;
 static std::list<std::pair<unsigned int *, unsigned int>> resetMats;
 
@@ -76,7 +76,7 @@ public:
 		// -- On game init
 		Events::initGameEvent += []
 		{
-			lg << "VF v1.4.1\n";
+			lg << "VF v1.5\n";
 
 			srand(time(0));
 			StoreHandlingData();
@@ -105,7 +105,7 @@ public:
 
 
 			// Cop functions
-			MakeJMP(0x006D2374, Patches::IsLawEnforcement);
+			MakeJMP(0x006D2379, Patches::IsLawEnforcement);
 			Patches::PatchForCoplights();
 
 
@@ -198,11 +198,14 @@ public:
 
 			
 			// Hitch patch
+			// CAutomobile
 			int *vmt = (int*)0x00871120;
 			int *getlink = vmt + (0xF0 / sizeof(vmt));
 			Patches::Hitch::setOriginalFun((Patches::Hitch::GetTowBarPos_t)ReadMemory<int*>(getlink, true));
 			WriteMemory(getlink, memory_pointer(Patches::Hitch::GetTowBarPosToHook).as_int(), true);
-
+			// CTrailer
+			Patches::Hitch::setOriginalFun_Trailer((Patches::Hitch::GetTowBarPos_t)ReadMemory<int*>(0x871D18, true));
+			WriteMemory(0x871D18, memory_pointer(Patches::Hitch::GetTowBarPosToHook).as_int(), true);
 
 			lg << "Core: Started\n";
 		};
@@ -244,19 +247,22 @@ public:
 		Events::processScriptsEvent.after += [] {
 			if (!bFirstScriptFrame)
 			{
-				unsigned int script;
-				const unsigned int GET_SCRIPT_STRUCT_NAMED = 0x10AAA;
-				Command<GET_SCRIPT_STRUCT_NAMED>("NEWSVAN", &script);
-				if (script)
-				{
-					lg << "Core: APP installed\n";
-					APPinstalled = true;
-				}
-				else
-				{
-					lg << "Core: APP not installed\n";
-					APPinstalled = false;
-				}
+				if (GetModuleHandleA("CLEO.asi")) {
+					unsigned int script;
+					const unsigned int GET_SCRIPT_STRUCT_NAMED = 0x10AAA;
+					Command<GET_SCRIPT_STRUCT_NAMED>("NEWSVAN", &script);
+					if (script)
+					{
+						lg << "Core: APP installed\n";
+						APPinstalled = true;
+					}
+					else
+					{
+						lg << "Core: APP not installed\n";
+						APPinstalled = false;
+					}
+					
+				} else lg << "Core: CLEO isn't installed." << "\n\n";
 				lg.flush();
 				bFirstScriptFrame = true;
 			}
@@ -287,20 +293,8 @@ public:
 			// Init
 			curVehicle = vehicle;
 			ExtendedData &xdata = xData.Get(vehicle);
-			tHandlingData * handling;
+			tHandlingData *handling;
 			bool bReSearch = false;
-
-			// For IndieVehHandling / Get re-search
-			if (IsIndieHandling(vehicle, &handling))
-			{
-				bReSearch = ExtraInfoBitReSearch(vehicle, handling);
-
-				if (!xdata.nodesProcessForIndieHandling || bReSearch)
-				{
-					SetCharacteristicsForIndieHandling(vehicle, bReSearch);
-					xdata.nodesProcessForIndieHandling = false;
-				}
-			}
 
 			// Set custom seed
 			list<CustomSeed> &customSeedList = getCustomSeedList();
@@ -432,6 +426,18 @@ public:
 				lg << "Shared Extras: " << aplate << "\n";
 				fs.flush();
 			*/
+			}
+
+			// For IndieVehHandling / Get re-search
+			if (IsIndieHandling(vehicle, &handling))
+			{
+				bReSearch = ExtraInfoBitReSearch(vehicle, handling);
+
+				if (xdata.nodesProcessForIndieHandling || bReSearch)
+				{
+					SetCharacteristicsForIndieHandling(vehicle, bReSearch);
+					xdata.nodesProcessForIndieHandling = false;
+				}
 			}
 
 			///////////////////////////////////////////////////////////////////////////////////////
@@ -664,6 +670,7 @@ public:
 
 					SetupDigitalSpeedo(vehicle, frame);
 					xdata.speedoFrame = frame;
+					FRAME_EXTENSION(frame)->owner = vehicle;
 
 					float speedMult = 1.0;
 
@@ -691,6 +698,7 @@ public:
 				{
 					lg << "Gear: Found 'f_gear' \n";
 					xdata.gearFrame.push_back(frame);
+					FRAME_EXTENSION(frame)->owner = vehicle;
 				}
 
 				// Fan
@@ -699,6 +707,7 @@ public:
 				{
 					lg << "Gear: Found 'f_fan' \n";
 					xdata.fanFrame.push_back(frame);
+					FRAME_EXTENSION(frame)->owner = vehicle;
 				}
 
 				// Shake
@@ -708,6 +717,7 @@ public:
 					lg << "Shake: Found 'f_shake' \n";
 					if (CreateMatrixBackup(frame)) {
 						xdata.shakeFrame.push_back(frame);
+						FRAME_EXTENSION(frame)->owner = vehicle;
 					}
 				}
 
@@ -718,6 +728,7 @@ public:
 					lg << "Pedal: Found 'f_gas' \n";
 					if (CreateMatrixBackup(frame)) {
 						xdata.gaspedalFrame.push_back(frame);
+						FRAME_EXTENSION(frame)->owner = vehicle;
 					}
 				}
 
@@ -728,6 +739,7 @@ public:
 					lg << "Pedal: Found 'f_brake' \n";
 					if (CreateMatrixBackup(frame)) {
 						xdata.brakepedalFrame.push_back(frame);
+						FRAME_EXTENSION(frame)->owner = vehicle;
 					}
 				}
 
@@ -830,6 +842,7 @@ public:
 								an->submode = submode;
 
 								xdata.anims.push_back(an);
+								FRAME_EXTENSION(frame)->owner = vehicle;
 							}
 						}
 					}
@@ -845,6 +858,7 @@ public:
 						if (CreateMatrixBackup(frame))
 						{
 							xdata.triforkFrame = frame;
+							FRAME_EXTENSION(frame)->owner = vehicle;
 
 							//if (!frame->child)
 							//{
@@ -864,6 +878,7 @@ public:
 						lg << "Footpegs: Found 'f_fpeg1' (footpeg driver) \n";
 						if (CreateMatrixBackup(frame)) {
 							xdata.fpegFront.push_back(new F_footpegs(frame));
+							FRAME_EXTENSION(frame)->owner = vehicle;
 						}
 					}
 
@@ -874,6 +889,7 @@ public:
 						lg << "Footpegs: Found 'f_fpeg2' (footpeg passenger) \n";
 						if (CreateMatrixBackup(frame)) {
 							xdata.fpegBack.push_back(new F_footpegs(frame));
+							FRAME_EXTENSION(frame)->owner = vehicle;
 						}
 					}
 				}
@@ -884,6 +900,7 @@ public:
 				{
 					lg << "FunctionalHitch: Found 'f_hitch' \n";
 					xdata.hitchFrame = frame;
+					FRAME_EXTENSION(frame)->owner = vehicle;
 				}
 
 				// Cop light
@@ -892,6 +909,7 @@ public:
 				{
 					lg << "CopLight: Found 'f_coplight' \n";
 					xdata.coplightFrame = frame;
+					FRAME_EXTENSION(frame)->owner = vehicle;
 					vehicle->m_vehicleAudio.m_bModelWithSiren = true;
 					if (RwFrame *child = frame->child) 
 					{
@@ -916,6 +934,7 @@ public:
 							if (!xdata.wheelFrame[i]) 
 							{
 								xdata.wheelFrame[i] = frame;
+								FRAME_EXTENSION(frame)->owner = vehicle;
 								break;
 							}
 						}
@@ -936,6 +955,7 @@ public:
 							lg << "Popup lights: Found 'f_popr' \n";
 							xdata.popupFrame[1] = frame;
 						}
+						FRAME_EXTENSION(frame)->owner = vehicle;
 					}
 				}
 
@@ -945,6 +965,7 @@ public:
 				{
 					lg << "Spoiler: Found 'f_spoiler' \n";
 					xdata.spoilerFrames.push_back(frame);
+					FRAME_EXTENSION(frame)->owner = vehicle;
 				}
 
 				// Steer
@@ -954,6 +975,7 @@ public:
 					lg << "Steer: Found 'f_steer' \n";
 					if (CreateMatrixBackup(frame)) {
 						xdata.steer = frame;
+						FRAME_EXTENSION(frame)->owner = vehicle;
 					}
 				}
 
@@ -973,6 +995,7 @@ public:
 									lg << "Retrocompatibility: Found 'movsteer_*' \n";
 									if (CreateMatrixBackup(frame)) {
 										xdata.steer = frame;
+										FRAME_EXTENSION(frame)->owner = vehicle;
 									}
 								}
 							}
@@ -981,6 +1004,7 @@ public:
 									lg << "Retrocompatibility: Found 'movsteer' \n";
 									if (CreateMatrixBackup(frame)) {
 										xdata.steer = frame;
+										FRAME_EXTENSION(frame)->owner = vehicle;
 									}
 								}
 							}

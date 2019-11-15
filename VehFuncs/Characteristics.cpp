@@ -181,7 +181,6 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 			}
 		}
 
-
 		// Double exhaust smoke
 		found = name.find("_dexh=");
 		if (found != string::npos)
@@ -204,6 +203,26 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 
 	}
 
+	// LOD less
+	found = name.find("<");
+	if (found != string::npos)
+	{
+		ExtendedData &xdata = xData.Get(vehicle);
+		int num = name[found + 1] - '0';
+		num *= -1;
+		FRAME_EXTENSION(frame)->LODdist = num;
+		lg << "LOD: Found '<' level " << num << " at '" << name << "'\n";
+	}
+
+	// LOD greater
+	found = name.find(">");
+	if (found != string::npos)
+	{
+		ExtendedData &xdata = xData.Get(vehicle);
+		int num = name[found + 1] - '0';
+		FRAME_EXTENSION(frame)->LODdist = num;
+		lg << "LOD: Found '>' level " << num << " at '" << name << "'\n";
+	}
 
 	// Patches: Bus render
 	found = name.find("_busrender");
@@ -425,9 +444,8 @@ void SetCharacteristicsForIndieHandling(CVehicle * vehicle, bool bReSearch)
 			lg << "Charac: Applying double exhaust: " << xdata.doubleExhaust << "\n";
 			tHandlingData * handling;
 			if (IsIndieHandling(vehicle, &handling)) handling->m_bDoubleExhaust = xdata.doubleExhaust;
-			else lg << "(ERROR) This function need IndieVehHandlings installed \n";
+			else lg << "(ERROR) This function need IndieVehicles.asi installed \n";
 		}
-
 	}
 
 	return;

@@ -22,6 +22,8 @@ struct FramePlugin
 {
 	// plugin data
 	MatrixBackup * origMatrix;
+	CVehicle *owner;
+	int8_t LODdist;
 	struct
 	{
 		unsigned char bNeverRender : 1;
@@ -31,9 +33,11 @@ struct FramePlugin
 	// plugin interface
 	static RwFrame * Init(RwFrame *frame)
 	{
+		FRAME_EXTENSION(frame)->owner = nullptr;
 		FRAME_EXTENSION(frame)->origMatrix = nullptr;
 		FRAME_EXTENSION(frame)->flags.bNeverRender = false;
 		FRAME_EXTENSION(frame)->flags.bIsVarWheel = false;
+		FRAME_EXTENSION(frame)->LODdist = 0;
 		return frame;
 	}
 
