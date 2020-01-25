@@ -10,7 +10,7 @@ void SetWheel(RwFrame * frame[6], CVehicle * vehicle)
 	{
 		if (frame[j])
 		{
-			if (frame[j]->object.parent)
+			if (frame[j]->object.parent && FRAME_EXTENSION(frame[j])->owner == vehicle)
 			{
 				const string name = GetFrameNodeName(frame[j]);
 

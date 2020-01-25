@@ -62,7 +62,7 @@ void repairCallback(const repairCallbackStructure *test)
 {
 	if (test->veh)
 	{
-		ExtendedData &xdata = remInfo.Get(test->veh);
+		ExtendedData &xdata = xData.Get(test->veh);
 
 		xdata.flags.bDamageUpdated = true;
 	}

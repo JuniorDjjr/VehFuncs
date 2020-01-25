@@ -102,75 +102,82 @@ void SetupDigitalSpeedo(CVehicle * vehicle, RwFrame * frame)
 void ProcessDigitalSpeedo(CVehicle * vehicle, RwFrame * frame)
 {
 	ExtendedData &xdata = xData.Get(vehicle);
-
-	//lg << "DigitalSpeedo: Reseting...\n";
-
-	RwFrame * frameDigit1 = xdata.speedoDigits[0];
-	RwFrame * frameDigit2 = xdata.speedoDigits[1];
-	RwFrame * frameDigit3 = xdata.speedoDigits[2];
-
-	//CVector vectorSpeed = vehicle->m_vecMoveSpeed;
-	//float fspeed = vectorSpeed.Magnitude() * 200.0;
-	float fspeed = GetVehicleSpeedRealistic(vehicle);
-
-	fspeed *= xdata.speedoMult;
-
-	while (fspeed < 0.0) fspeed *= -1.0;
-
-	//lg << "DigitalSpeedo: speed: " << fspeed << "\n";
-
-	int speedDigit1 = 0, speedDigit2 = 0, speedDigit3 = 0, ispeed = 0;
-
-	if (fspeed > 1.0 || fspeed < -1.0)
+	if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
 	{
-		ispeed = (int)fspeed;
-		if (ispeed > 999) ispeed = 999;
+		//lg << "DigitalSpeedo: Reseting...\n";
 
-		string speedDigits = to_string(ispeed);
+		RwFrame * frameDigit1 = xdata.speedoDigits[0];
+		RwFrame * frameDigit2 = xdata.speedoDigits[1];
+		RwFrame * frameDigit3 = xdata.speedoDigits[2];
 
-		int len = speedDigits.length();
+		//CVector vectorSpeed = vehicle->m_vecMoveSpeed;
+		//float fspeed = vectorSpeed.Magnitude() * 200.0;
+		float fspeed = GetVehicleSpeedRealistic(vehicle);
 
-		if (len == 1)
-		{
-			speedDigit1 = 0;
-			speedDigit2 = 0;
-			speedDigit3 = speedDigits[0] - '0'; // 00X
-		}
-		if (len == 2) 
-		{
-			speedDigit1 = 0;
-			speedDigit2 = speedDigits[0] - '0'; // 0X0
-			speedDigit3 = speedDigits[1] - '0'; // 00X
-		}
-		if (len >= 3) 
-		{
-			speedDigit1 = speedDigits[0] - '0'; // X00
-			speedDigit2 = speedDigits[1] - '0'; // 0X0
-			speedDigit3 = speedDigits[2] - '0'; // 00X
-		}
-	}
-	//lg << "DigitalSpeedo: " << speedDigit1 << speedDigit2 << speedDigit3 << "\n";
+		fspeed *= xdata.speedoMult;
 
-	if (ispeed < 100)
-	{
-		if (ispeed < 10) 
+		while (fspeed < 0.0) fspeed *= -1.0;
+
+		//lg << "DigitalSpeedo: speed: " << fspeed << "\n";
+
+		int speedDigit1 = 0, speedDigit2 = 0, speedDigit3 = 0, ispeed = 0;
+
+		if (fspeed > 1.0 || fspeed < -1.0)
 		{
-			HideAllAtomics(frameDigit1);
-			HideAllAtomics(frameDigit2);
-			HideAllAtomicsExcept(frameDigit3, abs(speedDigit3 - 9));
+			ispeed = (int)fspeed;
+			if (ispeed > 999) ispeed = 999;
+
+			string speedDigits = to_string(ispeed);
+
+			int len = speedDigits.length();
+
+			if (len == 1)
+			{
+				speedDigit1 = 0;
+				speedDigit2 = 0;
+				speedDigit3 = speedDigits[0] - '0'; // 00X
+			}
+			if (len == 2)
+			{
+				speedDigit1 = 0;
+				speedDigit2 = speedDigits[0] - '0'; // 0X0
+				speedDigit3 = speedDigits[1] - '0'; // 00X
+			}
+			if (len >= 3)
+			{
+				speedDigit1 = speedDigits[0] - '0'; // X00
+				speedDigit2 = speedDigits[1] - '0'; // 0X0
+				speedDigit3 = speedDigits[2] - '0'; // 00X
+			}
 		}
-		else 
+		//lg << "DigitalSpeedo: " << speedDigit1 << speedDigit2 << speedDigit3 << "\n";
+
+		if (ispeed < 100)
 		{
-			HideAllAtomics(frameDigit1);
+			if (ispeed < 10)
+			{
+				HideAllAtomics(frameDigit1);
+				HideAllAtomics(frameDigit2);
+				HideAllAtomicsExcept(frameDigit3, abs(speedDigit3 - 9));
+			}
+			else
+			{
+				HideAllAtomics(frameDigit1);
+				HideAllAtomicsExcept(frameDigit2, abs(speedDigit2 - 9));
+				HideAllAtomicsExcept(frameDigit3, abs(speedDigit3 - 9));
+			}
+		}
+		else
+		{
+			HideAllAtomicsExcept(frameDigit1, abs(speedDigit1 - 9));
 			HideAllAtomicsExcept(frameDigit2, abs(speedDigit2 - 9));
 			HideAllAtomicsExcept(frameDigit3, abs(speedDigit3 - 9));
 		}
 	}
-	else 
+	else
 	{
-		HideAllAtomicsExcept(frameDigit1, abs(speedDigit1 - 9));
-		HideAllAtomicsExcept(frameDigit2, abs(speedDigit2 - 9));
-		HideAllAtomicsExcept(frameDigit3, abs(speedDigit3 - 9));
+		ExtendedData &xdata = xData.Get(vehicle);
+		xdata.speedoFrame = nullptr;
 	}
 
 	return;

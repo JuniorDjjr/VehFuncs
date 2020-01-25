@@ -8,6 +8,8 @@
 #include <math.h>
 #include "../injector/assembly.hpp"
 
+float ftest = 1.0f;
+
 namespace Patches
 {
 	int valid = 0;
@@ -48,7 +50,6 @@ namespace Patches
 		}
 	}
 
-
 	void __cdecl NeverRenderCheck(RpAtomic *atomic)
 	{
 		RwFrame *frame = (RwFrame *)atomic->object.object.parent;
@@ -56,22 +57,48 @@ namespace Patches
 			valid = false;
 			return;
 		}
-		if (atomic->clump->object.type == 2 && FRAME_EXTENSION(frame)->LODdist != 0) {
+		if (atomic->clump->object.type == 2 && FRAME_EXTENSION(frame)->LODdist != -100) {
+			int LODdistLevel = FRAME_EXTENSION(frame)->LODdist;
 			float LODdist = FRAME_EXTENSION(frame)->LODdist * 3.0f * TheCamera.m_fLODDistMultiplier;
 			//lg << pow(LODdist, 3) << " " << *(float*)0x00C88024 << "\n";
-			if (LODdist > 0) // >
+			if (LODdistLevel > 0) // >
 			{
-				if (*(float*)0x00C88024 < pow(LODdist, 3)) {
-					valid = false;
-					return;
+				if (LODdistLevel == 9)
+				{
+					if (*(float*)0x00C88024 < *(float*)0x00C88040) // only with vlo
+					{
+						valid = false;
+						return;
+					}
+				}
+				else
+				{
+					if (*(float*)0x00C88024 < pow(LODdist, 3)) {
+						valid = false;
+						return;
+					}
 				}
 			}
-			else // <
+			else
 			{
-				LODdist *= -1.0f;
-				if (*(float*)0x00C88024 > pow(LODdist, 3)) {
-					valid = false;
-					return;
+				if (LODdistLevel < 0) // < 
+				{
+					if (LODdistLevel == -9)
+					{
+						if (*(float*)0x00C88024 > *(float*)0x00C88040) // only without vlo
+						{
+							valid = false;
+							return;
+						}
+					}
+					else
+					{
+						LODdist *= -1.0f;
+						if (*(float*)0x00C88024 > pow(LODdist, 3)) {
+							valid = false;
+							return;
+						}
+					}
 				}
 			}
 		}
@@ -100,6 +127,149 @@ namespace Patches
 				
 			NeverRender_IsValid:
 			push    749B47h
+			ret
+		}
+	}
+
+	void __cdecl ForceRenderCustomLODCheck(RpAtomic *atomic)
+	{
+		RwFrame *frame = (RwFrame *)atomic->object.object.parent;
+		ftest = *(float*)0x00C88024; //gVehicleDistanceFromCamera
+		if (atomic->clump->object.type == 2 && FRAME_EXTENSION(frame)->LODdist != -100) {
+			if (FRAME_EXTENSION(frame)->LODdist >= 0) // >
+			{
+				if (*(float*)0x00C88024 < *(float*)0x00C8803C) // consider vehicle draw distance too (lod1)
+				{
+					ftest = 0.0f; // the camera is near, render it
+				}
+			}
+		}
+	}
+
+	void __declspec(naked) ForceRenderCustomLOD()
+	{
+		__asm {
+			push    esi
+			mov     esi, [esp + 0Ch]
+			push    esi
+			call ForceRenderCustomLODCheck
+			add esp, 4
+			pop esi
+
+			fld ftest
+			push 733247h
+			ret
+		}
+	}
+
+	void __declspec(naked) ForceRenderCustomLODAlpha()
+	{
+		__asm {
+			push    esi
+			mov     esi, [esp + 8h]
+			push    esi
+			call ForceRenderCustomLODCheck
+			add esp, 4
+			pop esi
+
+			fld ftest
+			push 733F86h
+			ret
+		}
+	}
+
+	void __declspec(naked) ForceRenderCustomLODBoatAlpha()
+	{
+		__asm {
+			push    esi
+			mov     esi, [esp + 8h]
+			push    esi
+			call ForceRenderCustomLODCheck
+			add esp, 4
+			pop esi
+
+			fld ftest
+			push 7344A6h
+			ret
+		}
+	}
+
+	void __declspec(naked) ForceRenderCustomLODBoat()
+	{
+		__asm {
+			push    esi
+			mov     esi, [esp + 8h]
+			push    esi
+			call ForceRenderCustomLODCheck
+			add esp, 4
+			pop esi
+
+			fld ftest
+			push 733556h
+			ret
+		}
+	}
+
+	void __declspec(naked) ForceRenderCustomLODBig()
+	{
+		__asm {
+			push    esi
+			mov     esi, [esp + 8h]
+			push    esi
+			call ForceRenderCustomLODCheck
+			add esp, 4
+			pop esi
+
+			fld ftest
+			push 733426h
+			ret
+		}
+	}
+
+	void __declspec(naked) ForceRenderCustomLODBigAlpha()
+	{
+		__asm {
+			push    esi
+			mov     esi, [esp + 8h]
+			push    esi
+			call ForceRenderCustomLODCheck
+			add esp, 4
+			pop esi
+
+			fld ftest
+			push 734376h
+			ret
+		}
+	}
+
+	void __declspec(naked) ForceRenderCustomLODTrain()
+	{
+		__asm {
+			push    esi
+			mov     esi, [esp + 0Ch]
+			push    esi
+			call ForceRenderCustomLODCheck
+			add esp, 4
+			pop esi
+
+			fld ftest
+			push 733337h
+			ret
+		}
+	}
+
+	void __declspec(naked) ForceRenderCustomLODTrainAlpha()
+	{
+		__asm {
+			push    esi
+			mov     esi, [esp + 8h]
+			push    esi
+			call ForceRenderCustomLODCheck
+			add esp, 4
+			pop esi
+
+			fld ftest
+			push 734246h
 			ret
 		}
 	}
@@ -273,14 +443,10 @@ namespace Patches
 		});*/
 	}
 
-	void FixRemapTxdName()
+	// Fix remaps on txd files named with digits.
+	void CustomAssignRemapTxd(const char *txdName, uint16_t txdId)
 	{
-		// Fix remaps on txd files named with digits.
-		//Patches::FixRemapTxdName();
-		MakeInline<0x004C9363>([](reg_pack& regs)
-		{
-			const char *txdName = *(const char **)(regs.esp + 0x18 + 0x4);
-			uint16_t txdId = *(uint16_t*)(regs.esp + 0x18 + 0x8);
+		if (txdName) {
 
 			size_t len = strlen(txdName);
 
@@ -310,8 +476,8 @@ namespace Patches
 
 					CBaseModelInfo *modelInfo;
 
-					uint32_t minVehModel = ReadMemory<uint32_t>(0x4C93CB + 1);
-					uint32_t maxVehModel = ReadMemory<uint32_t>(0x4C93C2 + 1);
+					uint32_t minVehModel = ReadMemory<uint32_t>(0x4C93CB + 1, true);
+					uint32_t maxVehModel = ReadMemory<uint32_t>(0x4C93C2 + 1, true);
 
 					if (maxVehModel == 630) { //default
 						modelInfo = CModelInfo::GetModelInfo(modelTxdName, minVehModel, maxVehModel);
@@ -328,10 +494,8 @@ namespace Patches
 						}
 					}
 				}
-
 			}
-			*(uint32_t*)(regs.esp - 0x4) = 0x004C93FD;
-		});
+		}
 	}
 
 	// -- Hitch (by Fabio)

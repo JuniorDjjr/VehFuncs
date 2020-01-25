@@ -15,7 +15,7 @@ void ProcessShake(CVehicle *vehicle, list<RwFrame*> frames)
 	for (list<RwFrame*>::iterator it = frames.begin(); it != frames.end(); ++it)
 	{
 		RwFrame * frame = *it;
-		if (frame->object.parent)
+		if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
 		{
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
 

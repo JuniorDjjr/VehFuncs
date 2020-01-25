@@ -8,7 +8,7 @@ const float DEFAULT_SPEED = 0.005f;
 
 void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 {
-	for (list<F_an*>::iterator it = items.begin(); it != items.end(); ++it)
+	for (F_an *an : items)
 	{
 		// we will not make previous-values-compatibility here
 		// TODO: set this during the part store
@@ -20,9 +20,8 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 		float y = 0;
 		float z = 0;
 
-		F_an *an = *it;
 		RwFrame *frame = an->frame;
-		if (frame->object.parent)
+		if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
 		{
 			bool open = false;
 			int mode = an->mode;
@@ -258,9 +257,8 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 		else
 		{
 			ExtendedData &xdata = xData.Get(vehicle);
-			F_an *an = *it;
 			delete an;
-			xdata.anims.remove(*it);
+			xdata.anims.remove(an);
 		}
 	}
 }

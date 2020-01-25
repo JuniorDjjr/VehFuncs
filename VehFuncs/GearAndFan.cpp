@@ -4,10 +4,9 @@
 
 void ProcessRotatePart(CVehicle *vehicle, list<RwFrame*> frames, bool isGear)
 {
-	for (list<RwFrame*>::iterator it = frames.begin(); it != frames.end(); ++it)
+	for (RwFrame *frame : frames)
 	{
-		RwFrame * frame = *it;
-		if (frame->object.parent)
+		if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
 		{
 			const string name = GetFrameNodeName(frame);
 
@@ -55,8 +54,8 @@ void ProcessRotatePart(CVehicle *vehicle, list<RwFrame*> frames, bool isGear)
 		else
 		{
 			ExtendedData &xdata = xData.Get(vehicle);
-			if (isGear) xdata.gearFrame.remove(*it);
-			else xdata.fanFrame.remove(*it);
+			if (isGear) xdata.gearFrame.remove(frame);
+			else xdata.fanFrame.remove(frame);
 		}
 	}
 }

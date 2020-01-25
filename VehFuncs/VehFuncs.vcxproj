@@ -104,6 +104,7 @@
     <ClCompile Include="Characteristics.cpp" />
     <ClCompile Include="CheckRepair.cpp" />
     <ClCompile Include="CustomSeed.cpp" />
+    <ClCompile Include="CustomVisibilityRender.cpp" />
     <ClCompile Include="DigitalSpeedo.cpp" />
     <ClCompile Include="FixMaterials.cpp" />
     <ClCompile Include="Footpegs.cpp" />

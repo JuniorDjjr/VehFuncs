@@ -3,9 +3,120 @@
 #include "RecursiveExtras.h"
 #include "Utilities.h"
 #include "NodeName.h"
+#include "CTheZones.h"
 #include "CVisibilityPlugins.h"
+#include "CWeather.h"
+#include "CClock.h"
+#include "CPopCycle.h"
+#include "CPopulation.h"
 
 ///////////////////////////////////////////// Process Classes
+
+
+int FindNextInterrogationMark(const string str, int from, int len)
+{
+	while (from < len)
+	{
+		from++;
+		if (str[from] == '?') return from;
+	} 
+	return len;
+}
+
+bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
+{
+	int next = 0;
+	CZone *zone;
+	string str;
+	char zoneName[8];
+	int len = nodeName.length();
+
+	// For optimzation: faster and common functions before, slower ones at bottom
+	while (from < len)
+	{
+		from++;
+
+		// city
+		if (nodeName[from] == 'c')
+		{
+			from++;
+			int i = nodeName[from] - '0';
+			//lg << i << endl;
+			if (CWeather::WeatherRegion == i) return true;
+			from++;
+		}
+
+		// popcycle
+		if (nodeName[from] == 'p')
+		{
+			from++;
+			if (CPopCycle::m_nCurrentZoneType == stoi(&nodeName[from])) return true;
+			from++;
+		}
+
+		// rain
+		if (nodeName[from] == 'r' && nodeName[from + 1] == 'a' && nodeName[from + 2] == 'i' && nodeName[from + 3] == 'n') 
+		{
+			if (CWeather::OldWeatherType == 8 || CWeather::OldWeatherType == 16 ||
+				CWeather::NewWeatherType == 8 || CWeather::NewWeatherType == 16 ||
+				CWeather::ForcedWeatherType == 8 || CWeather::ForcedWeatherType == 16)
+			{
+				//lg << "RAIN OK" << endl;
+				return true;
+			}
+			//else lg << "NOT RAIN" << endl;
+			from += 4;
+		}
+
+		// hour
+		if (nodeName[from] == 'h') 
+		{
+			from++;
+			//lg << "curpopcycle " << CPopCycle::m_nCurrentZoneType << endl;
+			int minHour;
+			int maxHour;
+
+			minHour = stoi(&nodeName[from]);
+			if (minHour > 9)
+				from += 1;
+			else
+				from += 2;
+			maxHour = stoi(&nodeName[from]);
+
+			//lg << minHour << " " << maxHour << endl;
+
+			if (maxHour < minHour)
+			{
+				if (CClock::ms_nGameClockHours >= minHour || CClock::ms_nGameClockHours <= maxHour) return true;
+			}
+			else
+			{
+				if (CClock::ms_nGameClockHours >= minHour && CClock::ms_nGameClockHours <= maxHour) return true;
+			}
+
+			from++;
+		}
+
+		// zone
+		if (nodeName[from] == 'z')
+		{
+			from++;
+			next = FindNextInterrogationMark(nodeName, from, len);
+			str = nodeName.substr(from, next);
+			memset(zoneName, 0, 8);
+			strncpy(zoneName, &str[0], next - from);
+			//lg << "zone value " << zoneName << endl;
+			from = next;
+			if (CTheZones::FindZone(&vehicle->GetPosition(), *(int*)zoneName, *(int*)(zoneName + 4), eZoneType::ZONE_TYPE_NAVI))
+			{
+				//lg << "ZONE OK" << endl;
+				return true;
+			}
+			//else lg << "NOT ZONE" << endl;
+		}
+	}
+	return false;
+}
 
 void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch)
 {
@@ -69,6 +180,18 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 				tempNode = tempNode->next;
 				continue;
 			}
+
+			found = tempNodeName.find_first_of("?");
+			if (found != string::npos)
+			{
+				lg << "Found '?' condition at '" << tempNodeName << "'\n";
+				if (!ClassConditionsValid(tempNodeName, found, vehicle)) {
+					tempNode = tempNode->next;
+					lg << "Condition check failed" << endl;
+					continue;
+				}
+			}
+
 			classNodes.push_back(tempNode);
 			found = tempNodeName.find("[");
 			if (found != string::npos) 
@@ -103,11 +226,14 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 				}
 				else
 				{
-					int randomPercent = Random(1, 100);
-					if (classNodesPercent[random] < randomPercent)
+					if (classNodesPercent[random] != 100)
 					{
-						//lg << "Extras: Class not selected: " << classNodesPercent[random] << " percent\n";
-						continue;
+						int randomPercent = Random(1, 100);
+						if (classNodesPercent[random] < randomPercent)
+						{
+							//lg << "Extras: Class not selected: " << classNodesPercent[random] << " percent\n";
+							continue;
+						}
 					}
 
 					FindVehicleCharacteristicsFromNode(classNodes[random], vehicle, bReSearch);
@@ -120,10 +246,11 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 
 					list<string> &classList = getClassList();
 
-					size_t found1 = className.find("_");
-					size_t found2 = className.find("[");
-					size_t found3 = className.find(":");
-					if (found1 != string::npos || found2 != string::npos || found3 != string::npos) 
+					size_t found1 = className.find_first_of("_");
+					size_t found2 = className.find_first_of("[");
+					size_t found3 = className.find_first_of(":");
+					size_t found4 = className.find_first_of("?");
+					if (found1 != string::npos || found2 != string::npos || found3 != string::npos || found4 != string::npos)
 					{
 						size_t cutPos;
 
@@ -135,10 +262,15 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 						if (found3 < cutPos)
 							cutPos = found3;
 
-						string classNameFixed = className.substr(0, cutPos);
+						if (found4 < cutPos)
+							cutPos = found4;
 
-						classList.push_back(classNameFixed);
-						lg << "Extras: Class inserted: " << classNameFixed << "\n";
+						string classNameFixed = className.substr(0, cutPos);
+						if (classNameFixed.length() > 0)
+						{
+							classList.push_back(classNameFixed);
+							lg << "Extras: Class inserted: " << classNameFixed << "\n";
+						}
 					}
 					else 
 					{

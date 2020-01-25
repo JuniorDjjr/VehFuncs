@@ -5,7 +5,7 @@
 
 void ProcessTrifork(CVehicle *vehicle, RwFrame* frame)
 {
-	if (frame->object.parent)
+	if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
 	{
 		RwFrame *wheelFrame = CClumpModelInfo::GetFrameFromId(vehicle->m_pRwClump, 5);
 		RwFrame *wheelFinalFrame = frame->child->child;

@@ -1,14 +1,12 @@
 #include "VehFuncsCommon.h"
 #include "NodeName.h"
-#include "CTimer.h"
 #include "MatrixBackup.h"
 
 void ProcessPedal(CVehicle *vehicle, list<RwFrame*> frames, int mode)
 {
-	for (list<RwFrame*>::iterator it = frames.begin(); it != frames.end(); ++it)
+	for (RwFrame *frame : frames)
 	{
-		RwFrame * frame = *it;
-		if (frame->object.parent)
+		if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
 		{
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
 
@@ -64,7 +62,7 @@ void ProcessPedal(CVehicle *vehicle, list<RwFrame*> frames, int mode)
 		else
 		{
 			ExtendedData &xdata = xData.Get(vehicle);
-			if (mode == 1) xdata.gaspedalFrame.remove(*it); else xdata.brakepedalFrame.remove(*it);
+			if (mode == 1) xdata.gaspedalFrame.remove(frame); else xdata.brakepedalFrame.remove(frame);
 		}
 	}
 }

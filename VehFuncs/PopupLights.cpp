@@ -17,7 +17,7 @@ void ProcessPopup(CVehicle *vehicle, ExtendedData *xdata)
 		if (xdata->popupFrame[i] != nullptr)
 		{
 			RwFrame *frame = xdata->popupFrame[i];
-			if (frame->object.parent)
+			if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
 			{
 				//f_popr=ax45z10s2
 				const string name = GetFrameNodeName(frame);

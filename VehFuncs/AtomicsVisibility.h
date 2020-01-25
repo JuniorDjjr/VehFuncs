@@ -11,3 +11,4 @@ void SetFrameFirstAtomicVisibilityButFixedDamage(RwFrame *frame, bool visible, C
 void HideAllAtomicsExcept(RwFrame * frame, int except);
 bool IsFrameFirstAtomicVisible(RwFrame * frame);
 void SetFrameAtomicsRenderCallback(RwFrame * frame, RpAtomicCallBackRender rendercallback);
+void FrameRenderAlways(RwFrame *frame);

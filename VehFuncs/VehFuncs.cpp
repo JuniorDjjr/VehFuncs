@@ -70,13 +70,14 @@ public:
 		static bool reInit = false;
 		xData = getExtData();
 
-		Patches::FixRemapTxdName();
+		//Patches::FixRemapTxdName();
+		patch::RedirectCall(0x5B62C2, Patches::CustomAssignRemapTxd, true);
 
 
 		// -- On game init
 		Events::initGameEvent += []
 		{
-			lg << "VF v1.5\n";
+			lg << "VF v1.6\n";
 
 			srand(time(0));
 			StoreHandlingData();
@@ -93,6 +94,26 @@ public:
 			// Preprocess hierarchy don't remove frames
 			MakeJMP(0x004C8E30, CustomCollapseFramesCB);
 
+
+			// LODs (make our custom LOD always render)
+			MakeNOP(0x00733241, 6);
+			MakeJMP(0x00733241, Patches::ForceRenderCustomLOD);
+			MakeNOP(0x00733F80, 6);
+			MakeJMP(0x00733F80, Patches::ForceRenderCustomLODAlpha);
+			MakeNOP(0x007344A0, 6);
+			MakeJMP(0x007344A0, Patches::ForceRenderCustomLODBoatAlpha);
+			MakeNOP(0x00733550, 6);
+			MakeJMP(0x00733550, Patches::ForceRenderCustomLODBoat);
+			MakeNOP(0x00733420, 6);
+			MakeJMP(0x00733420, Patches::ForceRenderCustomLODBig);
+			MakeNOP(0x00734370, 6);
+			MakeJMP(0x00734370, Patches::ForceRenderCustomLODBigAlpha);
+			MakeNOP(0x00733331, 6);
+			MakeJMP(0x00733331, Patches::ForceRenderCustomLODTrain);
+			MakeNOP(0x00734240, 6);
+			MakeJMP(0x00734240, Patches::ForceRenderCustomLODTrainAlpha);
+			
+			
 
 			// Preprocess hierarchy find damage atomics to apply damageable
 			MakeCALL(0x4C9173, Patches::FindDamage::CustomFindDamageAtomics, true);
@@ -215,7 +236,6 @@ public:
 		// -- On plugins attach
 		Events::attachRwPluginsEvent += []() 
 		{
-			// Apply
 			FramePluginOffset = RwFrameRegisterPlugin(sizeof(FramePlugin), PLUGIN_ID_STR, (RwPluginObjectConstructor)FramePlugin::Init, (RwPluginObjectDestructor)FramePlugin::Destroy, (RwPluginObjectCopy)FramePlugin::Copy);
 		};
 
@@ -548,8 +568,8 @@ public:
 				ProcessSpoiler(vehicle, xdata.spoilerFrames, false);
 			}
 
-			// Process trifork
-			if (xdata.steer) ProcessSteer(vehicle, xdata.steer);
+			// Process steer
+			if (!xdata.steer.empty()) ProcessSteer(vehicle, xdata.steer);
 
 		};
 
@@ -974,7 +994,7 @@ public:
 				{
 					lg << "Steer: Found 'f_steer' \n";
 					if (CreateMatrixBackup(frame)) {
-						xdata.steer = frame;
+						xdata.steer.push_back(frame);
 						FRAME_EXTENSION(frame)->owner = vehicle;
 					}
 				}
@@ -994,18 +1014,16 @@ public:
 								if (isdigit(name[9])) {
 									lg << "Retrocompatibility: Found 'movsteer_*' \n";
 									if (CreateMatrixBackup(frame)) {
-										xdata.steer = frame;
+										xdata.steer.push_back(frame);
 										FRAME_EXTENSION(frame)->owner = vehicle;
 									}
 								}
 							}
 							else {
-								if (!xdata.steer) {
-									lg << "Retrocompatibility: Found 'movsteer' \n";
-									if (CreateMatrixBackup(frame)) {
-										xdata.steer = frame;
-										FRAME_EXTENSION(frame)->owner = vehicle;
-									}
+								lg << "Retrocompatibility: Found 'movsteer' \n";
+								if (CreateMatrixBackup(frame)) {
+									xdata.steer.push_back(frame);
+									FRAME_EXTENSION(frame)->owner = vehicle;
 								}
 							}
 						}
@@ -1017,11 +1035,10 @@ public:
 					if (found != string::npos)
 					{
 						if (frame->child) {
-							if (!xdata.steer) {
-								lg << "Retrocompatibility: Found 'steering' \n";
-								if (CreateMatrixBackup(frame->child)) {
-									xdata.steer = frame->child;
-								}
+							lg << "Retrocompatibility: Found 'steering' \n";
+							if (CreateMatrixBackup(frame->child)) {
+								xdata.steer.push_back(frame->child);
+								FRAME_EXTENSION(frame->child)->owner = vehicle;
 							}
 						}
 					}

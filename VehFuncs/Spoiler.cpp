@@ -2,10 +2,10 @@
 #include "CVisibilityPlugins.h"
 #include "AtomicsVisibility.h"
 
-void ProcessSpoiler(CVehicle *vehicle, list<RwFrame*> items, bool after)
+void ProcessSpoiler(CVehicle *vehicle, list<RwFrame*> frames, bool after)
 {
 	// Process hide spoiler for tuning
-	if (!items.empty())
+	if (!frames.empty())
 	{
 		bool visible = true;
 
@@ -21,10 +21,9 @@ void ProcessSpoiler(CVehicle *vehicle, list<RwFrame*> items, bool after)
 				return;
 		}
 
-		for (list<RwFrame*>::iterator it = items.begin(); it != items.end(); ++it)
+		for (RwFrame *frame : frames)
 		{
-			RwFrame * frame = *it;
-			if (frame->object.parent)
+			if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
 			{
 				if (!visible)
 				{
@@ -36,7 +35,7 @@ void ProcessSpoiler(CVehicle *vehicle, list<RwFrame*> items, bool after)
 			}
 			else
 			{
-				items.remove(*it);
+				frames.remove(frame);
 			}
 		}
 	}

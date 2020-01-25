@@ -16,11 +16,10 @@ void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> items, int mode)
 	float y = 0;
 	float z = 0;
 
-	for (list<F_footpegs*>::iterator it = items.begin(); it != items.end(); ++it)
+	for (auto footpegs : items)
 	{
-		F_footpegs *footpegs = *it;
 		RwFrame *frame = footpegs->frame;
-		if (frame->object.parent)
+		if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
 		{
 			bool open = false;
 
@@ -179,9 +178,8 @@ void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> items, int mode)
 		else
 		{
 			ExtendedData &xdata = xData.Get(vehicle);
-			F_footpegs *footpegs = *it;
 			delete footpegs;
-			if (mode == 1) xdata.fpegFront.remove(*it); else xdata.fpegBack.remove(*it);
+			if (mode == 1) xdata.fpegFront.remove(footpegs); else xdata.fpegBack.remove(footpegs);
 		}
 	}
 }

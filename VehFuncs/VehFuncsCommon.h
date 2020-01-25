@@ -37,7 +37,7 @@ struct FramePlugin
 		FRAME_EXTENSION(frame)->origMatrix = nullptr;
 		FRAME_EXTENSION(frame)->flags.bNeverRender = false;
 		FRAME_EXTENSION(frame)->flags.bIsVarWheel = false;
-		FRAME_EXTENSION(frame)->LODdist = 0;
+		FRAME_EXTENSION(frame)->LODdist = -100;
 		return frame;
 	}
 
@@ -107,9 +107,6 @@ public:
 	float popupProgress[2];
 	RwFrame * popupFrame[2];
 
-	// Steer
-	RwFrame * steer;
-
 	// Flags
 	struct
 	{
@@ -130,6 +127,7 @@ public:
 	list<F_footpegs*> fpegBack;
 	list<RwFrame*> spoilerFrames;
 	list<F_an*> anims;
+	list<RwFrame*> steer;
 	
 	// ---- Init
 	ExtendedData(CVehicle *vehicle)
@@ -187,7 +185,6 @@ public:
 		popupFrame[1] = nullptr;
 		triforkFrame = nullptr;
 
-		steer = nullptr;
 		hitchFrame = nullptr;
 		taxiSignMaterial = nullptr;
 
@@ -201,6 +198,24 @@ public:
 		fpegBack.clear();
 		spoilerFrames.clear();
 		anims.clear();
+		steer.clear();
+	}
+	 
+	// ---- Init
+	~ExtendedData()
+	{
+		if (!anims.empty())
+		{
+			for (auto it : anims) delete it;
+		}
+		if (!fpegFront.empty())
+		{
+			for (auto it : fpegFront) delete it;
+		}
+		if (!fpegBack.empty())
+		{
+			for (auto it : fpegBack) delete it;
+		}
 	}
 
 	// ---- ReInit
@@ -222,7 +237,6 @@ public:
 		hitchFrame = nullptr;
 		taxiSignMaterial = nullptr;
 		triforkFrame = nullptr;
-		steer = nullptr;
 
 		gearFrame.clear();
 		fanFrame.clear();
@@ -233,9 +247,8 @@ public:
 		fpegBack.clear();
 		spoilerFrames.clear();
 		anims.clear();
+		steer.clear();
 	}
-
-	// TODO clear lists on destroy
 };
 
 extern fstream &logfile();

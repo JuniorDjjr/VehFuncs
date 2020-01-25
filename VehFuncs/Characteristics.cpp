@@ -7,6 +7,7 @@
 #include "CModelInfo.h"
 #include "CPedModelInfo.h"
 #include "CGeneral.h"
+#include "AtomicsVisibility.h"
 #include <bitset>
 
 // Disable warnings (caution!)
@@ -209,8 +210,9 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 	{
 		ExtendedData &xdata = xData.Get(vehicle);
 		int num = name[found + 1] - '0';
-		num *= -1;
+		if (num != 0) num *= -1;
 		FRAME_EXTENSION(frame)->LODdist = num;
+		//FrameRenderAlways(frame);
 		lg << "LOD: Found '<' level " << num << " at '" << name << "'\n";
 	}
 
@@ -221,6 +223,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 		ExtendedData &xdata = xData.Get(vehicle);
 		int num = name[found + 1] - '0';
 		FRAME_EXTENSION(frame)->LODdist = num;
+		FrameRenderAlways(frame);
 		lg << "LOD: Found '>' level " << num << " at '" << name << "'\n";
 	}
 
@@ -281,8 +284,12 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 		if (xdata.paintjob >= 0) 
 		{
 			lg << "Charac: Applying paintjob: " << (int)xdata.paintjob << " keep color " << (bool)xdata.flags.bPreservePaintjobColor << "\n";
+			int backupColor = vehicle->m_nPrimaryColor;
 			vehicle->SetRemap(xdata.paintjob-1);
-			if (!xdata.flags.bPreservePaintjobColor) vehicle->m_nPrimaryColor = 1;
+			if (!xdata.flags.bPreservePaintjobColor)
+				vehicle->m_nPrimaryColor = 1;
+			else
+				vehicle->m_nPrimaryColor = backupColor;
 		}
 
 		// Dirty

@@ -82,6 +82,7 @@
     <ClCompile Include="Steer.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="CustomVisibilityRender.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AtomicsVisibility.h">
