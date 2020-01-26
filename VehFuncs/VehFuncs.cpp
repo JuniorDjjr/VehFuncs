@@ -55,7 +55,7 @@ VehicleExtendedData<ExtendedData> xData;
 fstream lg;
 bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false;
 CVehicle *curVehicle;
-static std::list<std::pair<unsigned int *, unsigned int>> resetMats;
+std::list<std::pair<unsigned int *, unsigned int>> resetMats;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -77,7 +77,7 @@ public:
 		// -- On game init
 		Events::initGameEvent += []
 		{
-			lg << "VF v1.6\n";
+			lg << "VF v1.6.1\n";
 
 			srand(time(0));
 			StoreHandlingData();
@@ -93,7 +93,14 @@ public:
 
 			// Preprocess hierarchy don't remove frames
 			MakeJMP(0x004C8E30, CustomCollapseFramesCB);
-
+			
+			// Fix "ug_" dummies outside "chassis" (ID 1) using first node (ID 0) (usually a wheel node).
+			MakeInline<0x004C8FA1, 0x004C8FA1 + 6>([](reg_pack& regs)
+			{
+				if (regs.eax == 0) regs.eax = 1; // set frame ID 1 by default
+				*(uint32_t*)(regs.esp + 0x64 - 0x34) = regs.eax;  //mov     [esp+64h+atomic2], eax ; frame visibility
+				regs.eax = *(uint32_t*)regs.edx;  //mov     eax, [edx]
+			});
 
 			// LODs (make our custom LOD always render)
 			MakeNOP(0x00733241, 6);
@@ -1121,10 +1128,7 @@ RwFrame *__cdecl CustomCollapseFramesCB(RwFrame *frame, void *data)
 	RwFrameForAllChildren(frame, (RwFrameCallBack)CustomCollapseFramesCB, data);
 	RwFrameForAllObjects(frame, (RwObjectCallBack)CustomMoveObjectsCB, data);
 
-	/*
-	size_t found;
-
-	const string parentName = GetFrameNodeName(RwFrameGetParent(frame));
+	/*const string parentName = GetFrameNodeName(RwFrameGetParent(frame));
 	found = parentName.find("wheel_");
 	if (found != string::npos)
 	{
@@ -1132,8 +1136,8 @@ RwFrame *__cdecl CustomCollapseFramesCB(RwFrame *frame, void *data)
 		{
 			RwFrameDestroy(frame);
 		}
-	}
-	*/
+	}*/
+
 	return frame;
 }
 
@@ -1165,6 +1169,7 @@ RpAtomic *__cdecl CustomMoveObjectsCB(RpAtomic *atomic, RwFrame *frame)
 		RpAtomicSetFrame(atomic, frame);
 		return atomic;
 	}
+
 
 	// If parent isn't dummy, collapse if is alpha and damageable
 	if ((uint32_t)atomic->renderCallBack == AtomicAlphaCallBack) {
