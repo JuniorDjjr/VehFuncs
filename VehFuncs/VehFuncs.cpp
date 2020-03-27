@@ -35,6 +35,7 @@
 #include "CTxdStore.h"
 #include "CModelInfo.h"
 #include "NodeName.h"
+#include "CStreaming.h"
 #include "CGeneral.h"
 #include "CTask.h"
 #include "CTimer.h"
@@ -55,6 +56,8 @@ VehicleExtendedData<ExtendedData> xData;
 fstream lg;
 bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false;
 CVehicle *curVehicle;
+extern RwTexDictionary *vehicletxdArray[4];
+extern int vehicletxdIndexArray[4];
 std::list<std::pair<unsigned int *, unsigned int>> resetMats;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -70,14 +73,16 @@ public:
 		static bool reInit = false;
 		xData = getExtData();
 
-		//Patches::FixRemapTxdName();
+		// Fix for remap txd names. This also stores additional vehicle*.txd files.
+		memset(vehicletxdArray, 0, sizeof(vehicletxdArray));
+		memset(vehicletxdIndexArray, 0, sizeof(vehicletxdIndexArray));
 		patch::RedirectCall(0x5B62C2, Patches::CustomAssignRemapTxd, true);
 
 
 		// -- On game init
 		Events::initGameEvent += []
 		{
-			lg << "VF v1.6.1\n";
+			lg << "VF v1.7\n";
 
 			srand(time(0));
 			StoreHandlingData();
@@ -222,7 +227,10 @@ public:
 				RwFrameForAllObjects(sourceFrame, CopyObjectsCB, destFrame);
 			});
 			WriteMemory<uint8_t>(0x6D3A47 + 2, 0x28, true);
-			
+
+
+			// Additional generic vehicle*.txd files
+			Patches::PatchForAdditionalVehicleTxd();
 
 			
 			// Hitch patch
@@ -272,6 +280,7 @@ public:
 
 		// -- On process script (gameProcessEvent isn't compatible with SAMP)
 		Events::processScriptsEvent.after += [] {
+
 			if (!bFirstScriptFrame)
 			{
 				if (GetModuleHandleA("CLEO.asi")) {
@@ -341,6 +350,19 @@ public:
 
 						if (customSeedList.size() <= 0) break;
 					}
+				}
+			}
+
+
+			// For IndieVehHandling / Get re-search
+			if (IsIndieHandling(vehicle, &handling))
+			{
+				bReSearch = ExtraInfoBitReSearch(vehicle, handling);
+
+				if (xdata.nodesProcessForIndieHandling || bReSearch)
+				{
+					SetCharacteristicsForIndieHandling(vehicle, bReSearch);
+					xdata.nodesProcessForIndieHandling = false;
 				}
 			}
 
@@ -453,18 +475,6 @@ public:
 				lg << "Shared Extras: " << aplate << "\n";
 				fs.flush();
 			*/
-			}
-
-			// For IndieVehHandling / Get re-search
-			if (IsIndieHandling(vehicle, &handling))
-			{
-				bReSearch = ExtraInfoBitReSearch(vehicle, handling);
-
-				if (xdata.nodesProcessForIndieHandling || bReSearch)
-				{
-					SetCharacteristicsForIndieHandling(vehicle, bReSearch);
-					xdata.nodesProcessForIndieHandling = false;
-				}
 			}
 
 			///////////////////////////////////////////////////////////////////////////////////////
@@ -637,6 +647,8 @@ public:
 
 			if (name[0] == 'f' && name[1] == '_') 
 			{
+				lg << "SEARCHING... " << bReSearch << " \n";
+
 				ExtendedData &xdata = xData.Get(vehicle);
 				if (!bReSearch) 
 				{

@@ -41,7 +41,6 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 		{
 			from++;
 			int i = nodeName[from] - '0';
-			//lg << i << endl;
 			if (CWeather::WeatherRegion == i) return true;
 			from++;
 		}

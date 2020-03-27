@@ -364,17 +364,31 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 						}
 
 						int maxPassengers = vehicle->m_nMaxPassengers;
+						bool isTaxi = false;
+						if (maxPassengers > 1) {
+							if (xdata.taxiSignMaterial || vehicle->m_nModelIndex == eModelID::MODEL_TAXI || vehicle->m_nModelIndex == eModelID::MODEL_CABBIE) {
+								isTaxi = true;
+							}
+						}
 						for (int i = 0; i < maxPassengers; i++) 
 						{
 							CPed *pass = vehicle->m_apPassengers[i];
-							if (!pass) 
+							if (!pass)
 							{
 								int rand = CGeneral::GetRandomNumberInRange(0, 10);
 								int chances = xdata.passAddChance;
-								if (vehicle->m_nMaxPassengers > 1 && i == 0) chances *= 2;
-								if (rand > xdata.passAddChance) 
+								if (maxPassengers > 1) {
+									if (isTaxi) {
+										if (i == 0) continue; // don't create front seat if taxi
+									}
+									else { // not taxi, increase chances for front seat
+										if (i == 0) chances *= 2;
+										else chances /= 2;
+									}
+								}
+								if (rand > chances)
 								{
-									lg << "Charac: No passenger added because of chance " << (int)xdata.passAddChance << "\n";
+									//lg << "Charac: No passenger added because of chance " << (int)xdata.passAddChance << "\n";
 									continue;
 								}
 							}
@@ -383,7 +397,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 								char *a = (char*)pass;
 								if (a[0x484] != 1) //Createdby NOT RANDOM
 								{ 
-									lg << "Charac: No passenger changed: not random created\n";
+									//lg << "Charac: No passenger changed: not random created\n";
 									continue;
 								}
 							}

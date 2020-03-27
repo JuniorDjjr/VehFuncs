@@ -19,6 +19,7 @@ namespace Patches {
 	void __declspec() ForceRenderCustomLODBigAlpha();
 	void __declspec() ForceRenderCustomLODTrain();
 	void __declspec() ForceRenderCustomLODTrainAlpha();
+	void PatchForAdditionalVehicleTxd();
 	namespace Hitch {
 		typedef bool(__thiscall *GetTowBarPos_t)(CAutomobile *ths, RwV3d *point, char a3, CAutomobile *a4);
 		extern void setOriginalFun(GetTowBarPos_t f);

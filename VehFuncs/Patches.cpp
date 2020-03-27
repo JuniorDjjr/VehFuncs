@@ -5,10 +5,16 @@
 #include "Patches.h"
 #include "CVisibilityPlugins.h"
 #include "CCamera.h"
+#include "CTxdStore.h"
+#include "CStreaming.h"
 #include <math.h>
 #include "../injector/assembly.hpp"
 
 float ftest = 1.0f;
+
+RwTexDictionary *vehicletxdArray[4];
+int vehicletxdIndexArray[4];
+bool anyAdditionalVehicleTxd;
 
 namespace Patches
 {
@@ -450,47 +456,64 @@ namespace Patches
 
 			size_t len = strlen(txdName);
 
-			if (len > 1 && isdigit(txdName[len - 1]))
-			{
-				// ignore 'radar' txds, just a little performance improvement, because 'GetModelInfo' isn't so fast
-				if (len >= 7 && txdName[0] == 'r' && txdName[1] == 'a' && txdName[2] == 'd' && txdName[3] == 'a' && txdName[4] == 'r')
+			if (len > 1) {
+
+				if (isdigit(txdName[len - 1]))
 				{
-				}
-				else
-				{
-					do
+					// ignore 'radar' txds, just a little performance improvement, because 'GetModelInfo' isn't so fast
+					if (len >= 7 && txdName[0] == 'r' && txdName[1] == 'a' && txdName[2] == 'd' && txdName[3] == 'a' && txdName[4] == 'r')
 					{
-						len--;
-						if (txdName[len] == '_')
+					}
+					else
+					{
+						if (txdName[0] == 'v' && strncmp(txdName, "vehicle", 7) == 0)
+						{
+							int arrayIndex = txdName[len - 1] - '0' - 2; // first is 2
+							if (arrayIndex < 4) {
+								vehicletxdIndexArray[arrayIndex] = txdId;
+								CTxdStore::AddRef(vehicletxdIndexArray[arrayIndex]);
+								anyAdditionalVehicleTxd = true;
+							}
+							else {
+								lg << "ERROR: vehicle*.txd limit is only up to 'vehicle5.txd'" << endl;
+								lg.flush();
+							}
+						}
+
+						do
 						{
 							len--;
-							break;
+							if (txdName[len] == '_')
+							{
+								len--;
+								break;
+							}
+						} while (isdigit(txdName[len]));
+
+						len++;
+
+						char modelTxdName[32];
+						strncpy(modelTxdName, txdName, (len));
+						modelTxdName[len] = 0;
+
+						CBaseModelInfo *modelInfo;
+
+						uint32_t minVehModel = ReadMemory<uint32_t>(0x4C93CB + 1, true);
+						uint32_t maxVehModel = ReadMemory<uint32_t>(0x4C93C2 + 1, true);
+
+						if (maxVehModel == 630) { //default
+							modelInfo = CModelInfo::GetModelInfo(modelTxdName, minVehModel, maxVehModel);
 						}
-					} while (isdigit(txdName[len]));
-
-					len++;
-
-					char modelTxdName[32];
-					strncpy(modelTxdName, txdName, (len));
-					modelTxdName[len] = 0;
-
-					CBaseModelInfo *modelInfo;
-
-					uint32_t minVehModel = ReadMemory<uint32_t>(0x4C93CB + 1, true);
-					uint32_t maxVehModel = ReadMemory<uint32_t>(0x4C93C2 + 1, true);
-
-					if (maxVehModel == 630) { //default
-						modelInfo = CModelInfo::GetModelInfo(modelTxdName, minVehModel, maxVehModel);
-					}
-					else { //patched
-						modelInfo = CModelInfo::GetModelInfo(modelTxdName, NULL); // Paintjobs working on any ID
-					}
-					if (modelInfo)
-					{
-						if (modelInfo->GetModelType() == 6)
+						else { //patched
+							modelInfo = CModelInfo::GetModelInfo(modelTxdName, NULL); // Paintjobs working on any ID
+						}
+						if (modelInfo)
 						{
-							CVehicleModelInfo *vehModelInfo = (CVehicleModelInfo *)modelInfo;
-							vehModelInfo->AddRemap(txdId);
+							if (modelInfo->GetModelType() == 6)
+							{
+								CVehicleModelInfo *vehModelInfo = (CVehicleModelInfo *)modelInfo;
+								vehModelInfo->AddRemap(txdId);
+							}
 						}
 					}
 				}
@@ -625,6 +648,50 @@ namespace Patches
 			//lg << "PROCESSING" << "\n";
 			RwFrameForAllChildren(frame, CustomFindDamageAtomicsCB, data);
 			return frame;
+		}
+	}
+
+
+	RwTexture *__cdecl Custom_RwTexDictionaryFindNamedTexture(RwTexDictionary *dict, const char *name)
+	{
+		RwTexture *texture;
+
+		texture = RwTexDictionaryFindNamedTexture(dict, name);
+		if (texture) return texture;
+
+		for (int i = 0; i < 4; ++i)
+		{
+			if (vehicletxdArray[i])
+			{
+				texture = RwTexDictionaryFindNamedTexture(vehicletxdArray[i], name);
+				if (texture) return texture;
+			}
+		}
+		//lg << "Can't find texture " << name << endl;
+		return nullptr;
+	}
+
+	void PatchForAdditionalVehicleTxd()
+	{
+		if (anyAdditionalVehicleTxd)
+		{
+			for (int i = 0; i < 4; ++i)
+			{
+				if (vehicletxdIndexArray[i]) {
+					CStreaming::RequestTxdModel(vehicletxdIndexArray[i], (eStreamingFlags::PRIORITY_REQUEST | eStreamingFlags::KEEP_IN_MEMORY));
+					//CStreaming::RequestTxdModel(vehicletxdIndexArray[i], 8);
+				}
+			}
+
+			CStreaming::LoadAllRequestedModels(true);
+
+			for (int i = 0; i < 4; ++i)
+			{
+				if (vehicletxdIndexArray[i]) {
+					vehicletxdArray[i] = ((RwTexDictionary *(__cdecl*)(int)) 0x408340)(vehicletxdIndexArray[i]); //size_t __cdecl getTexDictionary(int txdIndex)
+				}
+			}
+			patch::RedirectCall(0x4C7533, Custom_RwTexDictionaryFindNamedTexture, true);
 		}
 	}
 }
