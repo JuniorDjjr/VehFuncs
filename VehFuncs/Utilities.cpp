@@ -62,19 +62,25 @@ extern "C" int32_t __declspec(dllexport) Ext_GetMDPMnpcCustomMaxVol(CVehicle * v
 	return *reinterpret_cast<int32_t*>(addressof(xdata.mdpmCustomMaxVol));
 }
 
-extern "C" void __declspec(dllexport) Ext_ToggleFrameHide(RwFrame * frame, bool neverRender)
-{
-	FRAME_EXTENSION(frame)->flags.bNeverRender = neverRender;
-	return;
-}
-
 /*
 The function name appears for crash dumps as modloader.log, and people mistakenly think the name is related to the crash.
 Thinking about it, here it is...
 */
 extern "C" int32_t __declspec(dllexport) ignore(int32_t i)
 {
-	return 1;
+	i = 1;
+	return i;
+}
+
+extern "C" void __declspec(dllexport) Ext_ToggleFrameHide(RwFrame * frame, bool neverRender)
+{
+	FRAME_EXTENSION(frame)->flags.bNeverRender = neverRender;
+	return;
+}
+
+extern "C" void __declspec(dllexport) ignoreB()
+{
+	return;
 }
 
 void CloneNodeAlt(RwFrame *frame, RwFrame *parent, bool isRoot)

@@ -357,6 +357,27 @@ namespace Patches
 
 	void PatchForCoplights()
 	{
+		// Taxi
+		MakeInline<0x006ABACE, 0x006ABACE + 8>([](reg_pack& regs)
+		{
+			CVehicle *veh = (CVehicle*)regs.esi;
+			ExtendedData &xdata = xData.Get(veh);
+
+			RwV3d *point = (RwV3d*)(regs.esp + 0x2C);
+
+			if (xdata.taxilightFrame)
+			{
+				RwV3d *framePos = &xdata.taxilightFrame->modelling.pos;
+
+				point->x = framePos->x;
+				point->y = framePos->y;
+				point->z = framePos->z;
+			}
+			else {
+				point->x = 0.0f; // original code
+			}
+		});
+
 		// No cops
 		Patches::defaultCopLightSwitch = ReadMemory<uint32_t>(0x006ACCCC, true);
 		WriteMemory<uint32_t>(0x006ACCCC, (uint32_t)UseCopLights, true);
@@ -389,7 +410,7 @@ namespace Patches
 					}
 				}
 
-				RwV3d * framePos = &xdata.coplightFrame->modelling.pos;
+				RwV3d *framePos = &xdata.coplightFrame->modelling.pos;
 
 				point->x = framePos->x;
 				point->y = framePos->y;
@@ -420,33 +441,42 @@ namespace Patches
 		});
 
 		// FBI Rancher
-		/*MakeNOP(0x006ABBC1, 5);
-		MakeInline<0x006ABBC1>([](reg_pack& regs)
+		MakeInline<0x006ABBE1, 0x006ABBE1 + 6>([](reg_pack& regs)
 		{
 			CVehicle *veh = (CVehicle*)regs.esi;
 
 			ExtendedData &xdata = xData.Get(veh);
 
-			RwV3d *in = (RwV3d*)(regs.esp + 0x2C);
+			RwV3d *point = (RwV3d*)(regs.esp + 0x2C);
 
 			if (xdata.coplightFrame) 
 			{
 				RwV3d * framePos = &xdata.coplightFrame->modelling.pos;
-				in->x = framePos->x;
-				in->y = framePos->y;
-				in->z = framePos->z;
+				point->x = framePos->x;
+				point->y = framePos->y;
+				point->z = framePos->z;
+
+				const string name = GetFrameNodeName(xdata.coplightFrame);
+				if (name[10] == 'f')
+				{
+					*(uintptr_t*)(regs.esp - 0x4) = 0x6ABC1E;
+				}
 			}
 			else 
 			{
-				in->x = 0.0;
-				in->y = 1.2;
-				in->z = 0.5;
+				// original code
+				point->x = 0.0;
+				point->y = 1.2;
+				point->z = 0.5;
 			}
-
-			//regs.eax = *(uint8_t*)(regs.esi + 0x42D); // mov     al, [esi+42Dh]
-			regs.eax = 0xB7CB84;  // mov     eax, _ZN6CTimer22m_snTimeInMillisecondsE
-			//ProcessCoplightFBIRancher(regs);
-		});*/
+		});
+		WriteMemory<uint8_t>(0x6ABBC9 + 0, 0x0F, true);
+		WriteMemory<uint8_t>(0x6ABBC9 + 1, 0x84, true);
+		WriteMemory<uint8_t>(0x6ABBC9 + 2, 0xA2, true);
+		WriteMemory<uint8_t>(0x6ABBC9 + 3, 0x00, true);
+		WriteMemory<uint8_t>(0x6ABBC9 + 4, 0x00, true);
+		WriteMemory<uint8_t>(0x6ABBC9 + 5, 0x00, true);
+		MakeNOP(0x6ABBC9 + 6, 18, true);
 	}
 
 	// Fix remaps on txd files named with digits.

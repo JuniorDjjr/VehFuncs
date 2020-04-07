@@ -28,6 +28,7 @@ struct FramePlugin
 	{
 		unsigned char bNeverRender : 1;
 		unsigned char bIsVarWheel : 1;
+		unsigned char bDontDestroyOnRemoveUpgrade : 1;
 	} flags;
 
 	// plugin interface
@@ -37,6 +38,7 @@ struct FramePlugin
 		FRAME_EXTENSION(frame)->origMatrix = nullptr;
 		FRAME_EXTENSION(frame)->flags.bNeverRender = false;
 		FRAME_EXTENSION(frame)->flags.bIsVarWheel = false;
+		FRAME_EXTENSION(frame)->flags.bDontDestroyOnRemoveUpgrade = false;
 		FRAME_EXTENSION(frame)->LODdist = -100;
 		return frame;
 	}
@@ -85,7 +87,8 @@ public:
 	float smoothGasPedal;
 	float smoothBrakePedal;
 
-	// Coplight
+	// Coplight / Taxilight
+	RwFrame *taxilightFrame;
 	RwFrame *coplightFrame;
 	RwFrame *coplightoutFrame;
 
@@ -160,7 +163,8 @@ public:
 		smoothGasPedal = 0.0f;
 		smoothBrakePedal = 0.0f;
 
-		// Coplight
+		// Coplight / Taxilight
+		taxilightFrame = nullptr;
 		coplightFrame = nullptr;
 		coplightoutFrame = nullptr;
 
@@ -201,7 +205,7 @@ public:
 		steer.clear();
 	}
 	 
-	// ---- Init
+	// ---- Destroy
 	~ExtendedData()
 	{
 		if (!anims.empty())
@@ -225,6 +229,7 @@ public:
 		bodyTilt = 0.0f;
 		mdpmCustomChances = -1;
 		speedoFrame = nullptr;
+		taxilightFrame = nullptr;
 		coplightFrame = nullptr;
 		coplightoutFrame = nullptr;
 		speedoMult = 1.0;
@@ -251,7 +256,6 @@ public:
 	}
 };
 
-extern fstream &logfile();
 extern list<string> &getClassList();
 extern VehicleExtendedData<ExtendedData> xData;
 extern fstream lg;

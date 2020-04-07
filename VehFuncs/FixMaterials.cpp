@@ -122,13 +122,12 @@ MatFuncType CheckMaterials(RpMaterial * material, RpAtomic *atomic)
 	{
 		string texName = material->texture->name;
 
-		if (texName.length() > 7)
+		if (texName.length() == 8 && (texName[0] == '9' || texName[0] == 't'))
 		{
-			size_t found;
-
 			// Taxi sign
-			found = texName.find("92sign64");
-			if (found != string::npos)
+			size_t found = texName.find("92sign64");
+			size_t found2 = texName.find("taxisign");
+			if (found != string::npos || found2 != string::npos)
 			{
 				return MatFuncType::taxi;
 			}

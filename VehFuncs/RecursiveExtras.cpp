@@ -67,6 +67,20 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 			from += 4;
 		}
 
+		// norain
+		if (nodeName[from] == 'n' && nodeName[from + 1] == 'o' && nodeName[from + 2] == 'r' && nodeName[from + 3] == 'a' && nodeName[from + 4] == 'i' && nodeName[from + 5] == 'n')
+		{
+			if (CWeather::OldWeatherType != 8 && CWeather::OldWeatherType != 16 &&
+				CWeather::NewWeatherType != 8 && CWeather::NewWeatherType != 16 &&
+				CWeather::ForcedWeatherType != 8 && CWeather::ForcedWeatherType != 16)
+			{
+				//lg << "NOT RAIN OK" << endl;
+				return true;
+			}
+			//else lg << "NOT NOT RAIN" << endl;
+			from += 6;
+		}
+
 		// hour
 		if (nodeName[from] == 'h') 
 		{
@@ -163,6 +177,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 		}
 
 		// Count classes
+		bool isAnyConditionClass = false;
 		int random = 0;
 		int totalClass = 0;
 		while (tempNode) 
@@ -189,21 +204,54 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 					lg << "Condition check failed" << endl;
 					continue;
 				}
+				else {
+					found = tempNodeName.find("[");
+					if (found != string::npos)
+					{
+						int percent = stoi(&tempNodeName[found + 1]);
+						if (percent != 100)
+						{
+							int randomPercent = Random(1, 100);
+							if (percent < randomPercent)
+							{
+								lg << "Class condition: " << tempNodeName << " not added due to percent\n";
+								tempNode = tempNode->next;
+								continue;
+							}
+						}
+					}
+					if (!isAnyConditionClass) {
+						// Clear all other classes, only consider condition classes
+						if (classNodes.size() > 0)
+						{
+							classNodes.clear();
+							classNodesPercent.clear();
+						}
+						isAnyConditionClass = true;
+					}
+					classNodesPercent.push_back(100);
+					classNodes.push_back(tempNode);
+				}
 			}
-
-			classNodes.push_back(tempNode);
-			found = tempNodeName.find("[");
-			if (found != string::npos) 
-			{
-				int percent = stoi(&tempNodeName[found + 1]);
-				classNodesPercent.push_back(percent);
+			else {
+				// Don't add new classes if there is any condition class
+				if (!isAnyConditionClass) {
+					found = tempNodeName.find("[");
+					if (found != string::npos)
+					{
+						int percent = stoi(&tempNodeName[found + 1]);
+						classNodesPercent.push_back(percent);
+					}
+					else
+					{
+						classNodesPercent.push_back(100);
+					}
+					classNodes.push_back(tempNode);
+					totalClass++;
+				}
 			}
-			else 
-			{
-				classNodesPercent.push_back(100);
-			}
-			totalClass++;
 			tempNode = tempNode->next;
+			continue;
 		}
 
 		if (totalClass > 0) 

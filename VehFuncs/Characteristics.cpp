@@ -7,11 +7,14 @@
 #include "CModelInfo.h"
 #include "CPedModelInfo.h"
 #include "CGeneral.h"
+#include "CStreaming.h"
 #include "AtomicsVisibility.h"
 #include <bitset>
 
 // Disable warnings (caution!)
 #pragma warning( disable : 4244 ) // data loss
+
+extern uint32_t txdIndexStart;
 
 ///////////////////////////////////////////// Find Vehicle Characteristics
 
@@ -283,13 +286,16 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 		// Paintjob
 		if (xdata.paintjob >= 0) 
 		{
-			lg << "Charac: Applying paintjob: " << (int)xdata.paintjob << " keep color " << (bool)xdata.flags.bPreservePaintjobColor << "\n";
-			int backupColor = vehicle->m_nPrimaryColor;
-			vehicle->SetRemap(xdata.paintjob-1);
-			if (!xdata.flags.bPreservePaintjobColor)
-				vehicle->m_nPrimaryColor = 1;
-			else
-				vehicle->m_nPrimaryColor = backupColor;
+			if ((int)xdata.paintjob > 0) {
+				lg << "Charac: Applying paintjob: " << (int)xdata.paintjob << " keep color " << (bool)xdata.flags.bPreservePaintjobColor << "\n";
+				vehicle->m_nVehicleFlags.bDontSetColourWhenRemapping = xdata.flags.bPreservePaintjobColor;
+				vehicle->SetRemap(xdata.paintjob - 1);
+				if (vehicle->m_nRemapTxd >= 0)
+				{
+					CStreaming::RequestModel(vehicle->m_nRemapTxd + txdIndexStart, eStreamingFlags::KEEP_IN_MEMORY | eStreamingFlags::PRIORITY_REQUEST);
+					CStreaming::LoadAllRequestedModels(true);
+				}
+			}
 		}
 
 		// Dirty

@@ -52,6 +52,7 @@
 // Global vars
 int G_i = 0;
 uintptr_t AtomicAlphaCallBack;
+uint32_t txdIndexStart;
 VehicleExtendedData<ExtendedData> xData;
 fstream lg;
 bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false;
@@ -78,11 +79,14 @@ public:
 		memset(vehicletxdIndexArray, 0, sizeof(vehicletxdIndexArray));
 		patch::RedirectCall(0x5B62C2, Patches::CustomAssignRemapTxd, true);
 
+		// Preprocess hierarchy don't remove frames
+		MakeJMP(0x004C8E30, CustomCollapseFramesCB);
+
 
 		// -- On game init
 		Events::initGameEvent += []
 		{
-			lg << "VF v1.7\n";
+			lg << "VF v1.8\n";
 
 			srand(time(0));
 			StoreHandlingData();
@@ -90,15 +94,9 @@ public:
 			//ApplyCheckRepair();
 			
 			AtomicAlphaCallBack = ReadMemory<int>(0x4C7842, false);
+			txdIndexStart = ReadMemory<uint32_t>(0x6D65D2 + 1, true);
 
 
-			// -- Patches
-			lg << "Core: Applying Patches\n";
-
-
-			// Preprocess hierarchy don't remove frames
-			MakeJMP(0x004C8E30, CustomCollapseFramesCB);
-			
 			// Fix "ug_" dummies outside "chassis" (ID 1) using first node (ID 0) (usually a wheel node).
 			MakeInline<0x004C8FA1, 0x004C8FA1 + 6>([](reg_pack& regs)
 			{
@@ -106,6 +104,7 @@ public:
 				*(uint32_t*)(regs.esp + 0x64 - 0x34) = regs.eax;  //mov     [esp+64h+atomic2], eax ; frame visibility
 				regs.eax = *(uint32_t*)regs.edx;  //mov     eax, [edx]
 			});
+
 
 			// LODs (make our custom LOD always render)
 			MakeNOP(0x00733241, 6);
@@ -210,8 +209,9 @@ public:
 			MakeJMP(0x00749B3E, Patches::NeverRender);
 
 			
-
+			
 			// Upgrade replace
+			//WriteMemory<uint32_t>(0x6D383D, 0x000, true);
 			// Add
 			MakeCALL(0x006D386C, CustomRwFrameForAllChildren_AddUpgrade);
 			// Remove
@@ -289,12 +289,12 @@ public:
 					Command<GET_SCRIPT_STRUCT_NAMED>("NEWSVAN", &script);
 					if (script)
 					{
-						lg << "Core: APP installed\n";
+						lg << "Core: AD installed\n";
 						APPinstalled = true;
 					}
 					else
 					{
-						lg << "Core: APP not installed\n";
+						lg << "Core: AD not installed\n";
 						APPinstalled = false;
 					}
 					
@@ -355,15 +355,11 @@ public:
 
 
 			// For IndieVehHandling / Get re-search
+			bool isIndieHandling = true;
 			if (IsIndieHandling(vehicle, &handling))
 			{
+				isIndieHandling = true;
 				bReSearch = ExtraInfoBitReSearch(vehicle, handling);
-
-				if (xdata.nodesProcessForIndieHandling || bReSearch)
-				{
-					SetCharacteristicsForIndieHandling(vehicle, bReSearch);
-					xdata.nodesProcessForIndieHandling = false;
-				}
 			}
 
 			// Search nodes
@@ -475,6 +471,12 @@ public:
 				lg << "Shared Extras: " << aplate << "\n";
 				fs.flush();
 			*/
+			}
+
+			if (isIndieHandling && (xdata.nodesProcessForIndieHandling || bReSearch))
+			{
+				SetCharacteristicsForIndieHandling(vehicle, bReSearch);
+				xdata.nodesProcessForIndieHandling = false;
 			}
 
 			///////////////////////////////////////////////////////////////////////////////////////
@@ -647,7 +649,7 @@ public:
 
 			if (name[0] == 'f' && name[1] == '_') 
 			{
-				lg << "SEARCHING... " << bReSearch << " \n";
+				//lg << "Checking for " << name << endl;
 
 				ExtendedData &xdata = xData.Get(vehicle);
 				if (!bReSearch) 
@@ -962,6 +964,15 @@ public:
 					}
 				}
 
+				// Taxi light
+				found = name.find("f_taxilight");
+				if (found != string::npos)
+				{
+					lg << "TaxiLight: Found 'f_taxilight' \n";
+					xdata.taxilightFrame = frame;
+					FRAME_EXTENSION(frame)->owner = vehicle;
+				}
+
 				// Wheel
 				if (!bReSearch) {
 					found = name.find("f_wheel");
@@ -1089,22 +1100,27 @@ RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade(RwFrame *frame, RwFrame 
 RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade_Recurse(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
 	FRAME_EXTENSION(frame)->flags.bNeverRender = true;
+	FRAME_EXTENSION(frame)->flags.bDontDestroyOnRemoveUpgrade = true;
 
 	if (RwFrame * newFrame = frame->child)  CustomRwFrameForAllChildren_AddUpgrade_Recurse(newFrame, callback, data);
 	if (RwFrame * newFrame = frame->next)   CustomRwFrameForAllChildren_AddUpgrade_Recurse(newFrame, callback, data);
 	return frame;
 }
 
-
 RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
-	if (RwFrame * newFrame = frame)  CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(newFrame, callback, data);
+	if (frame) CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(frame, callback, data);
 	return frame;
 }
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
-	FRAME_EXTENSION(frame)->flags.bNeverRender = false;
+	if (FRAME_EXTENSION(frame)->flags.bDontDestroyOnRemoveUpgrade) {
+		FRAME_EXTENSION(frame)->flags.bNeverRender = false;
+	}
+	else {
+		RemoveObjectsCB(frame, data);
+	}
 
 	if (RwFrame * newFrame = frame->child)  CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(newFrame, callback, data);
 	if (RwFrame * newFrame = frame->next)   CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(newFrame, callback, data);
