@@ -28,7 +28,7 @@ struct FramePlugin
 	{
 		unsigned char bNeverRender : 1;
 		unsigned char bIsVarWheel : 1;
-		unsigned char bDontDestroyOnRemoveUpgrade : 1;
+		unsigned char bDestroyOnRemoveUpgrade : 1;
 	} flags;
 
 	// plugin interface
@@ -38,7 +38,7 @@ struct FramePlugin
 		FRAME_EXTENSION(frame)->origMatrix = nullptr;
 		FRAME_EXTENSION(frame)->flags.bNeverRender = false;
 		FRAME_EXTENSION(frame)->flags.bIsVarWheel = false;
-		FRAME_EXTENSION(frame)->flags.bDontDestroyOnRemoveUpgrade = false;
+		FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade = false;
 		FRAME_EXTENSION(frame)->LODdist = -100;
 		return frame;
 	}

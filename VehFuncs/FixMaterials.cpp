@@ -57,7 +57,7 @@ RpMaterial *MaterialCallback(RpMaterial *material, void *data)
 			}
 			break;
 		}*/
-		lg << "Found IVF material \n";
+		//lg << "Found IVF material \n";
 		material->color.red = 0xFF; material->color.green = 0xFF; material->color.blue = 0xFF;
 		break;
 	case MatFuncType::taxi:

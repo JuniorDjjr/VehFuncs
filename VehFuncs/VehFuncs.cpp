@@ -86,7 +86,7 @@ public:
 		// -- On game init
 		Events::initGameEvent += []
 		{
-			lg << "VF v1.8\n";
+			lg << "VF v1.8.1\n";
 
 			srand(time(0));
 			StoreHandlingData();
@@ -211,13 +211,29 @@ public:
 			
 			
 			// Upgrade replace
-			//WriteMemory<uint32_t>(0x6D383D, 0x000, true);
 			// Add
 			MakeCALL(0x006D386C, CustomRwFrameForAllChildren_AddUpgrade);
 			// Remove
 			MakeCALL(0x006D3A18, CustomRwFrameForAllChildren_RemoveUpgrade);
+			// Set exhaust/wheel to destroy
+			MakeInline<0x006D3746, 0x006D3746 + 5>([](reg_pack& regs)
+			{
+				regs.ecx = 0x3F800000; // original code
+				RwFrame *frame = (RwFrame *)regs.edi;
+				FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade = true;
+			});
+			// Set others to destroy
+			MakeInline<0x006D3539, 0x006D3539 + 5>([](reg_pack& regs)
+			{
+				//mov     esi, eax
+				//mov     edi, [esi+4]
+				regs.esi = regs.eax;
+				regs.edi = *(uintptr_t*)(regs.esi + 0x4);
+				RwFrame *frame = (RwFrame *)regs.edi;
+				FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade = true;
+			}); 
 			// Add original
-			MakeInline<0x006D3A35, 0x006D3A35 + 18>([](reg_pack& regs)
+			/*MakeInline<0x006D3A35, 0x006D3A35 + 18>([](reg_pack& regs)
 			{
 				RwFrame *sourceFrame = (RwFrame *)regs.eax;
 				RwFrame *destFrame = (RwFrame *)regs.edi;
@@ -226,7 +242,7 @@ public:
 				*(uint32_t*)0xC1CB58 = (uint32_t)destClump;
 				RwFrameForAllObjects(sourceFrame, CopyObjectsCB, destFrame);
 			});
-			WriteMemory<uint8_t>(0x6D3A47 + 2, 0x28, true);
+			WriteMemory<uint8_t>(0x6D3A47 + 2, 0x28, true);*/
 
 
 			// Additional generic vehicle*.txd files
@@ -1099,8 +1115,7 @@ RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade(RwFrame *frame, RwFrame 
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade_Recurse(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
-	FRAME_EXTENSION(frame)->flags.bNeverRender = true;
-	FRAME_EXTENSION(frame)->flags.bDontDestroyOnRemoveUpgrade = true;
+	if (!FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade) FRAME_EXTENSION(frame)->flags.bNeverRender = true;
 
 	if (RwFrame * newFrame = frame->child)  CustomRwFrameForAllChildren_AddUpgrade_Recurse(newFrame, callback, data);
 	if (RwFrame * newFrame = frame->next)   CustomRwFrameForAllChildren_AddUpgrade_Recurse(newFrame, callback, data);
@@ -1109,21 +1124,21 @@ RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade_Recurse(RwFrame *frame, 
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
-	if (frame) CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(frame, callback, data);
+	// Similar to RwFrameForAllChildren
+	RwFrameForAllChildren(frame, (RwFrameCallBack)CustomRwFrameForAllChildren_RemoveUpgrade_Recurse, data);
 	return frame;
 }
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
-	if (FRAME_EXTENSION(frame)->flags.bDontDestroyOnRemoveUpgrade) {
-		FRAME_EXTENSION(frame)->flags.bNeverRender = false;
+	if (FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade) {
+		RwFrameForAllObjects(frame, RemoveObjectsCB, data);
 	}
 	else {
-		RemoveObjectsCB(frame, data);
+		FRAME_EXTENSION(frame)->flags.bNeverRender = false;
 	}
 
-	if (RwFrame * newFrame = frame->child)  CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(newFrame, callback, data);
-	if (RwFrame * newFrame = frame->next)   CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(newFrame, callback, data);
+	RwFrameForAllChildren(frame, (RwFrameCallBack)CustomRwFrameForAllChildren_RemoveUpgrade_Recurse, data);
 	return frame;
 }
 
