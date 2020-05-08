@@ -26,7 +26,7 @@ void callback(const GSX::externalCallbackStructure *test)
 					{
 						// apply
 						xdata.randomSeed = *seed;
-						lg << "Load Data: " << *seed << "\n";
+						if (useLog) lg << "Load Data: " << *seed << "\n";
 					}
 				}
 				break;
@@ -37,7 +37,7 @@ void callback(const GSX::externalCallbackStructure *test)
 				// save
 				int seed = xdata.randomSeed;
 				setDataToSaveLater(test->veh, "randomSeed", 4, &xdata.randomSeed, true);
-				lg << "Save Data: " << seed << "\n";
+				if (useLog) lg << "Save Data: " << seed << "\n";
 				break;
 			}
 

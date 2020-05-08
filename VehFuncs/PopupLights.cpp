@@ -109,7 +109,7 @@ void ProcessPopup(CVehicle *vehicle, ExtendedData *xdata)
 				// Update progress and move it
 				RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
 				float progress = xdata->popupProgress[i];
-				//lg << "popup: " << xdata->popupProgress[i] << " ax " << ax << " ay " << ay << " az " << az << " x " << x << " y " << y << " z " << z << " s " << speed << " \n";
+				//if (useLog) lg << "popup: " << xdata->popupProgress[i] << " ax " << ax << " ay " << ay << " az " << az << " x " << x << " y " << y << " z " << z << " s " << speed << " \n";
 				if (progress >= 1.0f)
 				{
 					xdata->popupProgress[i] = 1.0f;

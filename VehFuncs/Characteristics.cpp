@@ -23,7 +23,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 	const string name = GetFrameNodeName(frame);
 	size_t found;
 
-	//lg << "Charac: Processing node: " << name << "\n";
+	//if (useLog) lg << "Charac: Processing node: " << name << "\n";
 
 	found = name.find("="); // For performance
 	if (found != string::npos)
@@ -48,14 +48,14 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 					xdata.randomSeedUsage++;
 
 					paintjob = Random(digit1, digit2);
-					lg << "Charac: Found 'pj' (paintjob). Calculated from '-' result '" << paintjob << "' at '" << name << "'\n";
+					if (useLog) lg << "Charac: Found 'pj' (paintjob). Calculated from '-' result '" << paintjob << "' at '" << name << "'\n";
 					if (name[found + 7] == 'c') preserveColor = true;
 				}
 				else
 				{
 					if (name[found + 5] == 'c') preserveColor = true;
 					paintjob = digit1;
-					lg << "Charac: Found 'pj' (paintjob). Set '" << digit1 << "' at '" << name << "'\n";
+					if (useLog) lg << "Charac: Found 'pj' (paintjob). Set '" << digit1 << "' at '" << name << "'\n";
 				}
 
 				xdata.paintjob = paintjob;
@@ -73,7 +73,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				stringstream ss(&name[found + 4]);
 				while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  xdata.color[j] = num; j++; } catch (const exception &) { xdata.color[j] = -1; j++; } }
 
-				lg << "Charac: Found 'cl' (colors) " << xdata.color[0] << " " << xdata.color[1] << " " << xdata.color[2] << " " << xdata.color[3] << "\n";
+				if (useLog) lg << "Charac: Found 'cl' (colors) " << xdata.color[0] << " " << xdata.color[1] << " " << xdata.color[2] << " " << xdata.color[3] << "\n";
 			}
 
 			// Driver
@@ -97,7 +97,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				advance(it, rand);
 				int driverModel = *it;
 
-				lg << "Charac: Found 'drv' (driver), selected '" << driverModel << "' at '" << name << "'\n";
+				if (useLog) lg << "Charac: Found 'drv' (driver), selected '" << driverModel << "' at '" << name << "'\n";
 				xdata.driverModel = driverModel;
 			}
 
@@ -111,7 +111,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				stringstream ss(&name[found + 4]);
 				while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  xdata.occupantsModels.push_back(num); } catch (const exception &) { break; } }
 
-				lg << "Charac: Found 'oc' (occupants), variations " << xdata.occupantsModels.size() << " at '" << name << "'\n";
+				if (useLog) lg << "Charac: Found 'oc' (occupants), variations " << xdata.occupantsModels.size() << " at '" << name << "'\n";
 
 				found = name.find(".");
 				if (found != string::npos)
@@ -143,7 +143,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 
 				float maxVol = stof(&name[found + i]);
 
-				lg << "MDPM: Found '_mdpmnpc' (MDPM NPC) chances '" << num << " vol " << minVol << "-" << maxVol << "'\n";
+				if (useLog) lg << "MDPM: Found '_mdpmnpc' (MDPM NPC) chances '" << num << " vol " << minVol << "-" << maxVol << "'\n";
 				ExtendedData &xdata = xData.Get(vehicle);
 				xdata.mdpmCustomChances = num;
 				xdata.mdpmCustomMinVol = minVol;
@@ -173,12 +173,12 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 					xdata.randomSeedUsage++;
 
 					dirtyLevel = CGeneral::GetRandomNumberInRange(fdigit1, fdigit2);
-					lg << "Charac: Found 'drt' (dirty). Calculated from '-' result '" << dirtyLevel << "' at '" << name << "'\n";
+					if (useLog) lg << "Charac: Found 'drt' (dirty). Calculated from '-' result '" << dirtyLevel << "' at '" << name << "'\n";
 				}
 				else
 				{
 					dirtyLevel = fdigit1;
-					lg << "Charac: Found 'drt' (dirty). Set '" << dirtyLevel << "' at '" << name << "'\n";
+					if (useLog) lg << "Charac: Found 'drt' (dirty). Set '" << dirtyLevel << "' at '" << name << "'\n";
 				}
 
 				xdata.dirtyLevel = dirtyLevel;
@@ -189,7 +189,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 		found = name.find("_dexh=");
 		if (found != string::npos)
 		{
-			lg << "Charac: Found 'dexh' (double exhaust) at '" << name << "'\n";
+			if (useLog) lg << "Charac: Found 'dexh' (double exhaust) at '" << name << "'\n";
 			ExtendedData &xdata = xData.Get(vehicle);
 			int enable = name[found + 6] - '0';
 			if (enable) xdata.doubleExhaust = true;
@@ -200,7 +200,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 		/*found = name.find("_btilt=");
 		if (found != string::npos)
 		{
-			lg << "Charac: Found 'btilt' (body tilt) at '" << name << "'\n";
+			if (useLog) lg << "Charac: Found 'btilt' (body tilt) at '" << name << "'\n";
 			ExtendedData &xdata = xData.Get(vehicle);
 			xdata.bodyTilt = stof(&name[found + 7]);
 		}*/
@@ -216,7 +216,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 		if (num != 0) num *= -1;
 		FRAME_EXTENSION(frame)->LODdist = num;
 		//FrameRenderAlways(frame);
-		lg << "LOD: Found '<' level " << num << " at '" << name << "'\n";
+		if (useLog) lg << "LOD: Found '<' level " << num << " at '" << name << "'\n";
 	}
 
 	// LOD greater
@@ -227,21 +227,24 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 		int num = name[found + 1] - '0';
 		FRAME_EXTENSION(frame)->LODdist = num;
 		FrameRenderAlways(frame);
-		lg << "LOD: Found '>' level " << num << " at '" << name << "'\n";
+		if (useLog) lg << "LOD: Found '>' level " << num << " at '" << name << "'\n";
 	}
 
 	// Patches: Bus render
 	found = name.find("_busrender");
 	if (found != string::npos)
 	{
-		lg << "Charac: Found 'busrender' (force bus render) at '" << name << "'\n";
+		if (useLog) lg << "Charac: Found 'busrender' (force bus render) at '" << name << "'\n";
 		ExtendedData &xdata = xData.Get(vehicle);
 		xdata.flags.bBusRender = true;
+
+		// Make driver be rendered in bus if it's already inside it (created in same frame)
+		CPed *busDriver = vehicle->m_pDriver;
+		if (busDriver) { busDriver->m_nPedFlags.bRenderPedInCar = true; }
 	}
 
 	return;
 }
-
 
 
 
@@ -264,22 +267,22 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 		// Colors
 		if (xdata.color[0] >= 0) 
 		{
-			lg << "Charac: Applying color 1: " << xdata.color[0] << "\n";
+			if (useLog) lg << "Charac: Applying color 1: " << xdata.color[0] << "\n";
 			vehicle->m_nPrimaryColor = xdata.color[0];
 		}
 		if (xdata.color[1] >= 0) 
 		{
-			lg << "Charac: Applying color 2: " << xdata.color[1] << "\n";
+			if (useLog) lg << "Charac: Applying color 2: " << xdata.color[1] << "\n";
 			vehicle->m_nSecondaryColor = xdata.color[1];
 		}
 		if (xdata.color[2] >= 0) 
 		{
-			lg << "Charac: Applying color 3: " << xdata.color[2] << "\n";
+			if (useLog) lg << "Charac: Applying color 3: " << xdata.color[2] << "\n";
 			vehicle->m_nTertiaryColor = xdata.color[2];
 		}
 		if (xdata.color[3] >= 0) 
 		{
-			lg << "Charac: Applying color 4: " << xdata.color[3] << "\n";
+			if (useLog) lg << "Charac: Applying color 4: " << xdata.color[3] << "\n";
 			vehicle->m_nQuaternaryColor = xdata.color[3];
 		}
 
@@ -287,7 +290,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 		if (xdata.paintjob >= 0) 
 		{
 			if ((int)xdata.paintjob > 0) {
-				lg << "Charac: Applying paintjob: " << (int)xdata.paintjob << " keep color " << (bool)xdata.flags.bPreservePaintjobColor << "\n";
+				if (useLog) lg << "Charac: Applying paintjob: " << (int)xdata.paintjob << " keep color " << (bool)xdata.flags.bPreservePaintjobColor << "\n";
 				vehicle->m_nVehicleFlags.bDontSetColourWhenRemapping = xdata.flags.bPreservePaintjobColor;
 				vehicle->SetRemap(xdata.paintjob - 1);
 				if (vehicle->m_nRemapTxd >= 0)
@@ -301,7 +304,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 		// Dirty
 		if (xdata.dirtyLevel >= 0.0) 
 		{
-			lg << "Charac: Applying dirty: " << xdata.dirtyLevel << "\n";
+			if (useLog) lg << "Charac: Applying dirty: " << xdata.dirtyLevel << "\n";
 			vehicle->m_fDirtLevel = xdata.dirtyLevel;
 		}
 
@@ -318,7 +321,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 					if (a[0x484] == 1) //Createdby RANDOM
 					{ 
 						int driverModel = xdata.driverModel;
-						lg << "Charac: Changing driver: " << driverModel << "\n";
+						if (useLog) lg << "Charac: Changing driver: " << driverModel << "\n";
 						if (LoadModel(driverModel)) 
 						{
 							CPedModelInfo *modelInfo = (CPedModelInfo *)CModelInfo::GetModelInfo(driverModel);
@@ -328,7 +331,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 						}
 						else
 						{
-							lg << "ERROR: Model doesn't exist! " << driverModel << "\n";
+							if (useLog) lg << "ERROR: Model doesn't exist! " << driverModel << "\n";
 						}
 					}
 				}
@@ -354,7 +357,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 							advance(it, rand);
 							int model = *it;
 
-							lg << "Charac: Changing driver from '_oc': " << model << "\n";
+							if (useLog) lg << "Charac: Changing driver from '_oc': " << model << "\n";
 
 							if (LoadModel(model)) 
 							{
@@ -365,7 +368,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 							}
 							else
 							{
-								lg << "ERROR: Model doesn't exist! " << model << "\n";
+								if (useLog) lg << "ERROR: Model doesn't exist! " << model << "\n";
 							}
 						}
 
@@ -394,7 +397,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 								}
 								if (rand > chances)
 								{
-									//lg << "Charac: No passenger added because of chance " << (int)xdata.passAddChance << "\n";
+									//if (useLog) lg << "Charac: No passenger added because of chance " << (int)xdata.passAddChance << "\n";
 									continue;
 								}
 							}
@@ -403,7 +406,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 								char *a = (char*)pass;
 								if (a[0x484] != 1) //Createdby NOT RANDOM
 								{ 
-									//lg << "Charac: No passenger changed: not random created\n";
+									//if (useLog) lg << "Charac: No passenger changed: not random created\n";
 									continue;
 								}
 							}
@@ -429,13 +432,13 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 								CPedModelInfo *modelInfo = (CPedModelInfo *)CModelInfo::GetModelInfo(model);
 								if (pass) 
 								{
-									lg << "Charac: Changing passenger " << (i + 1) << " model " << model << "\n";
+									if (useLog) lg << "Charac: Changing passenger " << (i + 1) << " model " << model << "\n";
 									pass->SetModelIndex(model);
 									pass->m_nPedType = (ePedType)modelInfo->m_nPedType;
 								}
 								else
 								{
-									lg << "Charac: Adding passenger " << (i + 1) << " model " << model << "\n";
+									if (useLog) lg << "Charac: Adding passenger " << (i + 1) << " model " << model << "\n";
 									CVector pos;
 									pos.x = vehicle->m_placement.m_vPosn.x;
 									pos.y = vehicle->m_placement.m_vPosn.y;
@@ -447,7 +450,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 							}
 							else
 							{
-								lg << "ERROR: Model doesn't exist! " << model << "\n";
+								if (useLog) lg << "ERROR: Model doesn't exist! " << model << "\n";
 							}
 						}
 					}
@@ -468,10 +471,10 @@ void SetCharacteristicsForIndieHandling(CVehicle * vehicle, bool bReSearch)
 		// Double exhaust
 		if (xdata.doubleExhaust >= 0) 
 		{
-			lg << "Charac: Applying double exhaust: " << xdata.doubleExhaust << "\n";
+			if (useLog) lg << "Charac: Applying double exhaust: " << xdata.doubleExhaust << "\n";
 			tHandlingData * handling;
 			if (IsIndieHandling(vehicle, &handling)) handling->m_bDoubleExhaust = xdata.doubleExhaust;
-			else lg << "(ERROR) This function need IndieVehicles.asi installed \n";
+			else if (useLog) lg << "(ERROR) This function need IndieVehicles.asi installed \n";
 		}
 	}
 

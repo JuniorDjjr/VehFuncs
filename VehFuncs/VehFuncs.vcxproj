@@ -140,6 +140,8 @@
     <ClInclude Include="Footpegs.h" />
     <ClInclude Include="GearAndFan.h" />
     <ClInclude Include="GSXAPI.h" />
+    <ClInclude Include="IniReader\IniReader.h" />
+    <ClInclude Include="IniReader\ini_parser.hpp" />
     <ClInclude Include="Steer.h" />
     <ClInclude Include="Trifork.h" />
     <ClInclude Include="injectorAddons\injectorAddons.hpp" />

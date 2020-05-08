@@ -172,6 +172,12 @@
     <ClInclude Include="Steer.h">
       <Filter>Source</Filter>
     </ClInclude>
+    <ClInclude Include="IniReader\ini_parser.hpp">
+      <Filter>IniReader</Filter>
+    </ClInclude>
+    <ClInclude Include="IniReader\IniReader.h">
+      <Filter>IniReader</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">
@@ -185,6 +191,9 @@
     </Filter>
     <Filter Include="Injector">
       <UniqueIdentifier>{b2c2a417-da15-477d-be92-3c28e89a21a8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="IniReader">
+      <UniqueIdentifier>{8a298add-e44a-45b2-933e-fb39b1b3b40e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

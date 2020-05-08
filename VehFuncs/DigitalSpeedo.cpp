@@ -9,7 +9,7 @@
 
 void SetupDigitalSpeedo(CVehicle * vehicle, RwFrame * frame) 
 {
-	lg << "DigitalSpeedo: Setup...\n";
+	if (useLog) lg << "DigitalSpeedo: Setup...\n";
 
 	ExtendedData &xdata = xData.Get(vehicle);
 
@@ -32,7 +32,7 @@ void SetupDigitalSpeedo(CVehicle * vehicle, RwFrame * frame)
 					frameDigits = frame;
 					frameDigitsRoot = frame;
 					frameDigits = frameDigits->child;
-					if (frameDigits == nullptr) lg << "DigitalSpeedo: (error) 'f_digitalspeedo' has no childs. Game may crash, fuck you \n";
+					if (frameDigits == nullptr) if (useLog) lg << "DigitalSpeedo: (error) 'f_digitalspeedo' has no childs. Game may crash, fuck you \n";
 					i++;
 					continue;
 				}
@@ -90,7 +90,7 @@ void SetupDigitalSpeedo(CVehicle * vehicle, RwFrame * frame)
 				frameDigits = frameDigits->next;
 			}
 			DestroyNodeHierarchyRecursive(frameDigitsRoot);
-		} else lg << "DigitalSpeedo: Error: Bad adapted \n";
+		} else if (useLog) lg << "DigitalSpeedo: Error: Bad adapted \n";
 	}
 	return;
 }
@@ -104,7 +104,7 @@ void ProcessDigitalSpeedo(CVehicle * vehicle, RwFrame * frame)
 	ExtendedData &xdata = xData.Get(vehicle);
 	if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
 	{
-		//lg << "DigitalSpeedo: Reseting...\n";
+		//if (useLog) lg << "DigitalSpeedo: Reseting...\n";
 
 		RwFrame * frameDigit1 = xdata.speedoDigits[0];
 		RwFrame * frameDigit2 = xdata.speedoDigits[1];
@@ -118,7 +118,7 @@ void ProcessDigitalSpeedo(CVehicle * vehicle, RwFrame * frame)
 
 		while (fspeed < 0.0) fspeed *= -1.0;
 
-		//lg << "DigitalSpeedo: speed: " << fspeed << "\n";
+		//if (useLog) lg << "DigitalSpeedo: speed: " << fspeed << "\n";
 
 		int speedDigit1 = 0, speedDigit2 = 0, speedDigit3 = 0, ispeed = 0;
 
@@ -150,7 +150,7 @@ void ProcessDigitalSpeedo(CVehicle * vehicle, RwFrame * frame)
 				speedDigit3 = speedDigits[2] - '0'; // 00X
 			}
 		}
-		//lg << "DigitalSpeedo: " << speedDigit1 << speedDigit2 << speedDigit3 << "\n";
+		//if (useLog) lg << "DigitalSpeedo: " << speedDigit1 << speedDigit2 << speedDigit3 << "\n";
 
 		if (ispeed < 100)
 		{

@@ -5,6 +5,7 @@
 #include "VehFuncs.h"
 
 // Mod utilities & API
+#include "IniReader/IniReader.h"
 #include "AtomicsVisibility.h"
 #include "IndieVehHandlingsAPI.h"
 #include "CustomSeed.h"
@@ -55,11 +56,16 @@ uintptr_t AtomicAlphaCallBack;
 uint32_t txdIndexStart;
 VehicleExtendedData<ExtendedData> xData;
 fstream lg;
-bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false;
+bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false, bNewFrame = false;
 CVehicle *curVehicle;
 extern RwTexDictionary *vehicletxdArray[4];
 extern int vehicletxdIndexArray[4];
 std::list<std::pair<unsigned int *, unsigned int>> resetMats;
+
+// Ini settings
+bool useLog = true;
+float iniDefaultDirtMult = 1.0f;
+float iniDefaultSteerAngle = 100.0f;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -70,7 +76,19 @@ public:
 	VehFuncs()
 	{
 		// -- On plugin init
-		lg.open("VehFuncs.log", fstream::out | fstream::trunc);
+		CIniReader ini("VehFuncs.ini");
+
+		if (ini.data.size() > 0)
+		{
+			useLog = ini.ReadInteger("Test", "Log", 1);
+			iniDefaultDirtMult = ini.ReadFloat("Settings", "DefaultDirtMult", 100.0f);
+			iniDefaultSteerAngle = ini.ReadFloat("Settings", "DefaultSteerAngle", 100.0f);
+		}
+
+		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
+
+		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
+
 		static bool reInit = false;
 		xData = getExtData();
 
@@ -86,11 +104,11 @@ public:
 		// -- On game init
 		Events::initGameEvent += []
 		{
-			lg << "VF v1.8.1\n";
+			if (useLog) lg << "VF v1.9\n";
 
 			srand(time(0));
 			StoreHandlingData();
-			ApplyGSX();
+			ApplyGSX(); 
 			//ApplyCheckRepair();
 			
 			AtomicAlphaCallBack = ReadMemory<int>(0x4C7842, false);
@@ -259,7 +277,7 @@ public:
 			Patches::Hitch::setOriginalFun_Trailer((Patches::Hitch::GetTowBarPos_t)ReadMemory<int*>(0x871D18, true));
 			WriteMemory(0x871D18, memory_pointer(Patches::Hitch::GetTowBarPosToHook).as_int(), true);
 
-			lg << "Core: Started\n";
+			if (useLog) lg << "Core: Started\n";
 		};
 
 
@@ -279,16 +297,15 @@ public:
 			{
 				if (ReadMemory<uint32_t>(0x004C9148, true) != 0x004C8E30)
 				{
-					lg << "Core: IVF installed\n";
+					if (useLog) lg << "Core: IVF installed\n";
 					WriteMemory(0x004C9148, (int)0x004C8E30, true); // unhook IVF collapse frames
 					IVFinstalled = true;
 				}
 				else
 				{
-					lg << "Core: IVF not installed\n";
 					IVFinstalled = false;
 				}
-				lg.flush();
+				if (useLog) lg.flush();
 				bFirstFrame = true;
 			}
 		};
@@ -305,30 +322,34 @@ public:
 					Command<GET_SCRIPT_STRUCT_NAMED>("NEWSVAN", &script);
 					if (script)
 					{
-						lg << "Core: AD installed\n";
+						if (useLog) lg << "Core: AD installed\n";
 						APPinstalled = true;
 					}
 					else
 					{
-						lg << "Core: AD not installed\n";
 						APPinstalled = false;
 					}
 					
-				} else lg << "Core: CLEO isn't installed." << "\n\n";
-				lg.flush();
+				} else if (useLog) lg << "Core: CLEO isn't installed." << "\n\n";
+				if (useLog) lg.flush();
 				bFirstScriptFrame = true;
 			}
+			bNewFrame = true;
 		};
 
 
 		// -- On vehicle set model
 		Events::vehicleSetModelEvent += [](CVehicle *vehicle, int modelId) 
 		{
+			if (iniDefaultDirtMult != 1.0f) {
+				vehicle->m_fDirtLevel *= iniDefaultDirtMult;
+				if (vehicle->m_fDirtLevel > 15.0f) vehicle->m_fDirtLevel = 1.0f;
+			}
 			ExtendedData &xdata = xData.Get(vehicle);
 			xdata.nodesProcess = true;
 			xdata.nodesProcessForIndieHandling = true;
 			xdata.ReInitForReSearch();
-			//lg << "Core: Model set\n";
+			//if (useLog) lg << "Core: Model set\n";
 		};
 
 
@@ -352,7 +373,8 @@ public:
 			list<CustomSeed> &customSeedList = getCustomSeedList();
 			if (customSeedList.size() > 0)
 			{
-				lg << "Custom Seed: Running custom seed list \n";
+				list<CustomSeed> customSeedsToRemove;
+				if (useLog && bNewFrame) lg << "Custom Seed: Running list size " << customSeedList.size() << "\n";
 
 				for (list<CustomSeed>::iterator it = customSeedList.begin(); it != customSeedList.end(); ++it)
 				{
@@ -360,13 +382,23 @@ public:
 
 					if (reinterpret_cast<int>(vehicle) == customSeed.pvehicle)
 					{
-						lg << "Custom Seed: Seed " << customSeed.seed << " set to " << customSeed.pvehicle << "\n";
+						if (useLog) lg << "Custom Seed: Seed " << customSeed.seed << " set to " << customSeed.pvehicle << "\n";
 						xdata.randomSeed = customSeed.seed;
-						customSeedList.remove(*it);
-
-						if (customSeedList.size() <= 0) break;
+						customSeedsToRemove.push_back(*it);
+					}
+					else {
+						if (CTimer::m_snTimeInMilliseconds > customSeed.timeToDeleteOfNotFound)
+						{
+							if (useLog) lg << "Custom Seed: Not found vehicle " << customSeed.pvehicle << ". Time limit.\n";
+							customSeedsToRemove.push_back(*it);
+						}
 					}
 				}
+				for (list<CustomSeed>::iterator it = customSeedsToRemove.begin(); it != customSeedsToRemove.end(); ++it)
+				{
+					customSeedList.remove(*it);
+				}
+				customSeedsToRemove.clear(); 
 			}
 
 
@@ -465,7 +497,7 @@ public:
 								RwTexture *text = plugin::CallAndReturn<RwTexture*, 0x7F3AC0, const char*, const char*>("txgrass1_3", 0);
 								CTxdStore::PopCurrentTxd();
 
-								lg << "Shared Extras Texture: " << text << "\n";
+								if (useLog) lg << "Shared Extras Texture: " << text << "\n";
 								fs.flush();
 
 								text->filterAddressing = 2;
@@ -484,7 +516,7 @@ public:
 				}
 				RwStreamClose(splate, 0);
 
-				lg << "Shared Extras: " << aplate << "\n";
+				if (useLog) lg << "Shared Extras: " << aplate << "\n";
 				fs.flush();
 			*/
 			}
@@ -624,6 +656,7 @@ public:
 			// Post reset flags
 			xdata.flags.bDamageUpdated = false;
 			xdata.flags.bUpgradesUpdated = false;
+			bNewFrame = false;
 		};
 
 		///////////////////////////////////////////////////////////////////////////////////////
@@ -631,7 +664,7 @@ public:
 		// -- Flush log during unfocus (ie minimizing)
 		Events::onPauseAllSounds += []
 		{
-			lg.flush();
+			if (useLog) lg.flush();
 		};
 
 		/*
@@ -640,8 +673,8 @@ public:
 		{
 			if (reInit)
 			{
-				lg << "Core: Reinitializing game...\n";
-				lg.flush();
+				if (useLog) lg << "Core: Reinitializing game...\n";
+				if (useLog) lg.flush();
 				// ...?
 			}
 			else reInit = true;
@@ -665,7 +698,7 @@ public:
 
 			if (name[0] == 'f' && name[1] == '_') 
 			{
-				//lg << "Checking for " << name << endl;
+				//if (useLog) lg << "Checking for " << name << endl;
 
 				ExtendedData &xdata = xData.Get(vehicle);
 				if (!bReSearch) 
@@ -677,13 +710,13 @@ public:
 						found = name.find("f_class");
 						if (found != string::npos) 
 						{
-							lg << "Extras: Found 'f_class' \n";
+							if (useLog) lg << "Extras: Found 'f_class' \n";
 
 							ProcessClassesRecursive(frame, vehicle, bReSearch);
 
 							if (RwFrame * tempFrame = frame->next) 
 							{
-								lg << "Extras: Jumping class nodes \n";
+								if (useLog) lg << "Extras: Jumping class nodes \n";
 								frame = tempFrame;
 								continue;
 							}
@@ -693,7 +726,7 @@ public:
 						found = name.find("f_extras");
 						if (found != string::npos) 
 						{
-							lg << "Extras: Found 'f_extras' \n";
+							if (useLog) lg << "Extras: Found 'f_extras' \n";
 
 							RwFrame * tempFrame = frame->child;
 							if (tempFrame != nullptr) 
@@ -704,17 +737,18 @@ public:
 
 								list<string> &classList = getClassList();
 
-								lg << "Extras: Classes: ";
-								for (list<string>::iterator it = classList.begin(); it != classList.end(); ++it) {
-									lg << *it << " ";
+								if (useLog) {
+									lg << "Extras: Classes: ";
+									for (list<string>::iterator it = classList.begin(); it != classList.end(); ++it) {
+										lg << *it << " ";
+									}
+									lg << "\nExtras: --- Starting extras for veh ID " << vehicle->m_nModelIndex << "\n";
 								}
-								lg << "\n";
 
-								lg << "Extras: --- Starting - veh ID " << vehicle->m_nModelIndex << "\n";
 								ProcessExtraRecursive(frame, vehicle);
-								lg << "Extras: --- Ending \n";
+								if (useLog) lg << "Extras: --- Ending \n";
 							}
-							else lg << "Extras: (error) 'f_extras' has no childs \n";
+							else if (useLog) lg << "Extras: (error) 'f_extras' has no childs \n";
 						}
 					}
 				}
@@ -723,7 +757,7 @@ public:
 				found = name.find("f_dspeedo");
 				if (found != string::npos) 
 				{
-					lg << "DigitalSpeedo: Found 'f_dspeedo' \n";
+					if (useLog) lg << "DigitalSpeedo: Found 'f_dspeedo' \n";
 
 					SetupDigitalSpeedo(vehicle, frame);
 					xdata.speedoFrame = frame;
@@ -744,7 +778,7 @@ public:
 						speedMult *= mult;
 					}
 
-					lg << "DigitalSpeedo: Speed multiplicator: " << speedMult << "\n";
+					if (useLog) lg << "DigitalSpeedo: Speed multiplicator: " << speedMult << "\n";
 
 					xdata.speedoMult = speedMult;
 				}
@@ -753,7 +787,7 @@ public:
 				found = name.find("f_gear");
 				if (found != string::npos) 
 				{
-					lg << "Gear: Found 'f_gear' \n";
+					if (useLog) lg << "Gear: Found 'f_gear' \n";
 					xdata.gearFrame.push_back(frame);
 					FRAME_EXTENSION(frame)->owner = vehicle;
 				}
@@ -762,7 +796,7 @@ public:
 				found = name.find("f_fan");
 				if (found != string::npos) 
 				{
-					lg << "Gear: Found 'f_fan' \n";
+					if (useLog) lg << "Gear: Found 'f_fan' \n";
 					xdata.fanFrame.push_back(frame);
 					FRAME_EXTENSION(frame)->owner = vehicle;
 				}
@@ -771,7 +805,7 @@ public:
 				found = name.find("f_shake");
 				if (found != string::npos) 
 				{
-					lg << "Shake: Found 'f_shake' \n";
+					if (useLog) lg << "Shake: Found 'f_shake' \n";
 					if (CreateMatrixBackup(frame)) {
 						xdata.shakeFrame.push_back(frame);
 						FRAME_EXTENSION(frame)->owner = vehicle;
@@ -782,7 +816,7 @@ public:
 				found = name.find("f_gas");
 				if (found != string::npos) 
 				{
-					lg << "Pedal: Found 'f_gas' \n";
+					if (useLog) lg << "Pedal: Found 'f_gas' \n";
 					if (CreateMatrixBackup(frame)) {
 						xdata.gaspedalFrame.push_back(frame);
 						FRAME_EXTENSION(frame)->owner = vehicle;
@@ -793,7 +827,7 @@ public:
 				found = name.find("f_brake");
 				if (found != string::npos) 
 				{
-					lg << "Pedal: Found 'f_brake' \n";
+					if (useLog) lg << "Pedal: Found 'f_brake' \n";
 					if (CreateMatrixBackup(frame)) {
 						xdata.brakepedalFrame.push_back(frame);
 						FRAME_EXTENSION(frame)->owner = vehicle;
@@ -811,19 +845,19 @@ public:
 						switch (mode)
 						{
 						case 0:
-							lg << "Anims: Found 'f_an" << mode << "': ping pong \n";
+							if (useLog) lg << "Anims: Found 'f_an" << mode << "': ping pong \n";
 							break;
 						case 1:
 							switch (submode)
 							{
 							case 0:
-								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off \n";
 								break;
 							case 1:
-								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off or alarm on \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off or alarm on \n";
 								break;
 							default:
-								lg << "Anims: Found 'f_an" << mode << " ERROR: submode not found \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << " ERROR: submode not found \n";
 								submode = -1;
 								break;
 							}
@@ -832,19 +866,19 @@ public:
 							switch (submode)
 							{
 							case 0:
-								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": driver \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": driver \n";
 								break;
 							case 1:
-								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 1 \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 1 \n";
 								break;
 							case 2:
-								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 2 \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 2 \n";
 								break;
 							case 3:
-								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 3 \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 3 \n";
 								break;
 							default:
-								lg << "Anims: Found 'f_an" << mode << " ERROR: submode not found \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << " ERROR: submode not found \n";
 								submode = -1;
 								break;
 							}
@@ -853,14 +887,14 @@ public:
 							switch (submode)
 							{
 							case 0:
-								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed \n";
 								break;
 							case 1:
-								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed and f_spoiler \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed and f_spoiler \n";
 								xdata.spoilerFrames.push_back(frame);
 								break;
 							default:
-								lg << "Anims: Found 'f_an" << mode << " ERROR: submode not found \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << " ERROR: submode not found \n";
 								submode = -1;
 								break;
 							}
@@ -869,23 +903,23 @@ public:
 							switch (submode)
 							{
 							case 0:
-								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": brake \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": brake \n";
 								break;
 							case 1:
-								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed brake \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed brake \n";
 								break;
 							case 2:
-								lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed brake and f_spoiler \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed brake and f_spoiler \n";
 								xdata.spoilerFrames.push_back(frame);
 								break;
 							default:
-								lg << "Anims: Found 'f_an" << mode << " ERROR: submode not found \n";
+								if (useLog) lg << "Anims: Found 'f_an" << mode << " ERROR: submode not found \n";
 								submode = -1;
 								break;
 							}
 							break;
 						default:
-							lg << "Anims: Found 'f_an' ERROR: mode not found \n";
+							if (useLog) lg << "Anims: Found 'f_an' ERROR: mode not found \n";
 							mode = -1;
 							break;
 						}
@@ -911,7 +945,7 @@ public:
 					found = name.find("f_trifork");
 					if (found != string::npos)
 					{
-						lg << "Trifork: Found 'f_trifork' \n";
+						if (useLog) lg << "Trifork: Found 'f_trifork' \n";
 						if (CreateMatrixBackup(frame))
 						{
 							xdata.triforkFrame = frame;
@@ -932,7 +966,7 @@ public:
 					found = name.find("f_fpeg1");
 					if (found != string::npos) 
 					{
-						lg << "Footpegs: Found 'f_fpeg1' (footpeg driver) \n";
+						if (useLog) lg << "Footpegs: Found 'f_fpeg1' (footpeg driver) \n";
 						if (CreateMatrixBackup(frame)) {
 							xdata.fpegFront.push_back(new F_footpegs(frame));
 							FRAME_EXTENSION(frame)->owner = vehicle;
@@ -943,7 +977,7 @@ public:
 					found = name.find("f_fpeg2");
 					if (found != string::npos) 
 					{
-						lg << "Footpegs: Found 'f_fpeg2' (footpeg passenger) \n";
+						if (useLog) lg << "Footpegs: Found 'f_fpeg2' (footpeg passenger) \n";
 						if (CreateMatrixBackup(frame)) {
 							xdata.fpegBack.push_back(new F_footpegs(frame));
 							FRAME_EXTENSION(frame)->owner = vehicle;
@@ -955,7 +989,7 @@ public:
 				found = name.find("f_hitch"); 
 				if (found != string::npos) 
 				{
-					lg << "FunctionalHitch: Found 'f_hitch' \n";
+					if (useLog) lg << "FunctionalHitch: Found 'f_hitch' \n";
 					xdata.hitchFrame = frame;
 					FRAME_EXTENSION(frame)->owner = vehicle;
 				}
@@ -964,7 +998,7 @@ public:
 				found = name.find("f_coplight");
 				if (found != string::npos) 
 				{
-					lg << "CopLight: Found 'f_coplight' \n";
+					if (useLog) lg << "CopLight: Found 'f_coplight' \n";
 					xdata.coplightFrame = frame;
 					FRAME_EXTENSION(frame)->owner = vehicle;
 					vehicle->m_vehicleAudio.m_bModelWithSiren = true;
@@ -974,7 +1008,7 @@ public:
 						found = childname.find("outpoint");
 						if (found != string::npos) 
 						{
-							lg << "CopLight: Found 'outpoint' \n";
+							if (useLog) lg << "CopLight: Found 'outpoint' \n";
 							xdata.coplightoutFrame = child;
 						}
 					}
@@ -984,7 +1018,7 @@ public:
 				found = name.find("f_taxilight");
 				if (found != string::npos)
 				{
-					lg << "TaxiLight: Found 'f_taxilight' \n";
+					if (useLog) lg << "TaxiLight: Found 'f_taxilight' \n";
 					xdata.taxilightFrame = frame;
 					FRAME_EXTENSION(frame)->owner = vehicle;
 				}
@@ -994,7 +1028,7 @@ public:
 					found = name.find("f_wheel");
 					if (found != string::npos) 
 					{
-						lg << "Wheel: Found 'f_wheel' at " << name << " \n";
+						if (useLog) lg << "Wheel: Found 'f_wheel' at " << name << " \n";
 						for (int i = 0; i < 6; i++) 
 						{
 							if (!xdata.wheelFrame[i]) 
@@ -1013,12 +1047,12 @@ public:
 				{
 					if (CreateMatrixBackup(frame)) {
 						if (name[found + 5] == 'l') {
-							lg << "Popup lights: Found 'f_popl' \n";
+							if (useLog) lg << "Popup lights: Found 'f_popl' \n";
 							xdata.popupFrame[0] = frame;
 						}
 						else
 						{
-							lg << "Popup lights: Found 'f_popr' \n";
+							if (useLog) lg << "Popup lights: Found 'f_popr' \n";
 							xdata.popupFrame[1] = frame;
 						}
 						FRAME_EXTENSION(frame)->owner = vehicle;
@@ -1029,7 +1063,7 @@ public:
 				found = name.find("f_spoiler");
 				if (found != string::npos)
 				{
-					lg << "Spoiler: Found 'f_spoiler' \n";
+					if (useLog) lg << "Spoiler: Found 'f_spoiler' \n";
 					xdata.spoilerFrames.push_back(frame);
 					FRAME_EXTENSION(frame)->owner = vehicle;
 				}
@@ -1038,7 +1072,7 @@ public:
 				found = name.find("f_steer");
 				if (found != string::npos)
 				{
-					lg << "Steer: Found 'f_steer' \n";
+					if (useLog) lg << "Steer: Found 'f_steer' \n";
 					if (CreateMatrixBackup(frame)) {
 						xdata.steer.push_back(frame);
 						FRAME_EXTENSION(frame)->owner = vehicle;
@@ -1058,7 +1092,7 @@ public:
 						{
 							if (name[8] == '_') {
 								if (isdigit(name[9])) {
-									lg << "Retrocompatibility: Found 'movsteer_*' \n";
+									if (useLog) lg << "Retrocompatibility: Found 'movsteer_*' \n";
 									if (CreateMatrixBackup(frame)) {
 										xdata.steer.push_back(frame);
 										FRAME_EXTENSION(frame)->owner = vehicle;
@@ -1066,7 +1100,7 @@ public:
 								}
 							}
 							else {
-								lg << "Retrocompatibility: Found 'movsteer' \n";
+								if (useLog) lg << "Retrocompatibility: Found 'movsteer' \n";
 								if (CreateMatrixBackup(frame)) {
 									xdata.steer.push_back(frame);
 									FRAME_EXTENSION(frame)->owner = vehicle;
@@ -1081,7 +1115,7 @@ public:
 					if (found != string::npos)
 					{
 						if (frame->child) {
-							lg << "Retrocompatibility: Found 'steering' \n";
+							if (useLog) lg << "Retrocompatibility: Found 'steering' \n";
 							if (CreateMatrixBackup(frame->child)) {
 								xdata.steer.push_back(frame->child);
 								FRAME_EXTENSION(frame->child)->owner = vehicle;

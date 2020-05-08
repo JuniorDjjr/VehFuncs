@@ -9,6 +9,7 @@
 #include "CClock.h"
 #include "CPopCycle.h"
 #include "CPopulation.h"
+#include "CTheScripts.h"
 
 ///////////////////////////////////////////// Process Classes
 
@@ -32,6 +33,8 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 	int len = nodeName.length();
 
 	// For optimzation: faster and common functions before, slower ones at bottom
+	// Never return false during checks, just keep it
+	// Think twice using else to next condition
 	while (from < len)
 	{
 		from++;
@@ -53,6 +56,44 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 			from++;
 		}
 
+		// driver pedstat
+		if (nodeName[from] == 'd')
+		{
+			from++;
+			if (vehicle->m_pDriver) {
+				int pedpedstatId = *(uint32_t*)(vehicle->m_pDriver->m_pStats);
+				if (vehicle->m_pDriver->m_nModelIndex == 10) pedpedstatId = 24; // by default BFOST is STAT_STREET_GIRL, consider STAT_OLD_GIRL
+				if (pedpedstatId == stoi(&nodeName[from])) return true;
+			}
+			from++;
+		}
+
+		// no driver pedstat
+		if (nodeName[from] == 'n' && nodeName[from + 1] == 'd')
+		{
+			from += 2;
+			if (!vehicle->m_pDriver) return true;
+			int pedpedstatId = *(uint32_t*)(vehicle->m_pDriver->m_pStats);
+			if (vehicle->m_pDriver->m_nModelIndex == 10) pedpedstatId = 24; // by default BFOST is STAT_STREET_GIRL, consider STAT_OLD_GIRL
+			if (pedpedstatId != stoi(&nodeName[from])) return true;
+			from++;
+		}
+
+		// mission controlled
+		if (nodeName[from] == 'm')
+		{
+			from++;
+			if (vehicle->m_nCreatedBy == eVehicleCreatedBy::MISSION_VEHICLE && CTheScripts::IsPlayerOnAMission()) return true;
+		}
+
+		// not mission controlled
+		if (nodeName[from] == 'n' && nodeName[from + 1] == 'm')
+		{
+			from += 2;
+			if (vehicle->m_nCreatedBy != eVehicleCreatedBy::MISSION_VEHICLE || !CTheScripts::IsPlayerOnAMission()) return true;
+			from++;
+		}
+
 		// rain
 		if (nodeName[from] == 'r' && nodeName[from + 1] == 'a' && nodeName[from + 2] == 'i' && nodeName[from + 3] == 'n') 
 		{
@@ -60,10 +101,10 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 				CWeather::NewWeatherType == 8 || CWeather::NewWeatherType == 16 ||
 				CWeather::ForcedWeatherType == 8 || CWeather::ForcedWeatherType == 16)
 			{
-				//lg << "RAIN OK" << endl;
+				//if (useLog) lg << "RAIN OK" << endl;
 				return true;
 			}
-			//else lg << "NOT RAIN" << endl;
+			//else if (useLog) lg << "NOT RAIN" << endl;
 			from += 4;
 		}
 
@@ -74,10 +115,10 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 				CWeather::NewWeatherType != 8 && CWeather::NewWeatherType != 16 &&
 				CWeather::ForcedWeatherType != 8 && CWeather::ForcedWeatherType != 16)
 			{
-				//lg << "NOT RAIN OK" << endl;
+				//if (useLog) lg << "NOT RAIN OK" << endl;
 				return true;
 			}
-			//else lg << "NOT NOT RAIN" << endl;
+			//else if (useLog) lg << "NOT NOT RAIN" << endl;
 			from += 6;
 		}
 
@@ -85,7 +126,6 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 		if (nodeName[from] == 'h') 
 		{
 			from++;
-			//lg << "curpopcycle " << CPopCycle::m_nCurrentZoneType << endl;
 			int minHour;
 			int maxHour;
 
@@ -96,7 +136,7 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 				from += 2;
 			maxHour = stoi(&nodeName[from]);
 
-			//lg << minHour << " " << maxHour << endl;
+			//if (useLog) lg << minHour << " " << maxHour << endl;
 
 			if (maxHour < minHour)
 			{
@@ -118,14 +158,14 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 			str = nodeName.substr(from, next);
 			memset(zoneName, 0, 8);
 			strncpy(zoneName, &str[0], next - from);
-			//lg << "zone value " << zoneName << endl;
+			//if (useLog) lg << "zone value " << zoneName << endl;
 			from = next;
 			if (CTheZones::FindZone(&vehicle->GetPosition(), *(int*)zoneName, *(int*)(zoneName + 4), eZoneType::ZONE_TYPE_NAVI))
 			{
-				//lg << "ZONE OK" << endl;
+				//if (useLog) lg << "ZONE OK" << endl;
 				return true;
 			}
-			//else lg << "NOT ZONE" << endl;
+			//else if (useLog) lg << "NOT ZONE" << endl;
 		}
 	}
 	return false;
@@ -144,7 +184,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 	found = name.find("_reset");
 	if (found != string::npos)
 	{
-		lg << "Extras: Reseting classes \n";
+		if (useLog) lg << "Extras: Reseting classes \n";
 		list<string> &classList = getClassList();
 		classList.clear();
 	}
@@ -183,8 +223,11 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 		while (tempNode) 
 		{
 			const string tempNodeName = GetFrameNodeName(tempNode);
+
 			if (tempNodeName[0] == '!')
 			{
+				if (useLog) lg << "ok" << endl;
+				if (useLog) lg.flush();
 				RwFrame *tempCharacFrame = tempNode->child;
 				while (tempCharacFrame)
 				{
@@ -198,10 +241,10 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 			found = tempNodeName.find_first_of("?");
 			if (found != string::npos)
 			{
-				lg << "Found '?' condition at '" << tempNodeName << "'\n";
+				if (useLog) lg << "Found '?' condition at '" << tempNodeName << "'\n";
 				if (!ClassConditionsValid(tempNodeName, found, vehicle)) {
 					tempNode = tempNode->next;
-					lg << "Condition check failed" << endl;
+					if (useLog) lg << "Condition check failed" << endl;
 					continue;
 				}
 				else {
@@ -214,7 +257,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 							int randomPercent = Random(1, 100);
 							if (percent < randomPercent)
 							{
-								lg << "Class condition: " << tempNodeName << " not added due to percent\n";
+								if (useLog) lg << "Class condition: " << tempNodeName << " not added due to percent\n";
 								tempNode = tempNode->next;
 								continue;
 							}
@@ -224,6 +267,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 						// Clear all other classes, only consider condition classes
 						if (classNodes.size() > 0)
 						{
+							totalClass = 0;
 							classNodes.clear();
 							classNodesPercent.clear();
 						}
@@ -231,6 +275,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 					}
 					classNodesPercent.push_back(100);
 					classNodes.push_back(tempNode);
+					totalClass++;
 				}
 			}
 			else {
@@ -278,7 +323,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 						int randomPercent = Random(1, 100);
 						if (classNodesPercent[random] < randomPercent)
 						{
-							//lg << "Extras: Class not selected: " << classNodesPercent[random] << " percent\n";
+							//if (useLog) lg << "Extras: Class not selected: " << classNodesPercent[random] << " percent\n";
 							continue;
 						}
 					}
@@ -316,13 +361,13 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 						if (classNameFixed.length() > 0)
 						{
 							classList.push_back(classNameFixed);
-							lg << "Extras: Class inserted: " << classNameFixed << "\n";
+							if (useLog) lg << "Extras: Class inserted: " << classNameFixed << "\n";
 						}
 					}
 					else 
 					{
 						classList.push_back(className);
-						lg << "Extras: Class inserted: " << className << "\n";
+						if (useLog) lg << "Extras: Class inserted: " << className << "\n";
 					}
 
 					classNodes[random] = nullptr;
@@ -339,7 +384,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle) 
 {
 	const string name = GetFrameNodeName(frame);
-	lg << "Extras: Processing node: '" << name << "'\n";
+	if (useLog) lg << "Extras: Processing node: '" << name << "'\n";
 	
 	RwFrame * tempFrame = frame->child;
 	if (tempFrame != nullptr)
@@ -373,7 +418,6 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 		// -- Store extra frames
 		int frames = 0;
 		int classFrames = 0;
-		bool hasClassFrame = false; // for performance
 		RwFrame * extraFrames[33];
 		RwFrame * extraFramesMatchClass[33];
 		memset(extraFrames, 0, sizeof(extraFrames));
@@ -391,21 +435,35 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 				{
 					// If frame has class
 					string tempFrameName = GetFrameNodeName(tempFrame);
-					size_t found = tempFrameName.find("[");
-					if (found != string::npos) 
-					{
-						// Check name match
-						for (list<string>::iterator it = classList.begin(); it != classList.end(); ++it) 
+					int startStringSearchIndex = 0;
+					int tempFrameNameLength = tempFrameName.length();
+					do {
+						size_t foundOpen = tempFrameName.find_first_of("[", startStringSearchIndex + 1);
+						if (foundOpen != string::npos)
 						{
-							size_t found = tempFrameName.find(*it);
-							if (found != string::npos) 
+							size_t foundClose = tempFrameName.find_first_of("]", foundOpen + 1);
+							if (foundClose != string::npos)
 							{
-								extraFramesMatchClass[classFrames] = tempFrame;
-								lg << "Extras: Added to class list: " << tempFrameName << "\n";
-								classFrames++;
+								string frameClass = tempFrameName.substr(foundOpen + 1, foundClose - (foundOpen + 1));
+								//if (useLog) lg << "Extras: Current frame class: " << frameClass << " from " << tempFrameName << " + " << startStringSearchIndex << "\n";
+								// Check name match
+								for (list<string>::iterator it = classList.begin(); it != classList.end(); ++it)
+								{
+									string className = (string)*it;
+									if (frameClass.length() == className.length() && strcmp(&frameClass[0], &className[0]) == 0)
+									{
+										extraFramesMatchClass[classFrames] = tempFrame;
+										if (useLog) lg << "Extras: Added to match class: " << tempFrameName << "\n";
+										classFrames++;
+										break;
+									}
+								}
+								startStringSearchIndex = foundClose;
 							}
+							else break;
 						}
-					}
+						else break;
+					} while ((tempFrameNameLength - 2) > startStringSearchIndex);
 				}
 				extraFrames[frames] = tempFrame;
 				frames++;
@@ -428,11 +486,10 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 
 
 		// -- Show has class
-		lg << "Extras: Childs found: " << frames << "\n";
+		if (useLog) lg << "Extras: Childs found: " << frames << "\n";
 		if (classFrames > 0) 
 		{
-			lg << "Extras: Class childs found: " << classFrames << "\n";
-			hasClassFrame = true;
+			if (useLog) lg << "Extras: Class childs found: " << classFrames << "\n";
 		}
 
 
@@ -442,7 +499,7 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 			if (frames == 1) selectVariations = 0;
 			else selectVariations = 1;
 		}
-		lg << "Extras: Select variations: " << selectVariations << "\n";
+		if (useLog) lg << "Extras: Select variations: " << selectVariations << "\n";
 
 
 
@@ -460,7 +517,7 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 				if (extraFramesMatchClass[random] != nullptr)
 				{
 					i++;
-					lg << "Extras: Starting new node (class match) " << i << " of " << selectVariations << " \n";
+					if (useLog) lg << "Extras: Starting new node (class match) " << i << " of " << selectVariations << " \n";
 					ProcessExtraRecursive(extraFramesMatchClass[random], vehicle);
 
 					RemoveFrameClassFromNormalArray(extraFramesMatchClass[random], extraFrames);
@@ -481,7 +538,7 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 						continue;
 					}
 					i++;
-					lg << "Extras: Starting new node " << i << " of " << selectVariations << " \n";
+					if (useLog) lg << "Extras: Starting new node " << i << " of " << selectVariations << " \n";
 					ProcessExtraRecursive(extraFrames[random], vehicle);
 
 					extraFrames[random] = nullptr;
@@ -495,7 +552,7 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 					}
 					if (k == frames)
 					{
-						lg << "Extras: There is no more extras to select \n";
+						if (useLog) lg << "Extras: There is no more extras to select \n";
 						break;
 					}
 				}
@@ -514,7 +571,7 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 		}
 
 	}
-	else lg << "Extras: Node has no child \n";
+	else if (useLog) lg << "Extras: Node has no child \n";
 
 	return;
 }

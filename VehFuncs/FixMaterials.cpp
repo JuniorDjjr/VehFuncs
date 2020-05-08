@@ -35,7 +35,7 @@ RpMaterial *MaterialCallback(RpMaterial *material, void *data)
 					size_t found = name.find("vehiclelights128");
 					if (found != string::npos)
 					{
-						lg << "Not valid IVF material \n";
+						if (useLog) lg << "Not valid IVF material \n";
 						break;
 					}
 				}
@@ -49,7 +49,7 @@ RpMaterial *MaterialCallback(RpMaterial *material, void *data)
 						size_t found = name.find("vehiclelightson128");
 						if (found != string::npos)
 						{
-							lg << "Not valid on IVF material \n";
+							if (useLog) lg << "Not valid on IVF material \n";
 							break;
 						}
 					}
@@ -57,12 +57,12 @@ RpMaterial *MaterialCallback(RpMaterial *material, void *data)
 			}
 			break;
 		}*/
-		//lg << "Found IVF material \n";
+		//if (useLog) lg << "Found IVF material \n";
 		material->color.red = 0xFF; material->color.green = 0xFF; material->color.blue = 0xFF;
 		break;
 	case MatFuncType::taxi:
 		xdata.taxiSignMaterial = material;
-		//lg << "Taxi: Found sign material \n";
+		//if (useLog) lg << "Taxi: Found sign material \n";
 		break;
 	default:
 		break;

@@ -1,6 +1,8 @@
 #include "VehFuncsCommon.h"
 #include "NodeName.h"
 
+extern float iniDefaultSteerAngle;
+
 void ProcessSteer(CVehicle *vehicle, list<RwFrame*> frames)
 {
 	for (RwFrame *frame : frames)
@@ -11,7 +13,7 @@ void ProcessSteer(CVehicle *vehicle, list<RwFrame*> frames)
 
 			float angle = (vehicle->m_fSteerAngle * (-1.666666f));
 
-			float maxAngle = 100.0f;
+			float maxAngle = iniDefaultSteerAngle;
 
 			if (name[0] == 'f') {
 				//f_steer180

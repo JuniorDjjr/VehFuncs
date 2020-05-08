@@ -259,3 +259,4 @@ public:
 extern list<string> &getClassList();
 extern VehicleExtendedData<ExtendedData> xData;
 extern fstream lg;
+extern bool useLog;

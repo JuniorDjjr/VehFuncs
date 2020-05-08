@@ -22,7 +22,7 @@ namespace Patches
 
 	void __cdecl RenderBusCheck(CVehicle *veh)
 	{
-		valid = 0;
+		valid = 1;
 		if (veh->m_nVehicleFlags.bIsBus) 
 		{
 			int model = veh->m_nModelIndex;
@@ -66,7 +66,7 @@ namespace Patches
 		if (atomic->clump->object.type == 2 && FRAME_EXTENSION(frame)->LODdist != -100) {
 			int LODdistLevel = FRAME_EXTENSION(frame)->LODdist;
 			float LODdist = FRAME_EXTENSION(frame)->LODdist * 3.0f * TheCamera.m_fLODDistMultiplier;
-			//lg << pow(LODdist, 3) << " " << *(float*)0x00C88024 << "\n";
+			//if (useLog) lg << pow(LODdist, 3) << " " << *(float*)0x00C88024 << "\n";
 			if (LODdistLevel > 0) // >
 			{
 				if (LODdistLevel == 9)
@@ -505,8 +505,8 @@ namespace Patches
 								anyAdditionalVehicleTxd = true;
 							}
 							else {
-								lg << "ERROR: vehicle*.txd limit is only up to 'vehicle5.txd'" << endl;
-								lg.flush();
+								if (useLog) lg << "ERROR: vehicle*.txd limit is only up to 'vehicle5.txd'" << endl;
+								if (useLog) lg.flush();
 							}
 						}
 
@@ -672,10 +672,10 @@ namespace Patches
 			RwFrameForAllObjects(frame, (RwObjectCallBack)0x4C7BD0, data);
 			if (/*ok*/*(uint32_t*)data > 0 && /*dam*/*(uint32_t*)(&data + 4) > 0)  // for performance
 			{ 
-				//lg << "DONE" << "\n";
+				//if (useLog) lg << "DONE" << "\n";
 				return frame;
 			}
-			//lg << "PROCESSING" << "\n";
+			//if (useLog) lg << "PROCESSING" << "\n";
 			RwFrameForAllChildren(frame, CustomFindDamageAtomicsCB, data);
 			return frame;
 		}
@@ -697,7 +697,7 @@ namespace Patches
 				if (texture) return texture;
 			}
 		}
-		//lg << "Can't find texture " << name << endl;
+		//if (useLog) lg << "Can't find texture " << name << endl;
 		return nullptr;
 	}
 

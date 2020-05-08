@@ -26,8 +26,8 @@ void RestoreMatrixBackup(RwMatrix* dest, MatrixBackup* backup)
 	}
 	else
 	{
-		lg << "Error: Unable to restore matrix backup A\n";
-		lg.flush();
+		if (useLog) lg << "Error: Unable to restore matrix backup A\n";
+		if (useLog) lg.flush();
 	}
 	return;
 }
@@ -59,8 +59,8 @@ bool CreateMatrixBackup(RwFrame* frame)
 	}
 	else
 	{
-		lg << "Error: Unable to init new matrix backup A\n";
-		lg.flush();
+		if (useLog) lg << "Error: Unable to init new matrix backup A\n";
+		if (useLog) lg.flush();
 		FRAME_EXTENSION(frame)->origMatrix = nullptr;
 		return false;
 	}

@@ -7,6 +7,7 @@ using namespace std;
 using namespace injector;
 
 extern fstream lg;
+extern bool useLog;
 
 struct handlingBlocKInfo
 {
@@ -86,7 +87,7 @@ void StoreHandlingData()
 		hblockinfo.start = reinterpret_cast<uint8_t*>(handlingManager) + patchData.m_aStandardHandling_offset;
 		hblockinfo.end = reinterpret_cast<uint8_t*>(handlingManager) + (patchData.m_sizeof_tHandlingData * patchData.numberOfVehicleLines) + patchData.m_aStandardHandling_offset;
 
-		lg << "Handling: fastman92's limit adjuster pointer: " << hblockinfo.start << " " << hblockinfo.size << " " << hblockinfo.end << " \n";
+		if (useLog) lg << "Handling: fastman92's limit adjuster pointer: " << hblockinfo.start << " " << hblockinfo.size << " " << hblockinfo.end << " \n";
 	}
 	else
 	{
@@ -97,12 +98,12 @@ void StoreHandlingData()
 			hblockinfo.start = reinterpret_cast<uint8_t*>(handlingManager) + 0x14;
 			hblockinfo.end = reinterpret_cast<uint8_t*>(handlingManager) + ReadMemory<uint32_t>(0x006F531E, true) + 0x14;
 
-			lg << "Handling: Vanilla handling pointer: " << hblockinfo.start << " " << hblockinfo.size << " " << hblockinfo.end << " \n";
+			if (useLog) lg << "Handling: Vanilla handling pointer: " << hblockinfo.start << " " << hblockinfo.size << " " << hblockinfo.end << " \n";
 		}
 		else
 		{
-			lg << "Handling: (ERROR) Unknown limit adjuster: " << handlingManager << " \n";
-			lg.flush();
+			if (useLog) lg << "Handling: (ERROR) Unknown limit adjuster: " << handlingManager << " \n";
+			if (useLog) lg.flush();
 			MessageBoxA(0, "Unknown limit adjuster", "VehFuncs", 0);
 			throw runtime_error("VehFuncs Error: Unknown limit adjuster");
 		}
@@ -118,7 +119,7 @@ bool ExtraInfoBitReSearch(CVehicle * vehicle, tHandlingData * handling)
 	{
 		if (!flags.test(1))
 		{
-			lg << "ReSearch: Reapplying vehicle \n";
+			if (useLog) lg << "ReSearch: Reapplying vehicle \n";
 			flags.set(1);
 			WriteMemory<uint32_t>(ihandling, flags.to_ulong(), false);
 			return true;

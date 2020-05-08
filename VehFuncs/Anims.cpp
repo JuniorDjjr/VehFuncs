@@ -30,7 +30,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 			switch (mode)
 			{
 			case 0:
-				//lg << "Anims: Found 'f_an" << mode << "': ping pong \n";
+				//if (useLog) lg << "Anims: Found 'f_an" << mode << "': ping pong \n";
 				if (an->progress == 1.0f)
 				{
 					if (an->opening)
@@ -61,14 +61,14 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 				switch (submode)
 				{
 				case 0:
-					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off \n";
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off \n";
 					if (!vehicle->m_nVehicleFlags.bEngineOn)
 						open = true;
 					else
 						open = false;
 					break;
 				case 1:
-					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off or alarm on \n";
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off or alarm on \n";
 					if (!vehicle->m_nVehicleFlags.bEngineOn)
 						open = true;
 					else
@@ -80,28 +80,28 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 				switch (submode)
 				{
 				case 0:
-					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": driver \n";
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": driver \n";
 					if (vehicle->m_pDriver)
 						open = true;
 					else
 						open = false;
 					break;
 				case 1:
-					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 1 \n";
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 1 \n";
 					if (vehicle->m_apPassengers[0])
 						open = true;
 					else
 						open = false;
 					break;
 				case 2:
-					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 2 \n";
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 2 \n";
 					if (vehicle->m_apPassengers[1])
 						open = true;
 					else
 						open = false;
 					break;
 				case 3:
-					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 3 \n";
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 3 \n";
 					if (vehicle->m_apPassengers[2])
 						open = true;
 					else
@@ -114,8 +114,8 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 				{
 				case 0:
 				case 1:
-					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed \n";
-					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed and f_spoiler \n";
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed \n";
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed and f_spoiler \n";
 					if (((vehicle->m_vecMoveSpeed.Magnitude() * 50.0f) * 3.6f) > 100.0f)
 						open = true;
 					else
@@ -127,7 +127,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 				switch (submode)
 				{
 				case 0:
-					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": brake \n";
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": brake \n";
 					if (vehicle->m_fBreakPedal > 0.5f)
 						open = true;
 					else
@@ -135,8 +135,8 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 					break;
 				case 1:
 				case 2:
-					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed brake \n";
-					//lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed brake and f_spoiler \n";
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed brake \n";
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": high speed brake and f_spoiler \n";
 					if (vehicle->m_fBreakPedal > 0.5f && ((vehicle->m_vecMoveSpeed.Magnitude() * 50.0f) * 3.6f) > 100.0f)
 						open = true;
 					else
