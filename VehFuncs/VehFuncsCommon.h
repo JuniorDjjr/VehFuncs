@@ -83,9 +83,11 @@ public:
 	RwFrame *wheelFrame[6];
 
 	// Utilities
+	float realisticSpeed;
 	float dotLife;
 	float smoothGasPedal;
 	float smoothBrakePedal;
+	double kms;
 
 	// Coplight / Taxilight
 	RwFrame *taxilightFrame;
@@ -102,6 +104,13 @@ public:
 	float speedoMult;
 	RwFrame * speedoDigits[3];
 	RpAtomic * speedoAtomics[10];
+
+	// Odometer
+	RwFrame * odometerFrame;
+	double odometerMult;
+	bool odometerHideZero;
+	RwFrame * odometerDigits[9];
+	RpAtomic * odometerAtomics[10];
 
 	// Taxi sign material
 	RpMaterial *taxiSignMaterial;
@@ -159,9 +168,11 @@ public:
 		memset(wheelFrame, 0, sizeof(wheelFrame));
 
 		// Utilities
+		realisticSpeed = 0.0f;
 		dotLife = 1.0f;
 		smoothGasPedal = 0.0f;
 		smoothBrakePedal = 0.0f;
+		kms = -1.0;
 
 		// Coplight / Taxilight
 		taxilightFrame = nullptr;
@@ -175,9 +186,16 @@ public:
 
 		// Speedometer
 		speedoFrame = nullptr;
-		speedoMult = 1.0;
+		speedoMult = 1.0f;
 		memset(speedoDigits, 0, sizeof(speedoDigits));
 		memset(speedoAtomics, 0, sizeof(speedoAtomics));
+
+		// Odometer
+		odometerFrame = nullptr;
+		odometerMult = 1.0;
+		memset(odometerDigits, 0, sizeof(odometerDigits));
+		memset(odometerAtomics, 0, sizeof(odometerAtomics));
+		odometerHideZero = false;
 
 		// Flags
 		flags.bBusRender = 0;

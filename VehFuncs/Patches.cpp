@@ -12,6 +12,7 @@
 
 float ftest = 1.0f;
 
+extern bool iniLogNoTextureFound;
 RwTexDictionary *vehicletxdArray[4];
 int vehicletxdIndexArray[4];
 bool anyAdditionalVehicleTxd;
@@ -503,6 +504,7 @@ namespace Patches
 								vehicletxdIndexArray[arrayIndex] = txdId;
 								CTxdStore::AddRef(vehicletxdIndexArray[arrayIndex]);
 								anyAdditionalVehicleTxd = true;
+								if (useLog) lg << "Found additional vehicle.txd" << endl;
 							}
 							else {
 								if (useLog) lg << "ERROR: vehicle*.txd limit is only up to 'vehicle5.txd'" << endl;
@@ -689,22 +691,23 @@ namespace Patches
 		texture = RwTexDictionaryFindNamedTexture(dict, name);
 		if (texture) return texture;
 
-		for (int i = 0; i < 4; ++i)
-		{
-			if (vehicletxdArray[i])
+		if (anyAdditionalVehicleTxd) {
+			for (int i = 0; i < 4; ++i)
 			{
-				texture = RwTexDictionaryFindNamedTexture(vehicletxdArray[i], name);
-				if (texture) return texture;
+				if (vehicletxdArray[i])
+				{
+					texture = RwTexDictionaryFindNamedTexture(vehicletxdArray[i], name);
+					if (texture) return texture;
+				}
 			}
 		}
-		//if (useLog) lg << "Can't find texture " << name << endl;
+		if (iniLogNoTextureFound && useLog) lg << "Can't find texture " << name << endl;
 		return nullptr;
 	}
 
-	void PatchForAdditionalVehicleTxd()
+	void LoadAdditionalVehicleTxd()
 	{
-		if (anyAdditionalVehicleTxd)
-		{
+		if (anyAdditionalVehicleTxd) {
 			for (int i = 0; i < 4; ++i)
 			{
 				if (vehicletxdIndexArray[i]) {
@@ -721,7 +724,6 @@ namespace Patches
 					vehicletxdArray[i] = ((RwTexDictionary *(__cdecl*)(int)) 0x408340)(vehicletxdIndexArray[i]); //size_t __cdecl getTexDictionary(int txdIndex)
 				}
 			}
-			patch::RedirectCall(0x4C7533, Custom_RwTexDictionaryFindNamedTexture, true);
 		}
 	}
 }

@@ -42,7 +42,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='GTASA Release|Win32'">
-    <OutDir>G:\GTA San Andreas\modloader\VehFuncs\</OutDir>
+    <OutDir>G:\GTA San Andreas\modloader\VehFuncs</OutDir>
     <IntDir>$(ProjectDir).obj\GTASA\Release\</IntDir>
     <TargetName>VehFuncs</TargetName>
     <TargetExt>.asi</TargetExt>
@@ -105,6 +105,8 @@
     <ClCompile Include="CheckRepair.cpp" />
     <ClCompile Include="CustomSeed.cpp" />
     <ClCompile Include="CustomVisibilityRender.cpp" />
+    <ClCompile Include="DamageableRearWings.cpp" />
+    <ClCompile Include="DigitalOdometer.cpp" />
     <ClCompile Include="DigitalSpeedo.cpp" />
     <ClCompile Include="FixMaterials.cpp" />
     <ClCompile Include="Footpegs.cpp" />
@@ -135,6 +137,7 @@
     <ClInclude Include="CheckRepair.h" />
     <ClInclude Include="CStoredCar.h" />
     <ClInclude Include="CustomSeed.h" />
+    <ClInclude Include="DamageableRearWings.h" />
     <ClInclude Include="DigitalSpeedo.h" />
     <ClInclude Include="FixMaterials.h" />
     <ClInclude Include="Footpegs.h" />

@@ -22,12 +22,15 @@ void callback(const GSX::externalCallbackStructure *test)
 				{
 					int * seed = (int *)getSavedData(test->veh, "randomSeed");
 
-					if (seed != 0)
-					{
-						// apply
-						xdata.randomSeed = *seed;
-						if (useLog) lg << "Load Data: " << *seed << "\n";
-					}
+					// apply
+					xdata.randomSeed = *seed;
+				}
+				if (dataToLoadExists(test->veh, "odometerKms"))
+				{
+					float * kms = (float *)getSavedData(test->veh, "odometerKms");
+
+					// apply
+					xdata.kms = *kms;
 				}
 				break;
 			}
@@ -35,9 +38,9 @@ void callback(const GSX::externalCallbackStructure *test)
 			case 1:
 			{
 				// save
-				int seed = xdata.randomSeed;
+				float kms = xdata.kms;
 				setDataToSaveLater(test->veh, "randomSeed", 4, &xdata.randomSeed, true);
-				if (useLog) lg << "Save Data: " << seed << "\n";
+				setDataToSaveLater(test->veh, "odometerKms", 4, &kms, true);
 				break;
 			}
 

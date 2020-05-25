@@ -32,26 +32,46 @@ float GetVehicleSpeedRealistic(CVehicle * vehicle)
 	return wheelSpeed;
 }
 
+int GetDefaultLodForInteriorMinor(CVehicle *vehicle) {
+	int setLod = -2;
+	if (vehicle->m_nVehicleFlags.bIsBig || vehicle->m_nVehicleFlags.bIsBus || vehicle->m_nVehicleSubClass == VEHICLE_PLANE || vehicle->m_nVehicleSubClass == VEHICLE_HELI)
+	{
+		setLod = -9;
+	}
+	return setLod;
+}
+
 // -- Exported functions
 
 extern "C" int32_t __declspec(dllexport) Ext_GetVehicleSpeedRealistic(CVehicle * vehicle)
 {
-	float fSpeed = GetVehicleSpeedRealistic(vehicle);
+	ExtendedData &xdata = xData.Get(vehicle);
+	float fSpeed = xdata.realisticSpeed;
 	return *reinterpret_cast<int32_t*>(addressof(fSpeed));
 }
 
+extern "C" void __declspec(dllexport) Ext_SetVehicleKMs(CVehicle * vehicle, int kms)
+{
+	ExtendedData &xdata = xData.Get(vehicle);
+	xdata.kms = kms;
+	return;
+}
+
+extern "C" int32_t __declspec(dllexport) Ext_GetVehicleKMs(CVehicle * vehicle)
+{
+	ExtendedData &xdata = xData.Get(vehicle);
+	return *reinterpret_cast<int32_t*>(addressof(xdata.kms));
+}
 
 extern "C" int32_t __declspec(dllexport) Ext_GetMDPMnpcCustomChance(CVehicle * vehicle)
 {
 	ExtendedData &xdata = xData.Get(vehicle);
-	
 	return xdata.mdpmCustomChances;
 }
 
 extern "C" int32_t __declspec(dllexport) Ext_GetMDPMnpcCustomMinVol(CVehicle * vehicle)
 {
 	ExtendedData &xdata = xData.Get(vehicle);
-
 	return *reinterpret_cast<int32_t*>(addressof(xdata.mdpmCustomMinVol));
 }
 

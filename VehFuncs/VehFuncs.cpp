@@ -11,12 +11,14 @@
 #include "CustomSeed.h"
 #include "Matrixbackup.h"
 #include "Utilities.h"
+#include "DamageableRearWings.h" 
 //#include "CheckRepair.h"
 
 // Mod funcs
 #include "Patches.h"
 #include "FixMaterials.h"
 #include "DigitalSpeedo.h"
+#include "DigitalOdometer.h"
 #include "Characteristics.h"
 #include "RecursiveExtras.h"
 #include "GearAndFan.h"
@@ -58,6 +60,7 @@ VehicleExtendedData<ExtendedData> xData;
 fstream lg;
 bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false, bNewFrame = false;
 CVehicle *curVehicle;
+bool noChassis = false;
 extern RwTexDictionary *vehicletxdArray[4];
 extern int vehicletxdIndexArray[4];
 std::list<std::pair<unsigned int *, unsigned int>> resetMats;
@@ -66,9 +69,9 @@ std::list<std::pair<unsigned int *, unsigned int>> resetMats;
 bool useLog = true;
 float iniDefaultDirtMult = 1.0f;
 float iniDefaultSteerAngle = 100.0f;
+bool iniLogNoTextureFound = false;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 class VehFuncs
 {
@@ -81,18 +84,21 @@ public:
 		if (ini.data.size() > 0)
 		{
 			useLog = ini.ReadInteger("Test", "Log", 1);
+			iniLogNoTextureFound = ini.ReadInteger("Test", "LogNoTextureFound", 0);
 			iniDefaultDirtMult = ini.ReadFloat("Settings", "DefaultDirtMult", 100.0f);
 			iniDefaultSteerAngle = ini.ReadFloat("Settings", "DefaultSteerAngle", 100.0f);
 		}
 
 		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
+		if (useLog) lg << "VF v2.0" << endl;
+
 		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
 
 		static bool reInit = false;
 		xData = getExtData();
 
-		// Fix for remap txd names. This also stores additional vehicle*.txd files.
+		// Fix for remap txd names. This also stores additional vehicle*.txd files. (NOT FOR COPCARLA YET)
 		memset(vehicletxdArray, 0, sizeof(vehicletxdArray));
 		memset(vehicletxdIndexArray, 0, sizeof(vehicletxdIndexArray));
 		patch::RedirectCall(0x5B62C2, Patches::CustomAssignRemapTxd, true);
@@ -100,12 +106,23 @@ public:
 		// Preprocess hierarchy don't remove frames
 		MakeJMP(0x004C8E30, CustomCollapseFramesCB);
 
+		// Patch for additional vehicle*.txd. Need it even before vehicle.txd loading due to copcarla loading order.
+		patch::RedirectCall(0x4C7533, Patches::Custom_RwTexDictionaryFindNamedTexture, true);
+
+		// Fix "ug_" dummies outside "chassis" (ID 1) using first node (ID 0) (usually a wheel node).
+		MakeInline<0x004C8FA1, 0x004C8FA1 + 6>([](reg_pack& regs)
+		{
+			if (regs.eax == 0) regs.eax = 1; // set frame ID 1 by default
+			*(uint32_t*)(regs.esp + 0x64 - 0x34) = regs.eax;  //mov     [esp+64h+atomic2], eax ; frame visibility
+			regs.eax = *(uint32_t*)regs.edx;  //mov     eax, [edx]
+		});
+
+		// Damageable rear wings
+		PatchDamageableRearWings();
 
 		// -- On game init
 		Events::initGameEvent += []
 		{
-			if (useLog) lg << "VF v1.9\n";
-
 			srand(time(0));
 			StoreHandlingData();
 			ApplyGSX(); 
@@ -114,15 +131,14 @@ public:
 			AtomicAlphaCallBack = ReadMemory<int>(0x4C7842, false);
 			txdIndexStart = ReadMemory<uint32_t>(0x6D65D2 + 1, true);
 
+			// Load generic vehicle*.txd files
+			Patches::LoadAdditionalVehicleTxd();
 
-			// Fix "ug_" dummies outside "chassis" (ID 1) using first node (ID 0) (usually a wheel node).
-			MakeInline<0x004C8FA1, 0x004C8FA1 + 6>([](reg_pack& regs)
-			{
-				if (regs.eax == 0) regs.eax = 1; // set frame ID 1 by default
-				*(uint32_t*)(regs.esp + 0x64 - 0x34) = regs.eax;  //mov     [esp+64h+atomic2], eax ; frame visibility
-				regs.eax = *(uint32_t*)regs.edx;  //mov     eax, [edx]
-			});
-
+			// Reload copcarla (because this shit is loaded before everything)
+			CStreaming::SetModelIsDeletable(596);
+			CStreaming::RemoveModel(596);
+			CStreaming::RequestModel(596, (eStreamingFlags::PRIORITY_REQUEST | eStreamingFlags::KEEP_IN_MEMORY));
+			CStreaming::LoadAllRequestedModels(true);
 
 			// LODs (make our custom LOD always render)
 			MakeNOP(0x00733241, 6);
@@ -221,12 +237,10 @@ public:
 				xdata.flags.bUpgradesUpdated = true;
 			});
 
-
 			// RpClumpRender
 			MakeNOP(0x00749B3E, 9, true);
 			MakeJMP(0x00749B3E, Patches::NeverRender);
 
-			
 			
 			// Upgrade replace
 			// Add
@@ -261,10 +275,6 @@ public:
 				RwFrameForAllObjects(sourceFrame, CopyObjectsCB, destFrame);
 			});
 			WriteMemory<uint8_t>(0x6D3A47 + 2, 0x28, true);*/
-
-
-			// Additional generic vehicle*.txd files
-			Patches::PatchForAdditionalVehicleTxd();
 
 			
 			// Hitch patch
@@ -422,6 +432,10 @@ public:
 				list<string> &classList = getClassList();
 				classList.clear();
 
+				// Need to fix lack of chassis? (fixes tuning and other stuff)
+				if (vehicle->m_nVehicleSubClass == VEHICLE_BOAT || vehicle->m_nVehicleSubClass == VEHICLE_TRAIN) noChassis = false;
+				else noChassis = (reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[CAR_CHASSIS]) ? false : true;
+
 				// Process all nodes
 				xdata.randomSeedUsage = 0;
 				RwFrame *rootFrame = (RwFrame *)vehicle->m_pRwClump->object.parent;
@@ -440,6 +454,14 @@ public:
 				SetCharacteristicsInRender(vehicle, bReSearch);
 				xdata.nodesProcess = false;
 
+				// Set kms
+				if (xdata.kms == -1.0f)
+				{
+					float factorA = CGeneral::GetRandomNumberInRange(5000.0f, 500000.0f);
+					if (vehicle->m_nVehicleFlags.bIsDamaged) factorA *= 2.0f;
+					float factorB = CGeneral::GetRandomNumberInRange(0.0f, vehicle->m_fDirtLevel * 100000.0f);
+					xdata.kms = factorA + factorB;
+				}
 
 				// TEST
 				/*
@@ -529,11 +551,14 @@ public:
 
 			///////////////////////////////////////////////////////////////////////////////////////
 
+			int subClass = vehicle->m_nVehicleSubClass;
+
 			// Process store smooth pedal
 			int gasSoundProgress = vehicle->m_vehicleAudio.field_14C;
 			int rpmSound = vehicle->m_vehicleAudio.field_148;
 
-			if (gasSoundProgress == 0 && vehicle->m_fMovingSpeed > 0.2f && rpmSound != -1)
+			if ((subClass == VEHICLE_AUTOMOBILE || subClass == VEHICLE_BIKE || subClass == VEHICLE_MTRUCK || subClass == VEHICLE_QUAD) &&
+				gasSoundProgress == 0 && vehicle->m_fMovingSpeed > 0.2f && rpmSound != -1)
 			{ // fix me: the last gear (max speed) is ignored
 				xdata.smoothGasPedal = 0.0f;
 			}
@@ -572,6 +597,16 @@ public:
 				}
 			}
 
+			float realisticSpeed = GetVehicleSpeedRealistic(vehicle);
+			xdata.realisticSpeed = realisticSpeed;
+			double kmSum = abs((double)realisticSpeed);
+			kmSum /= 3.6; // to m/s
+			kmSum *= 2.0; // for timeStep use
+			kmSum *= 0.96; // final tweak to fix imprecision, because, I don't know
+			kmSum /= 10000.0; // so last digit is 100 meters*/
+
+			xdata.kms += (kmSum * CTimer::ms_fTimeStep);
+
 			///////////////////////////////////////////////////////////////////////////////////////
 
 			// Process material stuff (before render)
@@ -592,6 +627,16 @@ public:
 					ProcessDigitalSpeedo(vehicle, xdata.speedoFrame);
 				}
 			}
+
+			// Process odometer
+			if (xdata.odometerFrame != nullptr)
+			{
+				if (xdata.odometerDigits != nullptr)
+				{
+					ProcessDigitalOdometer(vehicle, xdata.odometerFrame);
+				}
+			}
+
 
 			if (vehicle->m_nVehicleFlags.bEngineOn)
 			{
@@ -783,11 +828,63 @@ public:
 					xdata.speedoMult = speedMult;
 				}
 
+				// Digital odometer
+				found = name.find("f_dodometer");
+				if (found != string::npos)
+				{
+					if (useLog) lg << "DigitalOdometer: Found 'f_dodometer' \n";
+
+					SetupDigitalOdometer(vehicle, frame);
+					xdata.odometerFrame = frame;
+					FRAME_EXTENSION(frame)->owner = vehicle;
+
+					float speedMult = 1.0f;
+					found = name.find("_mph");
+					if (found != string::npos)
+					{
+						speedMult *= 0.621371f;
+					}
+
+					found = name.find("_prec");
+					if (found != string::npos)
+					{
+						int precision = name[found + 5] - '0';
+						if (precision == 0) speedMult *= 0.1f;
+						//if (precision == 1) speedMult * 1.0f;
+						if (precision == 2) speedMult *= 10.0f;
+						if (precision == 3) speedMult *= 100.0f;
+					}
+
+					xdata.odometerMult = speedMult;
+
+					found = name.find("_no0");
+					if (found != string::npos)
+					{
+						xdata.odometerHideZero = true;
+					}
+					else xdata.odometerHideZero = false;
+				}
+
 				// Gear
-				found = name.find("f_gear");
+				if (vehicle->m_nVehicleSubClass == VEHICLE_PLANE || vehicle->m_nVehicleSubClass == VEHICLE_HELI)
+				{
+					found = name.find("f_spin");
+				}
+				else
+				{
+					found = name.find("f_gear");
+				}
 				if (found != string::npos) 
 				{
-					if (useLog) lg << "Gear: Found 'f_gear' \n";
+					if (useLog) {
+						if (vehicle->m_nVehicleSubClass == VEHICLE_PLANE || vehicle->m_nVehicleSubClass == VEHICLE_HELI)
+						{
+							lg << "Gear: Found 'f_spin' \n";
+						}
+						else {
+							lg << "Gear: Found 'f_gear' \n";
+						}
+					}
 					xdata.gearFrame.push_back(frame);
 					FRAME_EXTENSION(frame)->owner = vehicle;
 				}
@@ -1121,6 +1218,18 @@ public:
 								FRAME_EXTENSION(frame->child)->owner = vehicle;
 							}
 						}
+					}
+				}
+				if (noChassis) {
+					if (name[0] == 'b' && name[1] == 'o' && name[2] == 'd' && name[3] == 'y')
+					{
+						reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[CAR_CHASSIS] = frame;
+						CVisibilityPlugins::SetFrameHierarchyId(frame, 1);
+						// some peoples uses 'body' instead of 'chassis' to disable it without changing the handling flag
+						vehicle->m_nHandlingFlags.bSwingingChassis = false;
+						vehicle->m_pHandlingData->m_nHandlingFlags.m_bSwingingChassis = false;
+						if (useLog) lg << "Error fixed: Using '" << name << "' as chassis for vehicle id " << vehicle->m_nModelIndex << endl;
+						noChassis = false;
 					}
 				}
 			}

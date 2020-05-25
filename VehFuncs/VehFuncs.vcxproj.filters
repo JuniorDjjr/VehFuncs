@@ -83,6 +83,12 @@
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="CustomVisibilityRender.cpp" />
+    <ClCompile Include="DamageableRearWings.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="DigitalOdometer.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AtomicsVisibility.h">
@@ -177,6 +183,9 @@
     </ClInclude>
     <ClInclude Include="IniReader\IniReader.h">
       <Filter>IniReader</Filter>
+    </ClInclude>
+    <ClInclude Include="DamageableRearWings.h">
+      <Filter>Source</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

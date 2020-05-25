@@ -16,6 +16,31 @@
 
 extern uint32_t txdIndexStart;
 
+void CVehicle__CancelVehicleEngineSound(CAEVehicleAudioEntity *_this, int soundId)
+{
+	return ((void(__thiscall *)(CAEVehicleAudioEntity*, int))0x4F55C0)(_this, soundId);
+}
+
+int CAEVehicleAudioEntity__RequestBankSlot(int id)
+{
+	return ((int(__cdecl *)(int))0x4F4D10)(id);
+}
+
+void CAEVehicleAudioEntity__StoppedUsingBankSlot(int id)
+{
+	return ((void(__cdecl *)(int))0x4F4DF0)(id);
+}
+
+void CAEVehicleAudioEntity__JustGotOutOfVehicleAsDriver(CAEVehicleAudioEntity *_this)
+{
+	return ((void(__thiscall *)(CAEVehicleAudioEntity*))0x4FCF40)(_this);
+}
+
+void CAEVehicleAudioEntity__JustGotInVehicleAsDriver(CAEVehicleAudioEntity *_this)
+{
+	return ((void(__thiscall *)(CAEVehicleAudioEntity*))0x4F5700)(_this);
+}
+
 ///////////////////////////////////////////// Find Vehicle Characteristics
 
 void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, bool bReSearch) 
@@ -148,6 +173,31 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				xdata.mdpmCustomChances = num;
 				xdata.mdpmCustomMinVol = minVol;
 				xdata.mdpmCustomMaxVol = maxVol;
+			}
+
+			// Sound engine
+			found = name.find("_se=");
+			if (found != string::npos)
+			{
+				int i = 4;
+				int sound1 = stoi(&name[found + i]);
+
+				i++;
+				do {
+					i++;
+				} while (name[found + i] != ',');
+
+				i++;
+				int sound2 = stoi(&name[found + i]);
+				if (useLog) lg << "Charac: Found '_se=' (sound engine) to sound 1 '" << sound1 << "' sound 2 '" << sound2 << "'\n";
+				vehicle->m_vehicleAudio.m_nEngineAccelerateSoundBankId = sound1;
+				vehicle->m_vehicleAudio.m_nEngineDecelerateSoundBankId = sound2;
+				int soundId = 0;
+				do
+					CVehicle__CancelVehicleEngineSound(&vehicle->m_vehicleAudio, soundId++);
+				while (soundId < 12);
+				CAEVehicleAudioEntity__StoppedUsingBankSlot(vehicle->m_vehicleAudio.m_nEngineBankSlotId);
+				vehicle->m_vehicleAudio.m_nEngineBankSlotId = CAEVehicleAudioEntity__RequestBankSlot(sound2);
 			}
 
 			// Dirty (drt=5-9)
@@ -471,7 +521,7 @@ void SetCharacteristicsForIndieHandling(CVehicle * vehicle, bool bReSearch)
 		// Double exhaust
 		if (xdata.doubleExhaust >= 0) 
 		{
-			if (useLog) lg << "Charac: Applying double exhaust: " << xdata.doubleExhaust << "\n";
+			if (useLog) lg << "Charac: Applying double exhaust: " << (int)xdata.doubleExhaust << "\n";
 			tHandlingData * handling;
 			if (IsIndieHandling(vehicle, &handling)) handling->m_bDoubleExhaust = xdata.doubleExhaust;
 			else if (useLog) lg << "(ERROR) This function need IndieVehicles.asi installed \n";

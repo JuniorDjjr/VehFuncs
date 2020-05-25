@@ -226,8 +226,6 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 
 			if (tempNodeName[0] == '!')
 			{
-				if (useLog) lg << "ok" << endl;
-				if (useLog) lg.flush();
 				RwFrame *tempCharacFrame = tempNode->child;
 				while (tempCharacFrame)
 				{
