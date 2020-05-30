@@ -78,6 +78,7 @@ class VehFuncs
 public:
 	VehFuncs()
 	{
+
 		// -- On plugin init
 		CIniReader ini("VehFuncs.ini");
 
@@ -91,7 +92,7 @@ public:
 
 		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		if (useLog) lg << "VF v2.0" << endl;
+		if (useLog) lg << "VF v2.0.1" << endl;
 
 		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
 
@@ -1224,10 +1225,11 @@ public:
 					if (name[0] == 'b' && name[1] == 'o' && name[2] == 'd' && name[3] == 'y')
 					{
 						reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[CAR_CHASSIS] = frame;
+						reinterpret_cast<CAutomobile*>(vehicle)->m_swingingChassis.m_nDoorState = eDoorState::DOOR_NOTHING;
 						CVisibilityPlugins::SetFrameHierarchyId(frame, 1);
 						// some peoples uses 'body' instead of 'chassis' to disable it without changing the handling flag
-						vehicle->m_nHandlingFlags.bSwingingChassis = false;
 						vehicle->m_pHandlingData->m_nHandlingFlags.m_bSwingingChassis = false;
+						vehicle->m_nHandlingFlags.bSwingingChassis = false;
 						if (useLog) lg << "Error fixed: Using '" << name << "' as chassis for vehicle id " << vehicle->m_nModelIndex << endl;
 						noChassis = false;
 					}
