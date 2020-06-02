@@ -58,7 +58,7 @@ uintptr_t AtomicAlphaCallBack;
 uint32_t txdIndexStart;
 VehicleExtendedData<ExtendedData> xData;
 fstream lg;
-bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false, bNewFrame = false;
+bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false, bNewFrame = false, bIndieVehicles = false;
 CVehicle *curVehicle;
 bool noChassis = false;
 extern RwTexDictionary *vehicletxdArray[4];
@@ -88,11 +88,12 @@ public:
 			iniLogNoTextureFound = ini.ReadInteger("Test", "LogNoTextureFound", 0);
 			iniDefaultDirtMult = ini.ReadFloat("Settings", "DefaultDirtMult", 100.0f);
 			iniDefaultSteerAngle = ini.ReadFloat("Settings", "DefaultSteerAngle", 100.0f);
+			if (ini.ReadInteger("Settings", "NoSwingingChassis", 0) == 1) MakeJMP(0x6AC0F7, 0x6AC232, true);
 		}
 
 		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		if (useLog) lg << "VF v2.0.1" << endl;
+		if (useLog) lg << "VF v2.0.2" << endl;
 
 		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
 
@@ -316,6 +317,16 @@ public:
 				{
 					IVFinstalled = false;
 				}
+
+				if (GetModuleHandleA("IndieVehicles.asi")) {
+					bIndieVehicles = true;
+				}
+				else
+				{
+					lg << "WARNING: Some VehFuncs functions need IndieVehicles.asi installed." << "\n\n";
+					bIndieVehicles = false;
+				}
+
 				if (useLog) lg.flush();
 				bFirstFrame = true;
 			}

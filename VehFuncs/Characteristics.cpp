@@ -15,6 +15,7 @@
 #pragma warning( disable : 4244 ) // data loss
 
 extern uint32_t txdIndexStart;
+extern bool bIndieVehicles;
 
 void CVehicle__CancelVehicleEngineSound(CAEVehicleAudioEntity *_this, int soundId)
 {
@@ -192,6 +193,12 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				if (useLog) lg << "Charac: Found '_se=' (sound engine) to sound 1 '" << sound1 << "' sound 2 '" << sound2 << "'\n";
 				vehicle->m_vehicleAudio.m_nEngineAccelerateSoundBankId = sound1;
 				vehicle->m_vehicleAudio.m_nEngineDecelerateSoundBankId = sound2;
+				// A without cancel
+				// B with cancel and CAEVehicleAudioEntity__JustGotOutOfVehicleAsDriver
+				// C with cancel and CAEVehicleAudioEntity__JustGotOutOfVehicleAsDriver and CAEVehicleAudioEntity__JustGotInVehicleAsDriver (above request)
+				// D with cancel and CAEVehicleAudioEntity__JustGotOutOfVehicleAsDriver (top) and CAEVehicleAudioEntity__JustGotInVehicleAsDriver (bottom)
+				// E without cancel and CAEVehicleAudioEntity__JustGotOutOfVehicleAsDriver (top) and CAEVehicleAudioEntity__JustGotInVehicleAsDriver (bottom)
+				// F without cancel without CAEVehicleAudioEntity__JustGotOutOfVehicleAsDriver and CAEVehicleAudioEntity__JustGotInVehicleAsDriver (bottom)
 				int soundId = 0;
 				do
 					CVehicle__CancelVehicleEngineSound(&vehicle->m_vehicleAudio, soundId++);
@@ -244,6 +251,17 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 			int enable = name[found + 6] - '0';
 			if (enable) xdata.doubleExhaust = true;
 			else xdata.doubleExhaust = false;
+		}
+
+		// Swinging chassis
+		found = name.find("_swc=");
+		if (found != string::npos)
+		{
+			if (useLog) lg << "Charac: Found 'swc' (swinging chassis) at '" << name << "'\n";
+			ExtendedData &xdata = xData.Get(vehicle);
+			int enable = name[found + 5] - '0';
+			if (enable) xdata.swingingChassis = true;
+			else xdata.swingingChassis = false;
 		}
 
 		// Body tilt (not finished)
@@ -521,10 +539,41 @@ void SetCharacteristicsForIndieHandling(CVehicle * vehicle, bool bReSearch)
 		// Double exhaust
 		if (xdata.doubleExhaust >= 0) 
 		{
-			if (useLog) lg << "Charac: Applying double exhaust: " << (int)xdata.doubleExhaust << "\n";
-			tHandlingData * handling;
-			if (IsIndieHandling(vehicle, &handling)) handling->m_bDoubleExhaust = xdata.doubleExhaust;
-			else if (useLog) lg << "(ERROR) This function need IndieVehicles.asi installed \n";
+			if (bIndieVehicles) vehicle->m_pHandlingData->m_bDoubleExhaust = xdata.doubleExhaust;
+			else if (useLog) lg << "(ERROR) 'Double exhaust' need IndieVehicles.asi installed \n";
+		}
+
+		// Swinging chassis
+		if (xdata.swingingChassis >= 0)
+		{
+			if (bIndieVehicles) {
+				vehicle->m_nHandlingFlags.bSwingingChassis = xdata.swingingChassis;
+				vehicle->m_pHandlingData->m_nHandlingFlags.m_bSwingingChassis = xdata.swingingChassis;
+				CAutomobile *automobile = reinterpret_cast<CAutomobile*>(vehicle);
+				if (xdata.swingingChassis == 1) {
+					// ref 6B0F3B
+					int modelId = vehicle->m_nModelIndex;
+					float angle = 0.02f;
+					automobile->m_swingingChassis.m_nDoorState = eDoorState::DOOR_HIT_MAX_END;
+					if (modelId == 598 || modelId == 419)
+					{
+						angle = 0.03;
+					}
+					else if (modelId == 409)
+					{
+						angle = 0.01f;
+					}
+					automobile->m_swingingChassis.m_nAxis = 2;
+					automobile->m_swingingChassis.m_nDirn = 196;
+					automobile->m_swingingChassis.m_fOpenAngle = 3.1415927f * angle;
+					automobile->m_swingingChassis.m_fClosedAngle = angle * -3.1415927f;
+					lg << "'Swinging chassis' enable \n";
+				}
+				else {
+					automobile->m_swingingChassis.m_nDoorState = eDoorState::DOOR_NOTHING;
+				}
+			}
+			else if (useLog) lg << "(ERROR) 'Swinging chassis' need IndieVehicles.asi installed \n";
 		}
 	}
 

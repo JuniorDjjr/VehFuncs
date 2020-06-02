@@ -76,9 +76,10 @@ public:
 	int32_t driverModel;
 	list<int> occupantsModels;
 	uint8_t passAddChance;
+	int8_t doubleExhaust;
+	int8_t swingingChassis;
 	float bodyTilt;
 	float dirtyLevel;
-	int8_t doubleExhaust;
 	int32_t color[4];
 	RwFrame *wheelFrame[6];
 
@@ -126,6 +127,7 @@ public:
 		unsigned char bDamageUpdated : 1;
 		unsigned char bUpgradesUpdated : 1;
 		unsigned char bPreservePaintjobColor : 1;
+		unsigned char bPreservePaintjobColorButNotForever : 1;
 	} flags;
 
 	RwFrame *triforkFrame;
@@ -159,13 +161,14 @@ public:
 		occupantsModels.clear();
 		passAddChance = 0;
 		dirtyLevel = -1;
-		doubleExhaust = -1;
 		bodyTilt = 0.0f;
 		color[0] = -1;
 		color[1] = -1;
 		color[2] = -1;
 		color[3] = -1;
 		memset(wheelFrame, 0, sizeof(wheelFrame));
+		doubleExhaust = -1;
+		swingingChassis = -1;
 
 		// Utilities
 		realisticSpeed = 0.0f;
@@ -199,6 +202,10 @@ public:
 
 		// Flags
 		flags.bBusRender = 0;
+		flags.bDamageUpdated = 0;
+		flags.bUpgradesUpdated = 0;
+		flags.bPreservePaintjobColor = 0;
+		flags.bPreservePaintjobColorButNotForever = 0;
 
 		// Popup lights
 		popupProgress[0] = 0.0f;

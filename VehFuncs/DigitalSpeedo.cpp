@@ -39,6 +39,7 @@ void SetupDigitalSpeedo(CVehicle * vehicle, RwFrame * frame)
 						if (useLog) lg << "DigitalSpeedo: (error) 'f_dspeedo' has no digits. Game may crash, fuck you \n";
 						return;
 					}
+					i++;
 				}
 			}
 
