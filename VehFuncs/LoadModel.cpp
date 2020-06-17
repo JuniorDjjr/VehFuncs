@@ -3,17 +3,26 @@
 
 bool LoadModel(int model)
 {
-	unsigned char oldFlags = CStreaming::ms_aInfoForModel[model].m_nFlags;
-	CStreaming::RequestModel(model, GAME_REQUIRED);
-	CStreaming::LoadAllRequestedModels(false);
-	if (CStreaming::ms_aInfoForModel[model].m_nLoadState == LOADSTATE_LOADED)
+	//unsigned char oldFlags = CStreaming::ms_aInfoForModel[model].m_nFlags;
+	if (CStreaming::ms_aInfoForModel[model].m_nCdSize > 0)
 	{
-		if (!(oldFlags & GAME_REQUIRED))
+		CStreaming::RequestModel(model, (GAME_REQUIRED | PRIORITY_REQUEST));
+		CStreaming::LoadAllRequestedModels(true);
+		if (CStreaming::ms_aInfoForModel[model].m_nLoadState == LOADSTATE_LOADED)
 		{
-			CStreaming::SetModelIsDeletable(model);
-			CStreaming::SetModelTxdIsDeletable(model);
+			/*if (!(oldFlags & GAME_REQUIRED))
+			{
+				CStreaming::SetModelIsDeletable(model);
+				CStreaming::SetModelTxdIsDeletable(model);
+			}*/
+			return true;
 		}
-		return true;
 	}
 	return false;
+}
+
+void MarkModelAsNoLongerNeeded(int model)
+{
+	CStreaming::SetModelIsDeletable(model);
+	CStreaming::SetModelTxdIsDeletable(model);
 }

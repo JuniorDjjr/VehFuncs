@@ -5,6 +5,10 @@
 #include "CBike.h"
 #include "NodeName.h"
 #include "MatrixBackup.h"
+#include "CModelInfo.h"
+#include "CPedModelInfo.h"
+#include "LoadModel.h"
+#include "CCarEnterExit.h"
 
 float GetVehicleSpeedRealistic(CVehicle * vehicle)
 {
@@ -41,6 +45,39 @@ int GetDefaultLodForInteriorMinor(CVehicle *vehicle) {
 	return setLod;
 }
 
+bool ChangePedModel(CPed *ped, int model, CVehicle *vehicle, int passengerId)
+{
+	if (LoadModel(model))
+	{
+		CPedModelInfo *modelInfo = (CPedModelInfo *)CModelInfo::GetModelInfo(model);
+		int animGroupBackup = ped->m_nAnimGroup;
+		ped->DeleteRwObject();
+		ped->m_nModelIndex = -1;
+		ped->SetModelIndex(model);
+		ped->m_nPedType = (ePedType)modelInfo->m_nPedType;
+		ped->m_nAnimGroup = animGroupBackup;
+		if (vehicle)
+		{
+			if (passengerId == -1) // is driver
+			{
+				CCarEnterExit::SetPedInCarDirect(ped, vehicle, 0, true);
+			}
+			else
+			{
+				int doorNodeId = CCarEnterExit::ComputeTargetDoorToEnterAsPassenger(vehicle, passengerId);
+				CCarEnterExit::SetPedInCarDirect(ped, vehicle, doorNodeId, false);
+			}
+		}
+		MarkModelAsNoLongerNeeded(model);
+		return true;
+	}
+	else
+	{
+		if (useLog) lg << "ERROR: Model doesn't exist! " << model << "\n";
+	}
+	return false;
+}
+ 
 // -- Exported functions
 
 extern "C" int32_t __declspec(dllexport) Ext_GetVehicleSpeedRealistic(CVehicle * vehicle)

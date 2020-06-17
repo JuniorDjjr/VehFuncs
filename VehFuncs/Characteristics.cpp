@@ -4,11 +4,12 @@
 #include "CCarEnterExit.h"
 #include "IndieVehHandlingsAPI.h"
 #include "CPopulation.h"
-#include "CModelInfo.h"
-#include "CPedModelInfo.h"
 #include "CGeneral.h"
 #include "CStreaming.h"
 #include "AtomicsVisibility.h"
+#include "Utilities.h"
+#include "CPedModelInfo.h"
+#include "CModelInfo.h"
 #include <bitset>
 
 // Disable warnings (caution!)
@@ -363,7 +364,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 				vehicle->SetRemap(xdata.paintjob - 1);
 				if (vehicle->m_nRemapTxd >= 0)
 				{
-					CStreaming::RequestModel(vehicle->m_nRemapTxd + txdIndexStart, eStreamingFlags::KEEP_IN_MEMORY | eStreamingFlags::PRIORITY_REQUEST);
+					CStreaming::RequestModel(vehicle->m_nRemapTxd + txdIndexStart, (eStreamingFlags::KEEP_IN_MEMORY | eStreamingFlags::PRIORITY_REQUEST));
 					CStreaming::LoadAllRequestedModels(true);
 				}
 			}
@@ -383,24 +384,14 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 			if (xdata.driverModel > 0) 
 			{
 				CPed * driver = vehicle->m_pDriver;
-				if (driver) 
+				if (driver && driver->m_nModelIndex != xdata.driverModel)
 				{
 					char *a = (char*)driver;
 					if (a[0x484] == 1) //Createdby RANDOM
 					{ 
 						int driverModel = xdata.driverModel;
 						if (useLog) lg << "Charac: Changing driver: " << driverModel << "\n";
-						if (LoadModel(driverModel)) 
-						{
-							CPedModelInfo *modelInfo = (CPedModelInfo *)CModelInfo::GetModelInfo(driverModel);
-							driver->m_nPedType = (ePedType)modelInfo->m_nPedType;
-							driver->SetModelIndex(driverModel);
-							CCarEnterExit::SetPedInCarDirect(driver, vehicle, 0, true);
-						}
-						else
-						{
-							if (useLog) lg << "ERROR: Model doesn't exist! " << driverModel << "\n";
-						}
+						ChangePedModel(driver, driverModel, vehicle, -1);
 					}
 				}
 			}
@@ -427,17 +418,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 
 							if (useLog) lg << "Charac: Changing driver from '_oc': " << model << "\n";
 
-							if (LoadModel(model)) 
-							{
-								CPedModelInfo *modelInfo = (CPedModelInfo *)CModelInfo::GetModelInfo(model);
-								driver->m_nPedType = (ePedType)modelInfo->m_nPedType;
-								driver->SetModelIndex(model);
-								CCarEnterExit::SetPedInCarDirect(driver, vehicle, 0, true);
-							}
-							else
-							{
-								if (useLog) lg << "ERROR: Model doesn't exist! " << model << "\n";
-							}
+							ChangePedModel(driver, model, vehicle, -1);
 						}
 
 						int maxPassengers = vehicle->m_nMaxPassengers;
@@ -495,30 +476,26 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 								
 							} while (model == driver->m_nModelIndex);
 
-							if (LoadModel(model))
+							if (pass) 
 							{
-								CPedModelInfo *modelInfo = (CPedModelInfo *)CModelInfo::GetModelInfo(model);
-								if (pass) 
+								if (useLog) lg << "Charac: Changing passenger " << (i + 1) << " model " << model << "\n";
+								ChangePedModel(pass, model, vehicle, i);
+							}
+							else
+							{
+								if (useLog) lg << "Charac: Adding passenger " << (i + 1) << " model " << model << "\n";
+								if (CStreaming::ms_aInfoForModel[model].m_nCdSize > 0)
 								{
-									if (useLog) lg << "Charac: Changing passenger " << (i + 1) << " model " << model << "\n";
-									pass->SetModelIndex(model);
-									pass->m_nPedType = (ePedType)modelInfo->m_nPedType;
-								}
-								else
-								{
-									if (useLog) lg << "Charac: Adding passenger " << (i + 1) << " model " << model << "\n";
 									CVector pos;
 									pos.x = vehicle->m_placement.m_vPosn.x;
 									pos.y = vehicle->m_placement.m_vPosn.y;
 									pos.z = vehicle->m_placement.m_vPosn.z;
+									CPedModelInfo *modelInfo = (CPedModelInfo *)CModelInfo::GetModelInfo(model);
 									pass = CPopulation::AddPed((ePedType)modelInfo->m_nPedType, model, pos, 0);
+									int doorNodeId = CCarEnterExit::ComputeTargetDoorToEnterAsPassenger(vehicle, i);
+									CCarEnterExit::SetPedInCarDirect(pass, vehicle, doorNodeId, false);
 								}
-								int doorNodeId = CCarEnterExit::ComputeTargetDoorToEnterAsPassenger(vehicle, i);
-								CCarEnterExit::SetPedInCarDirect(pass, vehicle, doorNodeId, false);
-							}
-							else
-							{
-								if (useLog) lg << "ERROR: Model doesn't exist! " << model << "\n";
+								else if (useLog) lg << "ERROR: Model doesn't exist! " << model << "\n";
 							}
 						}
 					}

@@ -88,12 +88,26 @@ public:
 			iniLogNoTextureFound = ini.ReadInteger("Test", "LogNoTextureFound", 0);
 			iniDefaultDirtMult = ini.ReadFloat("Settings", "DefaultDirtMult", 100.0f);
 			iniDefaultSteerAngle = ini.ReadFloat("Settings", "DefaultSteerAngle", 100.0f);
-			if (ini.ReadInteger("Settings", "NoSwingingChassis", 0) == 1) MakeJMP(0x6AC0F7, 0x6AC232, true);
+			if (ini.ReadInteger("Settings", "NoSwingingChassis", 0) == 1)
+			{
+				MakeInline<0x006AC0EB, 0x006AC0EB + 5>([](reg_pack& regs)
+				{
+					if (reinterpret_cast<CVehicle*>(regs.esi)->m_nModelIndex != regs.edi)
+					{
+						*(uintptr_t*)(regs.esp - 0x4) = 0x6AC232;
+					}
+					else
+					{
+						regs.eax = 21;
+						*(uintptr_t*)(regs.esp - 0x4) = 0x6AC0F7;
+					}
+				});
+			}
 		}
 
 		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		if (useLog) lg << "VF v2.0.2" << endl;
+		if (useLog) lg << "VF v2.0.3" << endl;
 
 		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
 
@@ -117,6 +131,21 @@ public:
 			if (regs.eax == 0) regs.eax = 1; // set frame ID 1 by default
 			*(uint32_t*)(regs.esp + 0x64 - 0x34) = regs.eax;  //mov     [esp+64h+atomic2], eax ; frame visibility
 			regs.eax = *(uint32_t*)regs.edx;  //mov     eax, [edx]
+		});
+
+		// Add some infos for common vehicle model crashes
+		MakeInline<0x004C4441, 0x004C4441 + 5>([](reg_pack& regs)
+		{
+			regs.esi = regs.ecx; //mov     esi, ecx
+			regs.eax = *(uintptr_t*)(regs.esi + 0x1C); //mov     eax, [esi + CAtomicModelInfo.base.m_pRwObject]
+			if (regs.eax < 0x1000)
+			{
+				CAtomicModelInfo* modelInfo = reinterpret_cast<CAtomicModelInfo*>(regs.esi);
+				string crashInfo = "ERROR CRASH CAtomicModelInfo::DeleteRwObject: For model with TXD index (if vehicle, normally -20000) " + to_string((int)modelInfo->m_nTxdIndex) + " IT WILL CRASH\n";
+				if (useLog) lg << crashInfo;
+				if (useLog) lg.flush();
+				MessageBoxA(0, crashInfo.c_str(), "VehFuncs", 0);
+			}
 		});
 
 		// Damageable rear wings
@@ -379,6 +408,13 @@ public:
 		// -- On vehicle render
 		Events::vehicleRenderEvent.before += [](CVehicle *vehicle)
 		{
+			if ((int)vehicle->m_pRwClump < 0x1000)
+			{
+				string crashInfo = "GAME CRASH: CLUMP IS " + to_string((int)vehicle->m_pRwClump) + " FOR VEHICLE MODEL " + to_string((int)vehicle->m_nModelIndex) + " IT WILL CRASH\n";
+				if (useLog) lg << crashInfo;
+				if (useLog) lg.flush();
+				MessageBoxA(0, crashInfo.c_str(), "VehFuncs", 0);
+			}
 
 			// Reset material stuff (after render) - doesn't work on .after, I don't know why...
 			for (auto &p : resetMats)

@@ -8,3 +8,4 @@ void DestroyNodeHierarchyRecursive(RwFrame * frame);
 void CloneNode(RwFrame *frame, RpClump * clump, RwFrame *parent, bool isRoot, bool isVarWheel);
 void CloneNodeAlt(RwFrame *frame, RwFrame *parent, bool isRoot);
 int GetDefaultLodForInteriorMinor(CVehicle *vehicle);
+bool ChangePedModel(CPed *ped, int model, CVehicle *vehicle, int passengerId);
