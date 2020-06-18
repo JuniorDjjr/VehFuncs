@@ -107,7 +107,7 @@ public:
 
 		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		if (useLog) lg << "VF v2.0.3" << endl;
+		if (useLog) lg << "VF v2.0.4" << endl;
 
 		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
 
@@ -141,7 +141,7 @@ public:
 			if (regs.eax < 0x1000)
 			{
 				CAtomicModelInfo* modelInfo = reinterpret_cast<CAtomicModelInfo*>(regs.esi);
-				string crashInfo = "ERROR CRASH CAtomicModelInfo::DeleteRwObject: For model with TXD index (if vehicle, normally -20000) " + to_string((int)modelInfo->m_nTxdIndex) + " IT WILL CRASH\n";
+				string crashInfo = "ERROR CRASH CAtomicModelInfo::DeleteRwObject: For model with TXD index (if vehicle, normally -20000) " + to_string((unsigned int)modelInfo->m_nTxdIndex) + " IT WILL CRASH\n";
 				if (useLog) lg << crashInfo;
 				if (useLog) lg.flush();
 				MessageBoxA(0, crashInfo.c_str(), "VehFuncs", 0);
@@ -408,9 +408,9 @@ public:
 		// -- On vehicle render
 		Events::vehicleRenderEvent.before += [](CVehicle *vehicle)
 		{
-			if ((int)vehicle->m_pRwClump < 0x1000)
+			if ((unsigned int)vehicle->m_pRwClump < 0x1000)
 			{
-				string crashInfo = "GAME CRASH: CLUMP IS " + to_string((int)vehicle->m_pRwClump) + " FOR VEHICLE MODEL " + to_string((int)vehicle->m_nModelIndex) + " IT WILL CRASH\n";
+				string crashInfo = "GAME CRASH: CLUMP IS " + to_string((unsigned int)vehicle->m_pRwClump) + " FOR VEHICLE MODEL " + to_string((unsigned int)vehicle->m_nModelIndex) + " IT WILL CRASH\n";
 				if (useLog) lg << crashInfo;
 				if (useLog) lg.flush();
 				MessageBoxA(0, crashInfo.c_str(), "VehFuncs", 0);
