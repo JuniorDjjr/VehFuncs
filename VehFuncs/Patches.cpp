@@ -447,9 +447,13 @@ namespace Patches
 	int __cdecl CheckCrashFillFrameArrayCB(RwFrame* frame)
 	{
 		int id = CVisibilityPlugins::GetFrameHierarchyId(frame);
-		if (id > 54) //25 is enough; 54 is caused by indicator_lr_prm9a0e00046, common on IVF and can't break the game. TODO NEED TO FIND SOME AUTOMATIC FIX FOR THIS
+		// REF: http://www.mixmods.com.br/2020/06/mais-um-problema-grave-comum-mods.html
+		if (id >= 25) // 25 is the limit for CAutomobile, not for CBike etc. But you simply can't name the node with caracters with ASCII less than 31 (32 is space, 65 is A etc), so this is simple and safe.
 		{
-			LogVehicleModelWithText("GAME CRASH FillFrameArrayCB on vehicle model ID ", lastInitializedVehicleModel, ": Some problem with the model, nodes etc. Check '0x004C53A6' on MixMods' Crash List. VehFuncs will try to avoid this crash.");
+			// Consider generic node and don't write it to nodes array.
+			CVisibilityPlugins::SetFrameHierarchyId(frame, 0);
+			//LogVehicleModelWithText("GAME CRASH FillFrameArrayCB on vehicle model ID ", lastInitializedVehicleModel, ": Some problem with the model, nodes etc. Check '0x004C53A6' on MixMods' Crash List. VehFuncs will try to avoid this crash.");
+			if (useLog) lg << "ERROR: Vehicle model ID " << lastInitializedVehicleModel << " was going to cause a crash on " << GetFrameNodeName(frame) << ". Check '0x004C53A6' on MixMods' Crash List. Manually fixed." << endl;
 			return 0;
 		}
 		return id;

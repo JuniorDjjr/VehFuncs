@@ -114,7 +114,7 @@ public:
 
 		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		if (useLog) lg << "VF v2.0.5" << endl;
+		if (useLog) lg << "VF v2.0.6" << endl;
 
 		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
 
@@ -1384,7 +1384,7 @@ void LogVehicleModelWithText(string str1, int vehicleModel, string str2)
 {
 	if (!ignoreCrashInfo)
 	{
-		string crashInfo = str1 + to_string(vehicleModel) + str2;
+		string crashInfo = str1 + str2;
 		if (useLog)
 		{
 			lg << crashInfo;
