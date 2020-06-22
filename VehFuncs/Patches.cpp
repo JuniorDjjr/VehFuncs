@@ -21,6 +21,7 @@ extern void LogCrashText(string str);
 extern void LogVehicleModelWithText(string str1, int vehicleModel, string str2);
 extern int lastRenderedVehicleModel;
 extern int lastInitializedVehicleModel;
+extern CVehicle* lastInitializedVehicle;
 
 namespace Patches
 {
@@ -446,7 +447,7 @@ namespace Patches
 	int __cdecl CheckCrashFillFrameArrayCB(RwFrame* frame)
 	{
 		int id = CVisibilityPlugins::GetFrameHierarchyId(frame);
-		if (id > 256)
+		if (id > 54) //25 is enough; 54 is caused by indicator_lr_prm9a0e00046, common on IVF and can't break the game. TODO NEED TO FIND SOME AUTOMATIC FIX FOR THIS
 		{
 			LogVehicleModelWithText("GAME CRASH FillFrameArrayCB on vehicle model ID ", lastInitializedVehicleModel, ": Some problem with the model, nodes etc. Check '0x004C53A6' on MixMods' Crash List. VehFuncs will try to avoid this crash.");
 			return 0;

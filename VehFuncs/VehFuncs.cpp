@@ -64,6 +64,7 @@ bool noChassis = false;
 bool ignoreCrashInfo = false;
 int lastRenderedVehicleModel = -1;
 int tempVehicleModel = -1;
+CVehicle *lastInitializedVehicle = nullptr;
 int lastInitializedVehicleModel = -1;
 extern RwTexDictionary *vehicletxdArray[4];
 extern int vehicletxdIndexArray[4];
@@ -444,6 +445,7 @@ public:
 		// -- On vehicle set model
 		Events::vehicleSetModelEvent += [](CVehicle *vehicle, int modelId) 
 		{
+			lastInitializedVehicle = vehicle;
 			lastInitializedVehicleModel = modelId;
 			if (iniDefaultDirtMult != 1.0f) {
 				vehicle->m_fDirtLevel *= iniDefaultDirtMult;
