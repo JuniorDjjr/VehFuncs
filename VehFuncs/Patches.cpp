@@ -17,6 +17,11 @@ RwTexDictionary *vehicletxdArray[4];
 int vehicletxdIndexArray[4];
 bool anyAdditionalVehicleTxd;
 
+extern void LogCrashText(string str);
+extern void LogVehicleModelWithText(string str1, int vehicleModel, string str2);
+extern int lastRenderedVehicleModel;
+extern int lastInitializedVehicleModel;
+
 namespace Patches
 {
 	int valid = 0;
@@ -355,6 +360,99 @@ namespace Patches
 		}
 	}
 
+	void CheckCrashWorldRemove_ShowCrash_Func()
+	{
+		LogCrashText("GAME CRASH CWorld::Remove: Entity is null. Check '0x00563289' on MixMods' Crash List.");
+	}
+
+	void CheckCrashWorldRemove_ShowCrash_FuncB(CEntity *entity)
+	{
+		LogVehicleModelWithText("GAME CRASH CWorld::Remove: On model ID ", entity->m_nModelIndex, ": Maybe is NOT related to this model, but other game bug. Check '0x00563289' on MixMods' Crash List.");
+	}
+
+	void __declspec(naked) CheckCrashWorldRemove()
+	{
+		__asm {
+			mov     esi, [esp + 8]
+
+			test esi, esi
+			jz CheckCrashWorldRemove_ShowCrash
+
+			mov     eax, [esi + 0]
+
+			test eax, eax
+			jz CheckCrashWorldRemove_ShowCrashB
+
+			CheckCrashWorldRemove_Finalize:
+			push 563287h
+			ret
+
+			CheckCrashWorldRemove_ShowCrash:
+			pushad
+			pushfd
+			call CheckCrashWorldRemove_ShowCrash_Func
+			popfd
+			popad
+			jmp CheckCrashWorldRemove_Finalize
+
+			CheckCrashWorldRemove_ShowCrashB:
+			pushad
+			pushfd
+			push esi
+			call CheckCrashWorldRemove_ShowCrash_FuncB
+			add esp, 4
+			popfd
+			popad
+			jmp CheckCrashWorldRemove_Finalize
+		}
+	}
+
+	void CheckCrashMatrixOperator_ShowCrash_Func()
+	{
+		if (lastRenderedVehicleModel <= 0)
+		{
+			LogCrashText("GAME CRASH Matrix operator*. Maybe is NOT caused by vehicle. Check '0x0059BE3E' on MixMods' Crash List.");
+		}
+		else
+		{
+			LogVehicleModelWithText("GAME CRASH Matrix operator*. The rendering vehicle model ID is ", lastRenderedVehicleModel, ", maybe the problem is with this vehicle model. Check '0x0059BE3E' on MixMods' Crash List.");
+		}
+	}
+
+	void __declspec(naked) CheckCrashMatrixOperator()
+	{
+		__asm {
+			test eax, eax
+			jz CheckCrashMatrixOperator_ShowCrash
+			test ecx, ecx
+			jz CheckCrashMatrixOperator_ShowCrash
+
+			CheckCrashMatrixOperator_Finalize:
+			fld     dword ptr[eax + 10h]
+			fmul    dword ptr[ecx + 4h]
+			push    59BE41h
+			ret
+
+			CheckCrashMatrixOperator_ShowCrash:
+			pushad
+			pushfd
+			call CheckCrashMatrixOperator_ShowCrash_Func
+			popfd
+			popad
+			jmp CheckCrashMatrixOperator_Finalize
+		}
+	}
+
+	int __cdecl CheckCrashFillFrameArrayCB(RwFrame* frame)
+	{
+		int id = CVisibilityPlugins::GetFrameHierarchyId(frame);
+		if (id > 256)
+		{
+			LogVehicleModelWithText("GAME CRASH FillFrameArrayCB on vehicle model ID ", lastInitializedVehicleModel, ": Some problem with the model, nodes etc. Check '0x004C53A6' on MixMods' Crash List. VehFuncs will try to avoid this crash.");
+			return 0;
+		}
+		return id;
+	}
 
 	void PatchForCoplights()
 	{
@@ -466,9 +564,9 @@ namespace Patches
 			else 
 			{
 				// original code
-				point->x = 0.0;
-				point->y = 1.2;
-				point->z = 0.5;
+				point->x = 0.0f;
+				point->y = 1.2f;
+				point->z = 0.5f;
 			}
 		});
 		WriteMemory<uint8_t>(0x6ABBC9 + 0, 0x0F, true);

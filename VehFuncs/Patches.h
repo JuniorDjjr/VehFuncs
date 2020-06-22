@@ -11,6 +11,7 @@ namespace Patches {
 	void __declspec() IsLawEnforcement();
 	void __cdecl RenderBusCheck(CVehicle *veh);
 	void __cdecl IsLawEnforcementCheck(CVehicle *veh);
+	int __cdecl CheckCrashFillFrameArrayCB(RwFrame* frame);
 	void __declspec() ForceRenderCustomLOD();
 	void __declspec() ForceRenderCustomLODAlpha();
 	void __declspec() ForceRenderCustomLODBoat();
@@ -19,6 +20,8 @@ namespace Patches {
 	void __declspec() ForceRenderCustomLODBigAlpha();
 	void __declspec() ForceRenderCustomLODTrain();
 	void __declspec() ForceRenderCustomLODTrainAlpha();
+	void __declspec() CheckCrashMatrixOperator();
+	void __declspec() CheckCrashWorldRemove();
 	void LoadAdditionalVehicleTxd();
 	RwTexture *__cdecl Custom_RwTexDictionaryFindNamedTexture(RwTexDictionary *dict, const char *name);
 	namespace Hitch {

@@ -11,6 +11,13 @@ RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade(RwFrame *frame, RwFrame 
 RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade_Recurse(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data);
 RwFrame *__cdecl CustomRwFrameForAllObjects_Upgrades(RwFrame *frame, RpAtomicCallBack callback, void *data);
 
+ThiscallEvent <AddressList<0x6D6494, H_CALL>, PRIORITY_AFTER, ArgPickN<CVehicle*, 0>, void(CVehicle*)> vehiclePreRenderEvent;
+
+void LogLastVehicleRendered();
+void LogCrashText(string str);
+void LogVehicleModelWithText(string str1, int vehicleModel, string str2);
+
+extern int lastRenderedVehicleModel;
 unsigned int FramePluginOffset;
 
 extern VehicleExtendedData<ExtendedData> &getExtData()

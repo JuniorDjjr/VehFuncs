@@ -61,6 +61,10 @@ fstream lg;
 bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false, bNewFrame = false, bIndieVehicles = false;
 CVehicle *curVehicle;
 bool noChassis = false;
+bool ignoreCrashInfo = false;
+int lastRenderedVehicleModel = -1;
+int tempVehicleModel = -1;
+int lastInitializedVehicleModel = -1;
 extern RwTexDictionary *vehicletxdArray[4];
 extern int vehicletxdIndexArray[4];
 std::list<std::pair<unsigned int *, unsigned int>> resetMats;
@@ -70,6 +74,7 @@ bool useLog = true;
 float iniDefaultDirtMult = 1.0f;
 float iniDefaultSteerAngle = 100.0f;
 bool iniLogNoTextureFound = false;
+bool iniShowCrashInfos = true;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -86,6 +91,7 @@ public:
 		{
 			useLog = ini.ReadInteger("Test", "Log", 1);
 			iniLogNoTextureFound = ini.ReadInteger("Test", "LogNoTextureFound", 0);
+			iniShowCrashInfos = ini.ReadInteger("Test", "ShowCrashInfos", 0);
 			iniDefaultDirtMult = ini.ReadFloat("Settings", "DefaultDirtMult", 100.0f);
 			iniDefaultSteerAngle = ini.ReadFloat("Settings", "DefaultSteerAngle", 100.0f);
 			if (ini.ReadInteger("Settings", "NoSwingingChassis", 0) == 1)
@@ -107,7 +113,7 @@ public:
 
 		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		if (useLog) lg << "VF v2.0.4" << endl;
+		if (useLog) lg << "VF v2.0.5" << endl;
 
 		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
 
@@ -133,20 +139,63 @@ public:
 			regs.eax = *(uint32_t*)regs.edx;  //mov     eax, [edx]
 		});
 
-		// Add some infos for common vehicle model crashes
-		MakeInline<0x004C4441, 0x004C4441 + 5>([](reg_pack& regs)
+		// -- Add some infos for common vehicle model crashes
+		if (iniShowCrashInfos)
 		{
-			regs.esi = regs.ecx; //mov     esi, ecx
-			regs.eax = *(uintptr_t*)(regs.esi + 0x1C); //mov     eax, [esi + CAtomicModelInfo.base.m_pRwObject]
-			if (regs.eax < 0x1000)
+			MakeInline<0x004C4441, 0x004C4441 + 5>([](reg_pack& regs)
 			{
-				CAtomicModelInfo* modelInfo = reinterpret_cast<CAtomicModelInfo*>(regs.esi);
-				string crashInfo = "ERROR CRASH CAtomicModelInfo::DeleteRwObject: For model with TXD index (if vehicle, normally -20000) " + to_string((unsigned int)modelInfo->m_nTxdIndex) + " IT WILL CRASH\n";
-				if (useLog) lg << crashInfo;
-				if (useLog) lg.flush();
-				MessageBoxA(0, crashInfo.c_str(), "VehFuncs", 0);
-			}
-		});
+				regs.esi = regs.ecx; //mov     esi, ecx
+				regs.eax = *(uintptr_t*)(regs.esi + 0x1C); //mov     eax, [esi + CAtomicModelInfo.base.m_pRwObject]
+				if (regs.eax)
+				{
+					RpAtomic *atomic = (RpAtomic *)regs.eax;
+					if ((uintptr_t)atomic->geometry < (uintptr_t)0x1000)
+					{
+						CAtomicModelInfo* modelInfo = reinterpret_cast<CAtomicModelInfo*>(regs.esi);
+						LogVehicleModelWithText("GAME CRASH CAtomicModelInfo::DeleteRwObject: For TXD index (normally same as vehicle model ID) ", modelInfo->m_nTxdIndex, ": Game will crash. Check '0x004C444A' on MixMods' Crash List.");
+					}
+				}
+			});
+
+			MakeInline<0x0064E769, 0x0064E769 + 6>([](reg_pack& regs)
+			{
+				regs.edx = *(uint32_t*)(regs.ecx + 0xCC); //mov     edx, [ecx+0CCh]
+				CVehicle *vehicle = (CVehicle *)regs.esi;
+				tempVehicleModel = vehicle->m_nModelIndex;
+			});
+			MakeInline<0x006E3D9C, 0x006E3D9C + 6>([](reg_pack& regs)
+			{
+				if (regs.eax < (uintptr_t)0x1000)
+				{
+					LogVehicleModelWithText("GAME CRASH ComputeAnimDoorOffsets on vehicle model ID ", tempVehicleModel, ": Vehicle anim group not loaded. Maybe vehicle.ide line is wrong for handling.cfg line (wrong anim groups). Check '0x006E3D9C' on MixMods' Crash List.");
+				}
+				else
+				{
+					regs.eax = *(uint32_t*)(regs.eax + 0x10); //mov     eax, [eax+10h]
+					regs.esi = *(uint32_t*)(regs.eax + 0x4); //mov     esi, [eax+4]
+				}
+				tempVehicleModel = -1;
+			});
+
+			MakeInline<0x004C7DAD, 0x004C7DAD + 7>([](reg_pack& regs)
+			{
+				if (regs.ebp < (uintptr_t)0x1000)
+				{
+					LogVehicleModelWithText("GAME CRASH GetWheelPosn on vehicle model ID ", tempVehicleModel, ": Problem with wheel node. Check '0x004C7DAD' on MixMods' Crash List.");
+				}
+				else
+				{
+					regs.edx = *(uint32_t*)(regs.ebp + 0x40); //mov     edx, [ebp+40h]
+					regs.eax = *(uint32_t*)(regs.esp + 0x10); //mov     eax, [esp+10h]
+				}
+			});
+
+			patch::RedirectCall(0x004C5396, Patches::CheckCrashFillFrameArrayCB, true);
+
+			MakeJMP(0x00563281, Patches::CheckCrashWorldRemove, true);
+
+			MakeJMP(0x0059BE3B, Patches::CheckCrashMatrixOperator, true);
+		}
 
 		// Damageable rear wings
 		PatchDamageableRearWings();
@@ -363,7 +412,10 @@ public:
 
 
 		// -- On process script (gameProcessEvent isn't compatible with SAMP)
-		Events::processScriptsEvent.after += [] {
+		Events::processScriptsEvent.after += []
+		{
+			lastRenderedVehicleModel = -1;
+			lastInitializedVehicleModel = -1;
 
 			if (!bFirstScriptFrame)
 			{
@@ -392,6 +444,7 @@ public:
 		// -- On vehicle set model
 		Events::vehicleSetModelEvent += [](CVehicle *vehicle, int modelId) 
 		{
+			lastInitializedVehicleModel = modelId;
 			if (iniDefaultDirtMult != 1.0f) {
 				vehicle->m_fDirtLevel *= iniDefaultDirtMult;
 				if (vehicle->m_fDirtLevel > 15.0f) vehicle->m_fDirtLevel = 1.0f;
@@ -405,16 +458,20 @@ public:
 
 
 
+		// -- On vehicle pre render
+		vehiclePreRenderEvent += [](CVehicle *vehicle)
+		{
+			lastRenderedVehicleModel = vehicle->m_nModelIndex;
+			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x1000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, ": Game will crash. Check MixMods' Crash List.");
+		};
+
 		// -- On vehicle render
 		Events::vehicleRenderEvent.before += [](CVehicle *vehicle)
 		{
-			if ((unsigned int)vehicle->m_pRwClump < 0x1000)
-			{
-				string crashInfo = "GAME CRASH: CLUMP IS " + to_string((unsigned int)vehicle->m_pRwClump) + " FOR VEHICLE MODEL " + to_string((unsigned int)vehicle->m_nModelIndex) + " IT WILL CRASH\n";
-				if (useLog) lg << crashInfo;
-				if (useLog) lg.flush();
-				MessageBoxA(0, crashInfo.c_str(), "VehFuncs", 0);
-			}
+			tempVehicleModel = -1;
+			lastInitializedVehicleModel = -1;
+			lastRenderedVehicleModel = vehicle->m_nModelIndex;
+			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x1000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, ": Game will crash. Check MixMods' Crash List.");
 
 			// Reset material stuff (after render) - doesn't work on .after, I don't know why...
 			for (auto &p : resetMats)
@@ -1298,6 +1355,42 @@ public:
 
 } vehfuncs;
 
+
+void LogLastVehicleRendered()
+{
+	if (lastRenderedVehicleModel > 0 && useLog)
+	{
+		lg << "Last rendered vehicle model ID is '" << lastRenderedVehicleModel << "'. Note: not always the last rendered vehicle is the crash reason, this information may be useless." << endl;
+		lg.flush();
+	}
+}
+
+void LogCrashText(string str)
+{
+	if (!ignoreCrashInfo)
+	{
+		if (useLog)
+		{
+			lg << str;
+			lg.flush();
+		}
+		if (MessageBoxA(0, str.c_str(), "VehFuncs", MB_OKCANCEL) == IDCANCEL) ignoreCrashInfo = true;
+	}
+}
+
+void LogVehicleModelWithText(string str1, int vehicleModel, string str2)
+{
+	if (!ignoreCrashInfo)
+	{
+		string crashInfo = str1 + to_string(vehicleModel) + str2;
+		if (useLog)
+		{
+			lg << crashInfo;
+			lg.flush();
+		}
+		if (MessageBoxA(0, crashInfo.c_str(), "VehFuncs", MB_OKCANCEL) == IDCANCEL) ignoreCrashInfo = true;
+	}
+}
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
