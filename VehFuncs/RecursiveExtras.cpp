@@ -176,7 +176,8 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 {
 	ExtendedData &xdata = xData.Get(vehicle);
 
-	const string name = GetFrameNodeName(frame);
+	string name = GetFrameNodeName(frame);
+	name = name.substr(0, 24);
 	size_t found;
 
 	vector<RwFrame*> classNodes;
@@ -223,7 +224,8 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 		int totalClass = 0;
 		while (tempNode) 
 		{
-			const string tempNodeName = GetFrameNodeName(tempNode);
+			string tempNodeName = GetFrameNodeName(tempNode);
+			tempNodeName = tempNodeName.substr(0, 24);
 
 			if (tempNodeName[0] == '!')
 			{
@@ -339,6 +341,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 					}
 
 					string className = GetFrameNodeName(classNodes[random]);
+					className = className.substr(0, 24);
 
 					list<string> &classList = getClassList();
 
@@ -387,7 +390,8 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 
 void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle) 
 {
-	const string name = GetFrameNodeName(frame);
+	string name = GetFrameNodeName(frame);
+	name = name.substr(0, 24);
 	if (useLog) lg << "Extras: Processing node: '" << name << "'\n";
 	
 	RwFrame * tempFrame = frame->child;
@@ -439,6 +443,7 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 				{
 					// If frame has class
 					string tempFrameName = GetFrameNodeName(tempFrame);
+					tempFrameName = tempFrameName.substr(0, 24);
 					int startStringSearchIndex = 0;
 					int tempFrameNameLength = tempFrameName.length();
 					do {
@@ -608,7 +613,8 @@ void RemoveFrameClassFromNormalArray(RwFrame * frameClass, RwFrame * frameArray[
 
 bool FrameIsOtherClass(RwFrame * frame)
 {
-	const string name = GetFrameNodeName(frame);
+	string name = GetFrameNodeName(frame);
+	name = name.substr(0, 24);
 	size_t found = name.find("[");
 	if (found != string::npos) 
 	{
