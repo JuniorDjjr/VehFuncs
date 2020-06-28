@@ -45,6 +45,10 @@ int GetDefaultLodForInteriorMinor(CVehicle *vehicle) {
 	return setLod;
 }
 
+int RandomRange(int min, int max) {
+	return min + (rand() * 0.000030517578 * (max - min));
+}
+
 bool ChangePedModel(CPed *ped, int model, CVehicle *vehicle, int passengerId)
 {
 	if (LoadModel(model))

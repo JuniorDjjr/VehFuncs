@@ -43,6 +43,7 @@
 #include "CTask.h"
 #include "CTimer.h"
 #include "CVector.h"
+#include "CText.h"
 #include <time.h>
 #include <stdio.h>
 #include <string>
@@ -75,6 +76,7 @@ bool useLog = true;
 float iniDefaultDirtMult = 1.0f;
 float iniDefaultSteerAngle = 100.0f;
 bool iniLogNoTextureFound = false;
+bool iniLogModelRender = false;
 bool iniShowCrashInfos = true;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,6 +94,7 @@ public:
 		{
 			useLog = ini.ReadInteger("Test", "Log", 1);
 			iniLogNoTextureFound = ini.ReadInteger("Test", "LogNoTextureFound", 0);
+			iniLogModelRender = ini.ReadInteger("Test", "LogModelRender", 0);
 			iniShowCrashInfos = ini.ReadInteger("Test", "ShowCrashInfos", 0);
 			iniDefaultDirtMult = ini.ReadFloat("Settings", "DefaultDirtMult", 100.0f);
 			iniDefaultSteerAngle = ini.ReadFloat("Settings", "DefaultSteerAngle", 100.0f);
@@ -114,7 +117,7 @@ public:
 
 		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		if (useLog) lg << "VF v2.0.7" << endl;
+		if (useLog) lg << "VF v2.0.8" << endl;
 
 		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
 
@@ -180,15 +183,58 @@ public:
 
 			MakeInline<0x004C7DAD, 0x004C7DAD + 7>([](reg_pack& regs)
 			{
+				// Note: I don't know if this crash is caused by VehFuncs itself.
 				if (regs.ebp < (uintptr_t)0x1000)
 				{
-					LogVehicleModelWithText("GAME CRASH GetWheelPosn on vehicle model ID ", tempVehicleModel, ": Problem with wheel node. Check '0x004C7DAD' on MixMods' Crash List.");
+					CVehicleModelInfo *vehicleModelInfo = (CVehicleModelInfo *)regs.esi;
+					if (vehicleModelInfo->m_pRwObject)
+					{
+						int wheelId = *(uint32_t*)(regs.esp + 0x8 + 0x4);
+						RwFrame *frame = nullptr;
+						switch (wheelId)
+						{
+						case 0:
+							frame = CClumpModelInfo::GetFrameFromName((RpClump*)vehicleModelInfo->m_pRwObject, "wheel_lf_dummy");
+							break;
+						case 1:
+							frame = CClumpModelInfo::GetFrameFromName((RpClump*)vehicleModelInfo->m_pRwObject, "wheel_lb_dummy");
+							break;
+						case 2:
+							frame = CClumpModelInfo::GetFrameFromName((RpClump*)vehicleModelInfo->m_pRwObject, "wheel_rf_dummy");
+							break;
+						case 3:
+							frame = CClumpModelInfo::GetFrameFromName((RpClump*)vehicleModelInfo->m_pRwObject, "wheel_rb_dummy");
+							break;
+						default:
+							frame = CClumpModelInfo::GetFrameFromName((RpClump*)vehicleModelInfo->m_pRwObject, "wheel_lf_dummy");
+							break;
+						}
+						if (frame)
+						{
+							regs.ebp = (uintptr_t)frame;
+							if (useLog)
+							{
+								lg << "ERROR GetWheelPosn on vehicle model ID " << TheText.Get(vehicleModelInfo->m_szGameName) << " wheel index " << wheelId << " was going to crash. Fixed. Contact if this is caused by VehFuncs adaptation." << endl;
+								lg.flush();
+							}
+						}
+						else
+						{
+							string logText = "GAME CRASH GetWheelPosn on vehicle model ";
+							logText.append(TheText.Get(vehicleModelInfo->m_szGameName));
+							logText.append(": Required wheel index ");
+							logText.append(to_string(wheelId));
+							logText.append(" doesn't exist. Check '0x004C7DAD' on MixMods' Crash List.\n");
+							LogCrashText(logText);
+						}
+					}
+					else
+					{
+						LogVehicleModelWithText("GAME CRASH GetWheelPosn on vehicle model ID ", lastRenderedVehicleModel, " (this may be wrong): Problem with model load. Check '0x004C7DAD' on MixMods' Crash List.");
+					}
 				}
-				else
-				{
-					regs.edx = *(uint32_t*)(regs.ebp + 0x40); //mov     edx, [ebp+40h]
-					regs.eax = *(uint32_t*)(regs.esp + 0x10); //mov     eax, [esp+10h]
-				}
+				regs.edx = *(uint32_t*)(regs.ebp + 0x40); //mov     edx, [ebp+40h]
+				regs.eax = *(uint32_t*)(regs.esp + 0x10); //mov     eax, [esp+10h]
 			});
 
 			patch::RedirectCall(0x004C5396, Patches::CheckCrashFillFrameArrayCB, true);
@@ -447,6 +493,11 @@ public:
 		{
 			lastInitializedVehicle = vehicle;
 			lastInitializedVehicleModel = modelId;
+			if (iniLogModelRender && useLog)
+			{
+				lg << "After Init model " << lastInitializedVehicleModel << endl;
+				lg.flush();
+			}
 			if (iniDefaultDirtMult != 1.0f) {
 				vehicle->m_fDirtLevel *= iniDefaultDirtMult;
 				if (vehicle->m_fDirtLevel > 15.0f) vehicle->m_fDirtLevel = 1.0f;
@@ -464,6 +515,11 @@ public:
 		vehiclePreRenderEvent += [](CVehicle *vehicle)
 		{
 			lastRenderedVehicleModel = vehicle->m_nModelIndex;
+			if (iniLogModelRender && useLog)
+			{
+				lg << "After Pre Render " << lastRenderedVehicleModel << endl;
+				lg.flush();
+			}
 			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x1000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, ": Game will crash. Check MixMods' Crash List.");
 		};
 
@@ -473,7 +529,12 @@ public:
 			tempVehicleModel = -1;
 			lastInitializedVehicleModel = -1;
 			lastRenderedVehicleModel = vehicle->m_nModelIndex;
-			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x1000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, ": Game will crash. Check MixMods' Crash List.");
+			if (iniLogModelRender && useLog)
+			{
+				lg << "Before Render " << lastRenderedVehicleModel << endl;
+				lg.flush();
+			}
+			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x1000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, " (start): Game will crash. Check MixMods' Crash List.");
 
 			// Reset material stuff (after render) - doesn't work on .after, I don't know why...
 			for (auto &p : resetMats)
@@ -564,9 +625,9 @@ public:
 				// Set kms
 				if (xdata.kms == -1.0f)
 				{
-					float factorA = CGeneral::GetRandomNumberInRange(5000.0f, 500000.0f);
+					float factorA = RandomRange(5000.0f, 500000.0f);
 					if (vehicle->m_nVehicleFlags.bIsDamaged) factorA *= 2.0f;
-					float factorB = CGeneral::GetRandomNumberInRange(0.0f, vehicle->m_fDirtLevel * 100000.0f);
+					float factorB = RandomRange(0.0f, vehicle->m_fDirtLevel * 100000.0f);
 					xdata.kms = factorA + factorB;
 				}
 
@@ -790,6 +851,13 @@ public:
 			// Process steer
 			if (!xdata.steer.empty()) ProcessSteer(vehicle, xdata.steer);
 
+			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x1000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, " (end): Game will crash. Check MixMods' Crash List.");
+		
+			if (iniLogModelRender && useLog)
+			{
+				lg << "VehFuncs Update Finished " << vehicle->m_nModelIndex << endl;
+				lg.flush();
+			}
 		};
 
 		///////////////////////////////////////////////////////////////////////////////////////
@@ -803,6 +871,12 @@ public:
 			if (xdata.flags.bUpgradesUpdated)
 			{
 				ProcessSpoiler(vehicle, xdata.spoilerFrames, true);
+			}
+
+			if (iniLogModelRender && useLog)
+			{
+				lg << "Render Finished " << vehicle->m_nModelIndex << endl;
+				lg.flush();
 			}
 
 			// Post reset flags
@@ -890,6 +964,7 @@ public:
 								list<string> &classList = getClassList();
 
 								if (useLog) {
+									lg << "Extras: Seed: " << xdata.randomSeed << endl;
 									lg << "Extras: Classes: ";
 									for (list<string>::iterator it = classList.begin(); it != classList.end(); ++it) {
 										lg << *it << " ";

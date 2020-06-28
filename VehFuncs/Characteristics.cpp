@@ -230,7 +230,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 					srand((xdata.randomSeed + xdata.randomSeedUsage));
 					xdata.randomSeedUsage++;
 
-					dirtyLevel = CGeneral::GetRandomNumberInRange(fdigit1, fdigit2);
+					dirtyLevel = RandomRange(fdigit1, fdigit2);
 					if (useLog) lg << "Charac: Found 'drt' (dirty). Calculated from '-' result '" << dirtyLevel << "' at '" << name << "'\n";
 				}
 				else
@@ -433,7 +433,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 							CPed *pass = vehicle->m_apPassengers[i];
 							if (!pass)
 							{
-								int rand = CGeneral::GetRandomNumberInRange(0, 10);
+								int rand = RandomRange(0, 10);
 								int chances = xdata.passAddChance;
 								if (maxPassengers > 1) {
 									if (isTaxi) {
@@ -484,16 +484,21 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 							else
 							{
 								if (useLog) lg << "Charac: Adding passenger " << (i + 1) << " model " << model << "\n";
-								if (CStreaming::ms_aInfoForModel[model].m_nCdSize > 0)
+								if (LoadModel(model))
 								{
 									CVector pos;
 									pos.x = vehicle->m_placement.m_vPosn.x;
 									pos.y = vehicle->m_placement.m_vPosn.y;
 									pos.z = vehicle->m_placement.m_vPosn.z;
 									CPedModelInfo *modelInfo = (CPedModelInfo *)CModelInfo::GetModelInfo(model);
+									lg << "Charac: creating ped " << (i + 1) << " model " << model << "\n";
+									lg.flush();
 									pass = CPopulation::AddPed((ePedType)modelInfo->m_nPedType, model, pos, 0);
+									lg << "Charac: ped created, get door " << (i + 1) << " model " << model << "\n";
+									lg.flush();
 									int doorNodeId = CCarEnterExit::ComputeTargetDoorToEnterAsPassenger(vehicle, i);
 									CCarEnterExit::SetPedInCarDirect(pass, vehicle, doorNodeId, false);
+									MarkModelAsNoLongerNeeded(model);
 								}
 								else if (useLog) lg << "ERROR: Model doesn't exist! " << model << "\n";
 							}

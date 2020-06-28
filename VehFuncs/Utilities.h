@@ -9,3 +9,4 @@ void CloneNode(RwFrame *frame, RpClump * clump, RwFrame *parent, bool isRoot, bo
 void CloneNodeAlt(RwFrame *frame, RwFrame *parent, bool isRoot);
 int GetDefaultLodForInteriorMinor(CVehicle *vehicle);
 bool ChangePedModel(CPed *ped, int model, CVehicle *vehicle, int passengerId);
+int RandomRange(int min, int max);
