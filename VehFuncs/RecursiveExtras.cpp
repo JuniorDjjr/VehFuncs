@@ -519,7 +519,7 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 		do {
 			if (selectVariations == 0)  // if ":0" or : was not set and just 1 frame = 50% chance to not appear
 			{ 
-				if (!RandomRange(0, frames)) break;
+				if (RandomRange(0, frames + 1) == 0) break;
 			}
 			if (classFrames > 0)  // from class frames array
 			{ 
