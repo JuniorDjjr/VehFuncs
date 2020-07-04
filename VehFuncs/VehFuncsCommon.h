@@ -131,7 +131,7 @@ public:
 	} flags;
 
 	RwFrame *triforkFrame;
-	RwFrame * hitchFrame;
+	RwFrame *hitchFrame;
 	list<RwFrame*> gearFrame;
 	list<RwFrame*> fanFrame;
 	list<RwFrame*> shakeFrame;

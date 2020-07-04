@@ -3,6 +3,7 @@
 #include "CTimer.h"
 #include "MatrixBackup.h"
 #include "Anims.h"
+#include "CWeather.h"
 
 const float DEFAULT_SPEED = 0.005f;
 
@@ -20,16 +21,20 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 		float y = 0;
 		float z = 0;
 
+		int startNameIndex = 6;
+
 		RwFrame *frame = an->frame;
 		if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
 		{
 			bool open = false;
 			int mode = an->mode;
 			int submode = an->submode;
+			int timeLimit = 0;
+			bool validThisFrame = false;
 
 			switch (mode)
 			{
-			case 0:
+			case 0: // simple ping pong
 				//if (useLog) lg << "Anims: Found 'f_an" << mode << "': ping pong \n";
 				if (an->progress == 1.0f)
 				{
@@ -56,8 +61,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 					}
 				}
 				break;
-				break;
-			case 1:
+			case 1: // engine off
 				switch (submode)
 				{
 				case 0:
@@ -76,7 +80,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 					break;
 				}
 				break;
-			case 2:
+			case 2: // occupant
 				switch (submode)
 				{
 				case 0:
@@ -109,7 +113,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 					break;
 				}
 				break;
-			case 3:
+			case 3: // high speed
 				switch (submode)
 				{
 				case 0:
@@ -123,7 +127,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 					break;
 				}
 				break;
-			case 4:
+			case 4: // brakes
 				switch (submode)
 				{
 				case 0:
@@ -142,6 +146,42 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 					else
 						open = false;
 					break;
+				}
+				break;
+			// INTERNAL
+			case 1001: //rain (f_wiper)
+				startNameIndex = 7;
+				timeLimit = 2000;
+				ay = 60.0f;
+				if (an->progress == 1.0f)
+				{
+					if (an->opening)
+					{
+						open = false;
+						an->opening = false;
+					}
+					else
+					{
+						open = false;
+					}
+				}
+				else
+				{
+					if (an->progress == 0.0f)
+					{
+						if (CWeather::Rain > 0.1f && vehicle->m_nVehicleFlags.bEngineOn && vehicle->m_pDriver)
+						{
+							if (CWeather::Rain > 0.4f || CTimer::m_snTimeInMilliseconds > an->nextTimeToOpen)
+							{
+								open = true;
+								an->opening = true;
+							}
+						}
+					}
+					else
+					{
+						open = an->opening;
+					}
 				}
 				break;
 			}
@@ -169,7 +209,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 
 
 			// Get values (we always need it)
-			if (name[6] == '=')
+			if (name[startNameIndex] == '=')
 			{
 				speed = 0;
 				ax = 0;
@@ -178,6 +218,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 				x = 0;
 				y = 0;
 				z = 0;
+
 				for (unsigned int j = 6; j < name.length(); j++)
 				{
 					switch (name[j])
@@ -237,7 +278,14 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 			else
 			{
 				an->progress -= speed;
-				if (an->progress < 0.0f) an->progress = 0.0f;
+				if (an->progress < 0.0f)
+				{
+					an->progress = 0.0f;
+					if (timeLimit > 0)
+					{
+						an->nextTimeToOpen = CTimer::m_snTimeInMilliseconds + timeLimit;
+					}
+				}
 			}
 
 			float progress = an->progress;

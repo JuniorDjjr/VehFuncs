@@ -11,6 +11,7 @@ public:
 	int mode;
 	int submode;
 	bool opening;
+	int nextTimeToOpen;
 
 	F_an(RwFrame *newframe)
 	{
@@ -19,6 +20,7 @@ public:
 		mode = 0;
 		submode = 0;
 		opening = false;
+		nextTimeToOpen = 0;
 	}
 };
 

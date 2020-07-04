@@ -100,24 +100,20 @@ public:
 			iniDefaultSteerAngle = ini.ReadFloat("Settings", "DefaultSteerAngle", 100.0f);
 			if (ini.ReadInteger("Settings", "NoSwingingChassis", 0) == 1)
 			{
-				MakeInline<0x006AC0EB, 0x006AC0EB + 5>([](reg_pack& regs)
+				MakeInline<0x006AC104, 0x006AC104 + 7>([](reg_pack& regs)
 				{
-					if (reinterpret_cast<CVehicle*>(regs.esi)->m_nModelIndex != regs.edi)
+					if (regs.eax == 21) // misc, for firela
 					{
-						*(uintptr_t*)(regs.esp - 0x4) = 0x6AC232;
+						regs.eax = (uintptr_t)reinterpret_cast<CAutomobile*>(regs.esi)->m_aCarNodes[regs.eax]; //v161 = veh->m_aCarNodes[v160];
 					}
-					else
-					{
-						regs.eax = 21;
-						*(uintptr_t*)(regs.esp - 0x4) = 0x6AC0F7;
-					}
+					else regs.eax = 0; // just don't process it
 				});
 			}
 		}
-
+		 
 		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		if (useLog) lg << "VF v2.0.9" << endl;
+		if (useLog) lg << "VF v2.1" << endl;
 
 		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
 
@@ -237,12 +233,12 @@ public:
 				regs.eax = *(uint32_t*)(regs.esp + 0x10); //mov     eax, [esp+10h]
 			});
 
-			patch::RedirectCall(0x004C5396, Patches::CheckCrashFillFrameArrayCB, true);
-
 			MakeJMP(0x00563281, Patches::CheckCrashWorldRemove, true);
 
 			MakeJMP(0x0059BE3B, Patches::CheckCrashMatrixOperator, true);
 		}
+
+		patch::RedirectCall(0x004C5396, Patches::CheckCrashFillFrameArrayCB, true);
 
 		// Damageable rear wings
 		PatchDamageableRearWings();
@@ -625,9 +621,9 @@ public:
 				// Set kms
 				if (xdata.kms == -1.0f)
 				{
-					float factorA = RandomRange(5000.0f, 500000.0f);
+					float factorA = Random(5000.0f, 500000.0f);
 					if (vehicle->m_nVehicleFlags.bIsDamaged) factorA *= 2.0f;
-					float factorB = RandomRange(0.0f, vehicle->m_fDirtLevel * 100000.0f);
+					float factorB = Random(0.0f, vehicle->m_fDirtLevel * 100000.0f);
 					xdata.kms = factorA + factorB;
 				}
 
@@ -938,7 +934,7 @@ public:
 						{
 							if (useLog) lg << "Extras: Found 'f_class' \n";
 
-							ProcessClassesRecursive(frame, vehicle, bReSearch);
+							ProcessClassesRecursive(frame, vehicle, bReSearch, false);
 
 							if (RwFrame * tempFrame = frame->next) 
 							{
@@ -1113,6 +1109,22 @@ public:
 					}
 				}
 
+				found = name.find("f_wiper");
+				if (found != string::npos)
+				{
+					if (useLog) lg << "Wipers: Found 'f_wiper' \n";
+					if (CreateMatrixBackup(frame))
+					{
+						F_an *an = new F_an(frame);
+						an->mode = 1001;
+						an->submode = 0;
+
+						xdata.anims.push_back(an);
+						FRAME_EXTENSION(frame)->owner = vehicle;
+					}
+				}
+
+				// Animation by condition
 				found = name.find("f_an"); //f_an1a=
 				if (found != string::npos)
 				{
@@ -1401,6 +1413,47 @@ public:
 							}
 						}
 					}
+
+					found = name.find("dvornik_dummy");
+					if (found != string::npos)
+					{
+						if (useLog) lg << "Retrocompatibility: Found 'dvornik_dummy' \n";
+
+						if (frame->child)
+						{
+							RwFrame *tempFrame = frame->child;
+							do
+							{
+								const string tempName = GetFrameNodeName(tempFrame);
+								string vfName;
+
+								found = tempName.find("right");
+								if (found != string::npos)
+								{
+									vfName = "f_wiper=ay60";
+								}
+								else {
+									vfName = "f_wiper=ay-60";
+								}
+
+								if (useLog) lg << "Retrocompatibility: " << tempName << " changed to " << vfName << endl;
+
+								if (CreateMatrixBackup(tempFrame))
+								{
+									SetFrameNodeName(tempFrame, &vfName[0]);
+									F_an *an = new F_an(tempFrame);
+									an->mode = 1001;
+									an->submode = 0;
+									xdata.anims.push_back(an);
+									FRAME_EXTENSION(tempFrame)->owner = vehicle;
+								}
+
+								tempFrame = tempFrame->next;
+							}
+							while (tempFrame);
+						}
+					}
+					
 				}
 				if (noChassis) {
 					if (name[0] == 'b' && name[1] == 'o' && name[2] == 'd' && name[3] == 'y')

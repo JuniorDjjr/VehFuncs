@@ -230,7 +230,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 					srand((xdata.randomSeed + xdata.randomSeedUsage));
 					xdata.randomSeedUsage++;
 
-					dirtyLevel = RandomRange(fdigit1, fdigit2);
+					dirtyLevel = Random(fdigit1, fdigit2);
 					if (useLog) lg << "Charac: Found 'drt' (dirty). Calculated from '-' result '" << dirtyLevel << "' at '" << name << "'\n";
 				}
 				else
@@ -433,7 +433,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 							CPed *pass = vehicle->m_apPassengers[i];
 							if (!pass)
 							{
-								int rand = RandomRange(0, 10);
+								int rand = Random(0, 9);
 								int chances = xdata.passAddChance;
 								if (maxPassengers > 1) {
 									if (isTaxi) {
