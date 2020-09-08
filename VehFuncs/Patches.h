@@ -22,6 +22,7 @@ namespace Patches {
 	void __declspec() ForceRenderCustomLODTrainAlpha();
 	void __declspec() CheckCrashMatrixOperator();
 	void __declspec() CheckCrashWorldRemove();
+	RwFrame* MyGetWheelPosnGetFrameById(RpClump *clump, int id);
 	void LoadAdditionalVehicleTxd();
 	RwTexture *__cdecl Custom_RwTexDictionaryFindNamedTexture(RwTexDictionary *dict, const char *name);
 	namespace Hitch {

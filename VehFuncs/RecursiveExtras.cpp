@@ -29,7 +29,6 @@ int FindNextInterrogationMark(const string str, int from, int len)
 bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 {
 	int next = 0;
-	CZone *zone;
 	string str;
 	char zoneName[8];
 	int len = nodeName.length();
@@ -103,10 +102,10 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 				CWeather::NewWeatherType == 8 || CWeather::NewWeatherType == 16 ||
 				CWeather::ForcedWeatherType == 8 || CWeather::ForcedWeatherType == 16)
 			{
-				//if (useLog) lg << "RAIN OK" << endl;
+				//if (useLog) lg << "RAIN OK \n";
 				return true;
 			}
-			//else if (useLog) lg << "NOT RAIN" << endl;
+			//else if (useLog) lg << "NOT RAIN \n";
 			from += 4;
 		}
 
@@ -117,10 +116,10 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 				CWeather::NewWeatherType != 8 && CWeather::NewWeatherType != 16 &&
 				CWeather::ForcedWeatherType != 8 && CWeather::ForcedWeatherType != 16)
 			{
-				//if (useLog) lg << "NOT RAIN OK" << endl;
+				//if (useLog) lg << "NOT RAIN OK \n";
 				return true;
 			}
-			//else if (useLog) lg << "NOT NOT RAIN" << endl;
+			//else if (useLog) lg << "NOT NOT RAIN \n";
 			from += 6;
 		}
 
@@ -138,7 +137,7 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 				from += 2;
 			maxHour = stoi(&nodeName[from]);
 
-			//if (useLog) lg << minHour << " " << maxHour << endl;
+			//if (useLog) lg << minHour << " " << maxHour << "\n";
 
 			if (maxHour < minHour)
 			{
@@ -160,14 +159,14 @@ bool ClassConditionsValid(const string nodeName, int from, CVehicle *vehicle)
 			str = nodeName.substr(from, next);
 			memset(zoneName, 0, 8);
 			strncpy(zoneName, &str[0], next - from);
-			//if (useLog) lg << "zone value " << zoneName << endl;
+			//if (useLog) lg << "zone value " << zoneName << "\n";
 			from = next;
 			if (CTheZones::FindZone(&vehicle->GetPosition(), *(int*)zoneName, *(int*)(zoneName + 4), eZoneType::ZONE_TYPE_NAVI))
 			{
-				//if (useLog) lg << "ZONE OK" << endl;
+				//if (useLog) lg << "ZONE OK \n";
 				return true;
 			}
-			//else if (useLog) lg << "NOT ZONE" << endl;
+			//else if (useLog) lg << "NOT ZONE \n";
 		}
 	}
 	return false;
@@ -249,7 +248,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 				if (useLog) lg << "Found '?' condition at '" << tempNodeName << "'\n";
 				if (!ClassConditionsValid(tempNodeName, found, vehicle)) {
 					tempNode = tempNode->next;
-					if (useLog) lg << "Condition check failed" << endl;
+					if (useLog) lg << "Condition check failed \n";
 					continue;
 				}
 				else {

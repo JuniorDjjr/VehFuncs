@@ -16,7 +16,7 @@ void SetWheel(RwFrame * frame[6], CVehicle * vehicle)
 
 				for (int i = 8; i <= 13; i++)
 				{
-					if (name[i] == '\0') break;
+					if (name[i] == '\0' || name[i] == ':' || name[i] == '?') break;
 					if (name[i] == '1')
 					{
 						int wheelId;

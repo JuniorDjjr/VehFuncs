@@ -521,7 +521,7 @@ void SetCharacteristicsForIndieHandling(CVehicle * vehicle, bool bReSearch)
 		// Double exhaust
 		if (xdata.doubleExhaust >= 0) 
 		{
-			if (bIndieVehicles) vehicle->m_pHandlingData->m_bDoubleExhaust = xdata.doubleExhaust;
+			if (bIndieVehicles) vehicle->m_pHandlingData->m_nModelFlags.m_bDoubleExhaust = xdata.doubleExhaust;
 			else if (useLog) lg << "(ERROR) 'Double exhaust' need IndieVehicles.asi installed \n";
 		}
 

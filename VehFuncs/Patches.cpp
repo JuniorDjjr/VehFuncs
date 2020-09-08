@@ -287,6 +287,50 @@ namespace Patches
 		}
 	}
 
+	RwFrame* MyGetWheelPosnGetFrameById(RpClump *clump, int id)
+	{
+		RwFrame *frame = CClumpModelInfo::GetFrameFromId(clump, id);
+		if (!frame)
+		{
+			switch (id)
+			{
+			case eCarNodes::CAR_WHEEL_LF:
+				frame = CClumpModelInfo::GetFrameFromName(clump, "wheel_lf_dummy");
+				break;
+			case eCarNodes::CAR_WHEEL_LB:
+				frame = CClumpModelInfo::GetFrameFromName(clump, "wheel_lb_dummy");
+				break;
+			case eCarNodes::CAR_WHEEL_RF:
+				frame = CClumpModelInfo::GetFrameFromName(clump, "wheel_rf_dummy");
+				break;
+			case eCarNodes::CAR_WHEEL_RB:
+				frame = CClumpModelInfo::GetFrameFromName(clump, "wheel_rb_dummy");
+				break;
+			default:
+				frame = CClumpModelInfo::GetFrameFromName(clump, "wheel_lf_dummy");
+				break;
+			}
+			if (frame)
+			{
+				if (useLog)
+				{
+					lg << "ERROR GetWheelPosn on vehicle model ID " << lastInitializedVehicleModel << " wheel node id " << id << " was going to crash. Fixed. \n";
+					lg.flush();
+				}
+			}
+			else
+			{
+				string logText = "GAME CRASH GetWheelPosn on vehicle model ID ";
+				logText.append(to_string(lastInitializedVehicleModel));
+				logText.append(": Required wheel node id ");
+				logText.append(to_string(id));
+				logText.append(" doesn't exist. Check '0x004C7DAD' on MixMods' Crash List.\n");
+				LogCrashText(logText);
+			}
+		}
+		return frame;
+	}
+
 	void __cdecl IsLawEnforcementCheck(CVehicle *veh)
 	{
 		valid = false;
@@ -453,7 +497,7 @@ namespace Patches
 			// Consider generic node and don't write it to nodes array.
 			CVisibilityPlugins::SetFrameHierarchyId(frame, 0);
 			//LogVehicleModelWithText("GAME CRASH FillFrameArrayCB on vehicle model ID ", lastInitializedVehicleModel, ": Some problem with the model, nodes etc. Check '0x004C53A6' on MixMods' Crash List. VehFuncs will try to avoid this crash.");
-			if (useLog) lg << "ERROR: Vehicle model ID " << lastInitializedVehicleModel << " was going to cause a crash on " << GetFrameNodeName(frame) << ". Check '0x004C53A6' on MixMods' Crash List. Manually fixed." << endl;
+			if (useLog) lg << "ERROR: Vehicle model ID " << lastInitializedVehicleModel << " was going to cause a crash on " << GetFrameNodeName(frame) << ". Check '0x004C53A6' on MixMods' Crash List. Manually fixed. \n";
 			return 0;
 		}
 		return id;
@@ -607,10 +651,10 @@ namespace Patches
 								vehicletxdIndexArray[arrayIndex] = txdId;
 								CTxdStore::AddRef(vehicletxdIndexArray[arrayIndex]);
 								anyAdditionalVehicleTxd = true;
-								if (useLog) lg << "Found additional vehicle.txd" << endl;
+								if (useLog) lg << "Found additional vehicle.txd \n";
 							}
 							else {
-								if (useLog) lg << "ERROR: vehicle*.txd limit is only up to 'vehicle5.txd'" << endl;
+								if (useLog) lg << "ERROR: vehicle*.txd limit is only up to 'vehicle5.txd' \n";
 								if (useLog) lg.flush();
 							}
 						}
@@ -777,10 +821,10 @@ namespace Patches
 			RwFrameForAllObjects(frame, (RwObjectCallBack)0x4C7BD0, data);
 			if (/*ok*/*(uint32_t*)data > 0 && /*dam*/*(uint32_t*)(&data + 4) > 0)  // for performance
 			{ 
-				//if (useLog) lg << "DONE" << "\n";
+				//if (useLog) lg << "DONE \n";
 				return frame;
 			}
-			//if (useLog) lg << "PROCESSING" << "\n";
+			//if (useLog) lg << "PROCESSING \n";
 			RwFrameForAllChildren(frame, CustomFindDamageAtomicsCB, data);
 			return frame;
 		}
@@ -804,7 +848,7 @@ namespace Patches
 				}
 			}
 		}
-		if (iniLogNoTextureFound && useLog) lg << "Can't find texture " << name << endl;
+		if (iniLogNoTextureFound && useLog) lg << "Can't find texture " << name << "\n";
 		return nullptr;
 	}
 

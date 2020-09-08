@@ -113,7 +113,7 @@ public:
 		 
 		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		if (useLog) lg << "VF v2.1" << endl;
+		if (useLog) lg << "VF v2.1.1 \n";
 
 		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
 
@@ -177,61 +177,7 @@ public:
 				tempVehicleModel = -1;
 			});
 
-			MakeInline<0x004C7DAD, 0x004C7DAD + 7>([](reg_pack& regs)
-			{
-				// Note: I don't know if this crash is caused by VehFuncs itself.
-				if (regs.ebp < (uintptr_t)0x1000)
-				{
-					CVehicleModelInfo *vehicleModelInfo = (CVehicleModelInfo *)regs.esi;
-					if (vehicleModelInfo->m_pRwObject)
-					{
-						int wheelId = *(uint32_t*)(regs.esp + 0x8 + 0x4);
-						RwFrame *frame = nullptr;
-						switch (wheelId)
-						{
-						case 0:
-							frame = CClumpModelInfo::GetFrameFromName((RpClump*)vehicleModelInfo->m_pRwObject, "wheel_lf_dummy");
-							break;
-						case 1:
-							frame = CClumpModelInfo::GetFrameFromName((RpClump*)vehicleModelInfo->m_pRwObject, "wheel_lb_dummy");
-							break;
-						case 2:
-							frame = CClumpModelInfo::GetFrameFromName((RpClump*)vehicleModelInfo->m_pRwObject, "wheel_rf_dummy");
-							break;
-						case 3:
-							frame = CClumpModelInfo::GetFrameFromName((RpClump*)vehicleModelInfo->m_pRwObject, "wheel_rb_dummy");
-							break;
-						default:
-							frame = CClumpModelInfo::GetFrameFromName((RpClump*)vehicleModelInfo->m_pRwObject, "wheel_lf_dummy");
-							break;
-						}
-						if (frame)
-						{
-							regs.ebp = (uintptr_t)frame;
-							if (useLog)
-							{
-								lg << "ERROR GetWheelPosn on vehicle model ID " << TheText.Get(vehicleModelInfo->m_szGameName) << " wheel index " << wheelId << " was going to crash. Fixed. Contact if this is caused by VehFuncs adaptation." << endl;
-								lg.flush();
-							}
-						}
-						else
-						{
-							string logText = "GAME CRASH GetWheelPosn on vehicle model ";
-							logText.append(TheText.Get(vehicleModelInfo->m_szGameName));
-							logText.append(": Required wheel index ");
-							logText.append(to_string(wheelId));
-							logText.append(" doesn't exist. Check '0x004C7DAD' on MixMods' Crash List.\n");
-							LogCrashText(logText);
-						}
-					}
-					else
-					{
-						LogVehicleModelWithText("GAME CRASH GetWheelPosn on vehicle model ID ", lastRenderedVehicleModel, " (this may be wrong): Problem with model load. Check '0x004C7DAD' on MixMods' Crash List.");
-					}
-				}
-				regs.edx = *(uint32_t*)(regs.ebp + 0x40); //mov     edx, [ebp+40h]
-				regs.eax = *(uint32_t*)(regs.esp + 0x10); //mov     eax, [esp+10h]
-			});
+			patch::RedirectCall(0x4C7D34, Patches::MyGetWheelPosnGetFrameById, true);
 
 			MakeJMP(0x00563281, Patches::CheckCrashWorldRemove, true);
 
@@ -491,7 +437,7 @@ public:
 			lastInitializedVehicleModel = modelId;
 			if (iniLogModelRender && useLog)
 			{
-				lg << "After Init model " << lastInitializedVehicleModel << endl;
+				lg << "After Init model " << lastInitializedVehicleModel << "\n";
 				lg.flush();
 			}
 			if (iniDefaultDirtMult != 1.0f) {
@@ -513,7 +459,7 @@ public:
 			lastRenderedVehicleModel = vehicle->m_nModelIndex;
 			if (iniLogModelRender && useLog)
 			{
-				lg << "After Pre Render " << lastRenderedVehicleModel << endl;
+				lg << "After Pre Render " << lastRenderedVehicleModel << "\n";
 				lg.flush();
 			}
 			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x1000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, ": Game will crash. Check MixMods' Crash List.");
@@ -527,7 +473,7 @@ public:
 			lastRenderedVehicleModel = vehicle->m_nModelIndex;
 			if (iniLogModelRender && useLog)
 			{
-				lg << "Before Render " << lastRenderedVehicleModel << endl;
+				lg << "Before Render " << lastRenderedVehicleModel << "\n";
 				lg.flush();
 			}
 			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x1000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, " (start): Game will crash. Check MixMods' Crash List.");
@@ -851,7 +797,7 @@ public:
 		
 			if (iniLogModelRender && useLog)
 			{
-				lg << "VehFuncs Update Finished " << vehicle->m_nModelIndex << endl;
+				lg << "VehFuncs Update Finished " << vehicle->m_nModelIndex << "\n";
 				lg.flush();
 			}
 		};
@@ -871,7 +817,7 @@ public:
 
 			if (iniLogModelRender && useLog)
 			{
-				lg << "Render Finished " << vehicle->m_nModelIndex << endl;
+				lg << "Render Finished " << vehicle->m_nModelIndex << "\n";
 				lg.flush();
 			}
 
@@ -920,7 +866,7 @@ public:
 
 			if (name[0] == 'f' && name[1] == '_') 
 			{
-				//if (useLog) lg << "Checking for " << name << endl;
+				//if (useLog) lg << "Checking for " << name << "\n";
 
 				ExtendedData &xdata = xData.Get(vehicle);
 				if (!bReSearch) 
@@ -960,7 +906,7 @@ public:
 								list<string> &classList = getClassList();
 
 								if (useLog) {
-									lg << "Extras: Seed: " << xdata.randomSeed << endl;
+									lg << "Extras: Seed: " << xdata.randomSeed << "\n";
 									lg << "Extras: Classes: ";
 									for (list<string>::iterator it = classList.begin(); it != classList.end(); ++it) {
 										lg << *it << " ";
@@ -1436,7 +1382,7 @@ public:
 									vfName = "f_wiper=ay-60";
 								}
 
-								if (useLog) lg << "Retrocompatibility: " << tempName << " changed to " << vfName << endl;
+								if (useLog) lg << "Retrocompatibility: " << tempName << " changed to " << vfName << "\n";
 
 								if (CreateMatrixBackup(tempFrame))
 								{
@@ -1464,7 +1410,7 @@ public:
 						// some peoples uses 'body' instead of 'chassis' to disable it without changing the handling flag
 						vehicle->m_pHandlingData->m_nHandlingFlags.m_bSwingingChassis = false;
 						vehicle->m_nHandlingFlags.bSwingingChassis = false;
-						if (useLog) lg << "Error fixed: Using '" << name << "' as chassis for vehicle id " << vehicle->m_nModelIndex << endl;
+						if (useLog) lg << "Error fixed: Using '" << name << "' as chassis for vehicle id " << vehicle->m_nModelIndex << "\n";
 						noChassis = false;
 					}
 				}
@@ -1490,7 +1436,7 @@ void LogLastVehicleRendered()
 {
 	if (lastRenderedVehicleModel > 0 && useLog)
 	{
-		lg << "Last rendered vehicle model ID is '" << lastRenderedVehicleModel << "'. Note: not always the last rendered vehicle is the crash reason, this information may be useless." << endl;
+		lg << "Last rendered vehicle model ID is '" << lastRenderedVehicleModel << "'. Note: not always the last rendered vehicle is the crash reason, this information may be useless. \n";
 		lg.flush();
 	}
 }
