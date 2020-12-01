@@ -88,6 +88,7 @@ public:
 	float dotLife;
 	float smoothGasPedal;
 	float smoothBrakePedal;
+	float brakeHeat;
 	double kms;
 
 	// Coplight / Taxilight
@@ -113,8 +114,9 @@ public:
 	RwFrame * odometerDigits[9];
 	RpAtomic * odometerAtomics[10];
 
-	// Taxi sign material
+	// Materials
 	RpMaterial *taxiSignMaterial;
+	RpMaterial *brakeDiscMaterial;
 
 	// Popup lights
 	float popupProgress[2];
@@ -175,6 +177,7 @@ public:
 		dotLife = 1.0f;
 		smoothGasPedal = 0.0f;
 		smoothBrakePedal = 0.0f;
+		brakeHeat = 0.0f;
 		kms = -1.0;
 
 		// Coplight / Taxilight
@@ -216,6 +219,7 @@ public:
 
 		hitchFrame = nullptr;
 		taxiSignMaterial = nullptr;
+		brakeDiscMaterial = nullptr;
 
 		// Lists
 		gearFrame.clear();

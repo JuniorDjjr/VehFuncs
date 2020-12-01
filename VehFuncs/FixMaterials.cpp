@@ -7,7 +7,8 @@ extern CVehicle *curVehicle;
 enum MatFuncType {
 	nothing,
 	ivf,
-	taxi
+	taxi,
+	brakeDisc
 };
 MatFuncType CheckMaterials(RpMaterial * material, RpAtomic * atomic);
 
@@ -62,7 +63,10 @@ RpMaterial *MaterialCallback(RpMaterial *material, void *data)
 		break;
 	case MatFuncType::taxi:
 		xdata.taxiSignMaterial = material;
-		//if (useLog) lg << "Taxi: Found sign material \n";
+		break;
+	case MatFuncType::brakeDisc:
+		material->color.red = 0xFF; material->color.green = 0xFF; material->color.blue = 0xFF;
+		xdata.brakeDiscMaterial = material;
 		break;
 	default:
 		break;
@@ -113,6 +117,13 @@ MatFuncType CheckMaterials(RpMaterial * material, RpAtomic *atomic)
 				{
 					if (material->color.green >= 16 && material->color.green <= 18) return MatFuncType::ivf;
 				}
+			}
+		}
+		if (material->color.blue == 255 && material->color.green == 255)
+		{
+			if (material->color.red == 1)
+			{
+				return MatFuncType::brakeDisc;
 			}
 		}
 		atomic->geometry->flags |= rpGEOMETRYMODULATEMATERIALCOLOR;

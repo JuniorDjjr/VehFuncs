@@ -184,28 +184,30 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				int i = 4;
 				int sound1 = stoi(&name[found + i]);
 
-				i++;
 				do {
-					i++;
+					++i;
+					if ((found + i) >= 22) {
+						break;
+					}
 				} while (name[found + i] != ',');
 
-				i++;
-				int sound2 = stoi(&name[found + i]);
-				if (useLog) lg << "Charac: Found '_se=' (sound engine) to sound 1 '" << sound1 << "' sound 2 '" << sound2 << "'\n";
-				vehicle->m_vehicleAudio.m_nEngineAccelerateSoundBankId = sound1;
-				vehicle->m_vehicleAudio.m_nEngineDecelerateSoundBankId = sound2;
-				// A without cancel
-				// B with cancel and CAEVehicleAudioEntity__JustGotOutOfVehicleAsDriver
-				// C with cancel and CAEVehicleAudioEntity__JustGotOutOfVehicleAsDriver and CAEVehicleAudioEntity__JustGotInVehicleAsDriver (above request)
-				// D with cancel and CAEVehicleAudioEntity__JustGotOutOfVehicleAsDriver (top) and CAEVehicleAudioEntity__JustGotInVehicleAsDriver (bottom)
-				// E without cancel and CAEVehicleAudioEntity__JustGotOutOfVehicleAsDriver (top) and CAEVehicleAudioEntity__JustGotInVehicleAsDriver (bottom)
-				// F without cancel without CAEVehicleAudioEntity__JustGotOutOfVehicleAsDriver and CAEVehicleAudioEntity__JustGotInVehicleAsDriver (bottom)
-				int soundId = 0;
-				do
-					CVehicle__CancelVehicleEngineSound(&vehicle->m_vehicleAudio, soundId++);
-				while (soundId < 12);
-				CAEVehicleAudioEntity__StoppedUsingBankSlot(vehicle->m_vehicleAudio.m_nEngineBankSlotId);
-				vehicle->m_vehicleAudio.m_nEngineBankSlotId = CAEVehicleAudioEntity__RequestBankSlot(sound2);
+				if ((found + i) <= 22) {
+					++i;
+					int sound2 = stoi(&name[found + i]);
+					if (useLog) lg << "Charac: Found '_se=' (sound engine) to sound 1 '" << sound1 << "' sound 2 '" << sound2 << "'\n";
+					vehicle->m_vehicleAudio.m_nEngineAccelerateSoundBankId = sound1;
+					vehicle->m_vehicleAudio.m_nEngineDecelerateSoundBankId = sound2;
+
+					int soundId = 0;
+					do
+						CVehicle__CancelVehicleEngineSound(&vehicle->m_vehicleAudio, soundId++);
+					while (soundId < 12);
+					CAEVehicleAudioEntity__StoppedUsingBankSlot(vehicle->m_vehicleAudio.m_nEngineBankSlotId);
+					vehicle->m_vehicleAudio.m_nEngineBankSlotId = CAEVehicleAudioEntity__RequestBankSlot(sound2);
+				}
+				else {
+					if (useLog) lg << "Charac: ERROR '_se=' (sound engine) can't read values vehicle ID " << vehicle->m_nModelIndex << "\n";
+				}
 			}
 
 			// Dirty (drt=5-9)

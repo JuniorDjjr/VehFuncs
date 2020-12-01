@@ -452,7 +452,6 @@ public:
 		};
 
 
-
 		// -- On vehicle pre render
 		vehiclePreRenderEvent += [](CVehicle *vehicle)
 		{
@@ -726,6 +725,32 @@ public:
 				{
 					resetMats.push_back(std::make_pair(reinterpret_cast<unsigned int *>(&xdata.taxiSignMaterial->surfaceProps.ambient), *reinterpret_cast<unsigned int *>(&xdata.taxiSignMaterial->surfaceProps.ambient)));
 					xdata.taxiSignMaterial->surfaceProps.ambient = 10.0f;
+				}
+			}
+			if (xdata.brakeDiscMaterial)
+			{
+				if (xdata.smoothBrakePedal > 0.0f) {
+					xdata.brakeHeat += xdata.smoothBrakePedal * (GetVehicleSpeedRealistic(vehicle) / 8000.0f) * CTimer::ms_fTimeStep * 1.666667f;
+				}
+				if (xdata.brakeHeat > 0.0f)
+				{
+					xdata.brakeHeat -= 0.004f * CTimer::ms_fTimeStep * 1.666667f;
+					if (xdata.brakeHeat < 0.0f) {
+						xdata.brakeHeat = 0.0f;
+					}
+					else {
+						if (xdata.brakeHeat > 1.0f) {
+							xdata.brakeHeat = 1.0f;
+						}
+						resetMats.push_back(std::make_pair(reinterpret_cast<unsigned int*>(&xdata.brakeDiscMaterial->surfaceProps.ambient), *reinterpret_cast<unsigned int*>(&xdata.brakeDiscMaterial->surfaceProps.ambient)));
+						resetMats.push_back(std::make_pair(reinterpret_cast<unsigned int*>(&xdata.brakeDiscMaterial->color.blue), *reinterpret_cast<unsigned int*>(&xdata.brakeDiscMaterial->color.blue)));
+						resetMats.push_back(std::make_pair(reinterpret_cast<unsigned int*>(&xdata.brakeDiscMaterial->color.green), *reinterpret_cast<unsigned int*>(&xdata.brakeDiscMaterial->color.green)));
+						if (xdata.brakeHeat > 0.1f) {
+							xdata.brakeDiscMaterial->surfaceProps.ambient = xdata.brakeDiscMaterial->surfaceProps.ambient + (xdata.brakeHeat - 0.1f);
+						}
+						xdata.brakeDiscMaterial->color.green = (int)(255.0f - (xdata.brakeHeat * (255.0f - (xdata.brakeHeat * 128.0f))));
+						xdata.brakeDiscMaterial->color.blue = (int)(255.0f - (xdata.brakeHeat * 255.0f));
+					}
 				}
 			}
 

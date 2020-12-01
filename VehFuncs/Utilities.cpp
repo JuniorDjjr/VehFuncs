@@ -119,6 +119,19 @@ extern "C" int32_t __declspec(dllexport) Ext_GetMDPMnpcCustomMaxVol(CVehicle * v
 	return *reinterpret_cast<int32_t*>(addressof(xdata.mdpmCustomMaxVol));
 }
 
+extern "C" uint32_t __declspec(dllexport) Ext_GetVehicleDummyPosAdapted(CVehicle * vehicle, int dummyId)
+{
+	// This may be used by CLEO+ GET_CAR_DUMMY_COORD_OFFSET
+	// TODO: get custom dummy pos, if any
+	if (vehicle && dummyId >= 0) {
+		CVehicleModelInfo *vehModelInfo = (CVehicleModelInfo *)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
+		if (vehModelInfo) {
+			return (uint32_t)&vehModelInfo->m_pVehicleStruct->m_avDummyPos[dummyId];
+		}
+	}
+	return 0;
+}
+
 /*
 The function name appears for crash dumps as modloader.log, and people mistakenly think the name is related to the crash.
 Thinking about it, here it is...
@@ -135,9 +148,10 @@ extern "C" void __declspec(dllexport) Ext_ToggleFrameHide(RwFrame * frame, bool 
 	return;
 }
 
-extern "C" void __declspec(dllexport) ignoreB()
+extern "C" int32_t __declspec(dllexport) ignoreB(int32_t i)
 {
-	return;
+	i = 1;
+	return i;
 }
 
 void CloneNodeAlt(RwFrame *frame, RwFrame *parent, bool isRoot)

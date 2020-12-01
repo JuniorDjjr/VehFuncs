@@ -1,0 +1,4 @@
+Corrigido crash 0x004C7DB4 que parece acontecer no Quadbike para algumas pessoas.
+Eu havia cometido um erro em que vários comandos do log forçavam o conteúdo a ser jogado no disco, o que pode causar um pequeno impacto no desempenho. Corrigido.
+Corrigido condição de zona não identificando um ":".
+Corrigido "f_wheel" não identificando um ":" ou "?".
