@@ -1,10 +1,9 @@
 # VehFuncs
 
-[![](http://3.bp.blogspot.com/-cqYW0pPPH94/Wix4Myml8OI/AAAAAAAAQbs/pzLwy4XdIYopEmjPQ8q7VLp8ILtiK2MLQCK4BGAYYCw/s1600/gta-sa-mod-vehfuncs.png)](www.mixmods.com.br/2017/12/em-breve-vehfuncs.html)
+[![](http://3.bp.blogspot.com/-cqYW0pPPH94/Wix4Myml8OI/AAAAAAAAQbs/pzLwy4XdIYopEmjPQ8q7VLp8ILtiK2MLQCK4BGAYYCw/s1600/gta-sa-mod-vehfuncs.png)](https://www.mixmods.com.br/2022/02/sa-vehfuncs/)
 
-## Informations and download
-https://www.mixmods.com.br/2018/01/VehFuncs.html  
-https://gtaforums.com/topic/904475-vehfuncs/
+## Informations and download (PT/EN)
+https://www.mixmods.com.br/2022/02/sa-vehfuncs/
 
 This project uses [plugin-sdk](https://github.com/DK22Pac/plugin-sdk).  
 
