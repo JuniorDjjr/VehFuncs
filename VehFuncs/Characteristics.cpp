@@ -541,7 +541,7 @@ void SetCharacteristicsForIndieHandling(CVehicle * vehicle, bool bReSearch)
 					automobile->m_swingingChassis.m_nDoorState = eDoorState::DOOR_HIT_MAX_END;
 					if (modelId == 598 || modelId == 419)
 					{
-						angle = 0.03;
+						angle = 0.03f;
 					}
 					else if (modelId == 409)
 					{

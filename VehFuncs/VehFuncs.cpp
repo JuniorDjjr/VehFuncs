@@ -96,7 +96,7 @@ public:
 			iniLogNoTextureFound = ini.ReadInteger("Test", "LogNoTextureFound", 0);
 			iniLogModelRender = ini.ReadInteger("Test", "LogModelRender", 0);
 			iniShowCrashInfos = ini.ReadInteger("Test", "ShowCrashInfos", 0);
-			iniDefaultDirtMult = ini.ReadFloat("Settings", "DefaultDirtMult", 100.0f);
+			iniDefaultDirtMult = ini.ReadFloat("Settings", "DefaultDirtMult", 1.0f);
 			iniDefaultSteerAngle = ini.ReadFloat("Settings", "DefaultSteerAngle", 100.0f);
 			if (ini.ReadInteger("Settings", "NoSwingingChassis", 0) == 1)
 			{
@@ -113,7 +113,7 @@ public:
 		 
 		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		if (useLog) lg << "VF v2.1.1 \n";
+		if (useLog) lg << "VF v2.3 \n";
 
 		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
 
@@ -130,6 +130,7 @@ public:
 
 		// Patch for additional vehicle*.txd. Need it even before vehicle.txd loading due to copcarla loading order.
 		patch::RedirectCall(0x4C7533, Patches::Custom_RwTexDictionaryFindNamedTexture, true);
+		patch::RedirectCall(0x731733, Patches::Custom_RwTexDictionaryFindNamedTexture, true); // for map etc
 
 		// Fix "ug_" dummies outside "chassis" (ID 1) using first node (ID 0) (usually a wheel node).
 		MakeInline<0x004C8FA1, 0x004C8FA1 + 6>([](reg_pack& regs)
@@ -566,10 +567,11 @@ public:
 				// Set kms
 				if (xdata.kms == -1.0f)
 				{
-					float factorA = Random(5000.0f, 500000.0f);
+					float factorA = Random(5000.0f, 300000.0f);
 					if (vehicle->m_nVehicleFlags.bIsDamaged) factorA *= 2.0f;
-					float factorB = Random(0.0f, vehicle->m_fDirtLevel * 100000.0f);
-					xdata.kms = factorA + factorB;
+					float factorB = Random(0.0f, vehicle->m_fDirtLevel * 20000.0f);
+					xdata.kms = (factorA + factorB) * 40.0f;
+					//if (useLog) lg << (int)xdata.kms << ".\n";
 				}
 
 				// TEST
@@ -660,6 +662,16 @@ public:
 
 			///////////////////////////////////////////////////////////////////////////////////////
 
+			float realisticSpeed = GetVehicleSpeedRealistic(vehicle);
+			xdata.realisticSpeed = realisticSpeed;
+			double kmSum = abs((double)realisticSpeed);
+			kmSum /= 3.6; // to m/s
+			kmSum *= 2.0; // for timeStep use
+			kmSum *= 0.96; // final tweak to fix imprecision, because, I don't know
+			kmSum /= 10000.0; // so last digit is 100 meters*/
+
+			xdata.kms += (kmSum * CTimer::ms_fTimeStep);
+
 			int subClass = vehicle->m_nVehicleSubClass;
 
 			// Process store smooth pedal
@@ -668,12 +680,19 @@ public:
 
 			if ((subClass == VEHICLE_AUTOMOBILE || subClass == VEHICLE_BIKE || subClass == VEHICLE_MTRUCK || subClass == VEHICLE_QUAD) &&
 				gasSoundProgress == 0 && vehicle->m_fMovingSpeed > 0.2f && rpmSound != -1)
-			{ // fix me: the last gear (max speed) is ignored
+			{ // todo: the last gear (max speed) is ignored, need to fix
 				xdata.smoothGasPedal = 0.0f;
 			}
 			else
 			{
 				float gasPedal = abs(vehicle->m_fGasPedal);
+
+				if (subClass == VEHICLE_PLANE || subClass == VEHICLE_HELI)
+				{
+					gasPedal = realisticSpeed / 40.0f;
+					if (gasPedal > 1.0f) gasPedal = 1.0f;
+				}
+				
 				if (gasPedal > 0.0f)
 				{
 					xdata.smoothGasPedal += (CTimer::ms_fTimeStep / 1.6666f) * (gasPedal / 6.0f);
@@ -705,16 +724,6 @@ public:
 					if (xdata.smoothBrakePedal < 0.0f) xdata.smoothBrakePedal = 0.0f;
 				}
 			}
-
-			float realisticSpeed = GetVehicleSpeedRealistic(vehicle);
-			xdata.realisticSpeed = realisticSpeed;
-			double kmSum = abs((double)realisticSpeed);
-			kmSum /= 3.6; // to m/s
-			kmSum *= 2.0; // for timeStep use
-			kmSum *= 0.96; // final tweak to fix imprecision, because, I don't know
-			kmSum /= 10000.0; // so last digit is 100 meters*/
-
-			xdata.kms += (kmSum * CTimer::ms_fTimeStep);
 
 			///////////////////////////////////////////////////////////////////////////////////////
 
@@ -1426,7 +1435,7 @@ public:
 					}
 					
 				}
-				if (noChassis) {
+				if (noChassis && vehicle->m_nVehicleSubClass == VEHICLE_AUTOMOBILE) {
 					if (name[0] == 'b' && name[1] == 'o' && name[2] == 'd' && name[3] == 'y')
 					{
 						reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[CAR_CHASSIS] = frame;
