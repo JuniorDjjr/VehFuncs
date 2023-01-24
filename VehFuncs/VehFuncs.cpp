@@ -12,6 +12,7 @@
 #include "Matrixbackup.h"
 #include "Utilities.h"
 #include "DamageableRearWings.h" 
+#include "IndieVehHandlings/ExtendedHandling.h"
 //#include "CheckRepair.h"
 
 // Mod funcs
@@ -59,7 +60,7 @@ uintptr_t AtomicAlphaCallBack;
 uint32_t txdIndexStart;
 VehicleExtendedData<ExtendedData> xData;
 fstream lg;
-bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false, bNewFrame = false, bIndieVehicles = false;
+bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false, bInitPatched = false, bNewFrame = false, bIndieVehicles = false;
 CVehicle *curVehicle;
 bool noChassis = false;
 bool ignoreCrashInfo = false;
@@ -78,6 +79,38 @@ float iniDefaultSteerAngle = 100.0f;
 bool iniLogNoTextureFound = false;
 bool iniLogModelRender = false;
 bool iniShowCrashInfos = true;
+
+// IndieVehicles
+
+class ExtraData {
+public:
+	struct
+	{
+		unsigned char bHandling : 1;
+		unsigned char bCollModel : 1;
+	} flags;
+
+	float wheelFrontSize;
+	float wheelRearSize;
+	CColModel* colModel;
+
+	ExtraData(CVehicle* vehicle) {
+		flags.bHandling = false;
+		flags.bCollModel = false;
+		wheelFrontSize = (1.0f / 2);
+		wheelRearSize = (1.0f / 2);
+		colModel = nullptr;
+	}
+};
+VehicleExtendedData<ExtraData> extraInfo;
+
+bool bTerminateIndieVehHandScript = true;
+
+void asm_fmul(float f) {
+	__asm {fmul f}
+}
+void WriteTiresToNewHandling(tExtendedHandlingData* handling, bool newTires);
+void SetIndieNewHandling(CVehicle* vehicle, tHandlingData* originalHandling, bool newTires);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -111,11 +144,11 @@ public:
 			}
 		}
 		 
-		if (useLog) lg.open("VehFuncs.log", fstream::out | fstream::trunc);
+		lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		if (useLog) lg << "VF v2.3 \n";
+		lg << "VF v2.4 \n";
 
-		if (ini.data.size() == 0) lg << "Unable to read 'VehFuncs.ini'\n";
+		if (ini.data.size() == 0) lg << "ERROR: Unable to read 'VehFuncs.ini'\n";
 
 		static bool reInit = false;
 		xData = getExtData();
@@ -180,7 +213,7 @@ public:
 
 			patch::RedirectCall(0x4C7D34, Patches::MyGetWheelPosnGetFrameById, true);
 
-			MakeJMP(0x00563281, Patches::CheckCrashWorldRemove, true);
+			MakeJMP(0x00563280, Patches::CheckCrashWorldRemove, true);
 
 			MakeJMP(0x0059BE3B, Patches::CheckCrashMatrixOperator, true);
 		}
@@ -190,9 +223,143 @@ public:
 		// Damageable rear wings
 		PatchDamageableRearWings();
 
-		// -- On game init
-		Events::initGameEvent += []
+		// IndieVehicles
+
+		if (GetModuleHandleA("IndieVehicles.asi")) {
+			lg << "WARNING: IndieVehicles.asi is DEPRECATED!!! Now VehFuncs has IndieVehicles integrated. Update your mods or ask modders to update it, then you can remove IndieVehicles.asi from your game." << "\n\n";
+			bIndieVehicles = true;
+		}
+		else
 		{
+			bIndieVehicles = false;
+		}
+
+		if (!bIndieVehicles)
+		{
+			// CAEVehicleAudioEntity::Initialise (vehicle init, valid of all classes)
+			MakeInline<0x004F7741>([](reg_pack& regs)
+			{
+				CVehicle* vehicle = (CVehicle*)regs.edx;
+				ExtraData& xdata = extraInfo.Get(vehicle);
+				if (!xdata.flags.bHandling)
+				{
+					if (vehicle->m_nModelIndex > 0)
+					{
+						SetIndieNewHandling(vehicle, vehicle->m_pHandlingData, false);
+						xdata.flags.bHandling = true;
+					}
+				}
+			});
+
+			// Vehicle destructor
+			Events::vehicleDtorEvent.before += [](CVehicle* vehicle)
+			{
+				ExtraData& xdata = extraInfo.Get(vehicle);
+				if (xdata.flags.bHandling)
+				{
+					delete (tExtendedHandlingData*)vehicle->m_pHandlingData;
+					xdata.flags.bHandling = false;
+				}
+			};
+
+
+			///////////////////////////////////////////////
+
+
+			// -- Wheel size
+
+			// CAutomobile::SetupSuspensionLines
+			MakeInline<0x006A66F4, 0x006A66F4 + 6>([](reg_pack& regs)
+			{
+				if (regs.ecx == 1 || regs.ecx == 3)
+					asm_fmul(extraInfo.Get(reinterpret_cast<CVehicle*>(regs.edi)).wheelFrontSize);
+				else
+					asm_fmul(extraInfo.Get(reinterpret_cast<CVehicle*>(regs.edi)).wheelRearSize);
+			});
+
+			// CBike::SetupSuspensionLines
+			MakeInline<0x006B8C3B, 0x006B8C3B + 6>([](reg_pack& regs)
+			{
+				if (regs.edx == 0 || regs.edx == 1)
+					asm_fmul(extraInfo.Get(reinterpret_cast<CVehicle*>(regs.ebx)).wheelFrontSize);
+				else
+					asm_fmul(extraInfo.Get(reinterpret_cast<CVehicle*>(regs.ebx)).wheelRearSize);
+			});
+
+
+			// -- Coll model
+
+			// CEntity::GetColModel
+			MakeInline<0x00535300, 0x00535330>([](reg_pack& regs)
+			{
+				CEntity* entity = (CEntity*)regs.ecx;
+				CColModel* colModel = nullptr;
+				CBaseModelInfo* modelInfo = nullptr;
+
+				if (entity->m_nType == eEntityType::ENTITY_TYPE_VEHICLE)
+				{
+					unsigned char defaultVehicleColID = reinterpret_cast<CVehicle*>(entity)->m_nSpecialColModel;
+					if (defaultVehicleColID != 255)
+					{
+						colModel = &CVehicle::m_aSpecialColModel[defaultVehicleColID];
+					}
+					else
+					{
+						ExtraData& xdata = extraInfo.Get(reinterpret_cast<CVehicle*>(entity));
+						if (&xdata != nullptr && xdata.flags.bCollModel)
+						{
+							colModel = xdata.colModel;
+						}
+						else
+						{
+							modelInfo = CModelInfo::GetModelInfo(entity->m_nModelIndex);
+							if (modelInfo) colModel = modelInfo->m_pColModel;
+						}
+					}
+				}
+				else
+				{
+					modelInfo = CModelInfo::GetModelInfo(entity->m_nModelIndex);
+					if (modelInfo) colModel = modelInfo->m_pColModel;
+				}
+				regs.eax = (uint32_t)colModel;
+			});
+
+			// CBike::SetupSuspensionLines
+			MakeInline<0x006B89D4>([](reg_pack& regs)
+			{
+				CVehicle* vehicle = (CVehicle*)regs.ebx;
+				CBaseModelInfo* modelInfo = CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
+
+				regs.esi = (uint32_t)modelInfo;
+
+				CColModel* colModel;
+
+				ExtraData& xdata = extraInfo.Get(vehicle);
+				if (xdata.flags.bCollModel)
+				{
+					colModel = xdata.colModel;
+				}
+				else
+				{
+					colModel = modelInfo->m_pColModel;
+				}
+				*(uint32_t*)(regs.esp + 0x28) = (uint32_t)colModel;
+				regs.edi = (uint32_t)colModel->m_pColData;
+				regs.eax = (uint32_t)colModel->m_pColData->m_pLines;
+				regs.edx = *(uint32_t*)(regs.eax + 0x28);
+
+				regs.ecx = 0x47C34FFF; //mov ecx, 47C34FFFh
+			});
+		}
+
+
+		// -- On game init
+		Events::initScriptsEvent.before += []
+		{
+			if (bInitPatched) return;
+			bInitPatched = true;
+
 			srand(time(0));
 			StoreHandlingData();
 			ApplyGSX(); 
@@ -357,27 +524,18 @@ public:
 			Patches::Hitch::setOriginalFun_Trailer((Patches::Hitch::GetTowBarPos_t)ReadMemory<int*>(0x871D18, true));
 			WriteMemory(0x871D18, memory_pointer(Patches::Hitch::GetTowBarPosToHook).as_int(), true);
 
-			if (useLog) lg << "Core: Started\n";
+			lg << "Core: Started\n";
 		};
-
-
-
-		// -- On plugins attach
-		Events::attachRwPluginsEvent += []() 
-		{
-			FramePluginOffset = RwFrameRegisterPlugin(sizeof(FramePlugin), PLUGIN_ID_STR, (RwPluginObjectConstructor)FramePlugin::Init, (RwPluginObjectDestructor)FramePlugin::Destroy, (RwPluginObjectCopy)FramePlugin::Copy);
-		};
-
 
 
 		// -- On game init
-		Events::initGameEvent.after += []()
+		Events::initScriptsEvent.after += []()
 		{
 			if (!bFirstFrame)
 			{
 				if (ReadMemory<uint32_t>(0x004C9148, true) != 0x004C8E30)
 				{
-					if (useLog) lg << "Core: IVF installed\n";
+					lg << "Core: IVF installed\n";
 					WriteMemory(0x004C9148, (int)0x004C8E30, true); // unhook IVF collapse frames
 					IVFinstalled = true;
 				}
@@ -386,18 +544,15 @@ public:
 					IVFinstalled = false;
 				}
 
-				if (GetModuleHandleA("IndieVehicles.asi")) {
-					bIndieVehicles = true;
-				}
-				else
-				{
-					lg << "WARNING: Some VehFuncs functions need IndieVehicles.asi installed." << "\n\n";
-					bIndieVehicles = false;
-				}
-
-				if (useLog) lg.flush();
+				lg.flush();
 				bFirstFrame = true;
 			}
+		};
+
+		// -- On plugins attach
+		Events::attachRwPluginsEvent += []() 
+		{
+			FramePluginOffset = RwFrameRegisterPlugin(sizeof(FramePlugin), PLUGIN_ID_STR, (RwPluginObjectConstructor)FramePlugin::Init, (RwPluginObjectDestructor)FramePlugin::Destroy, (RwPluginObjectCopy)FramePlugin::Copy);
 		};
 
 
@@ -415,7 +570,7 @@ public:
 					Command<GET_SCRIPT_STRUCT_NAMED>("NEWSVAN", &script);
 					if (script)
 					{
-						if (useLog) lg << "Core: AD installed\n";
+						lg << "Core: AD installed\n";
 						APPinstalled = true;
 					}
 					else
@@ -423,11 +578,25 @@ public:
 						APPinstalled = false;
 					}
 					
-				} else if (useLog) lg << "Core: CLEO isn't installed." << "\n\n";
-				if (useLog) lg.flush();
+				} else lg << "Core: CLEO isn't installed." << "\n\n";
+				lg.flush();
 				bFirstScriptFrame = true;
 			}
 			bNewFrame = true;
+
+			if (bTerminateIndieVehHandScript)
+			{
+				unsigned int script;
+				Command<0x10AAA>("indiehn", &script); //GET_SCRIPT_STRUCT_NAMED
+				if (script)
+				{
+					Command<0x10ABA>("indiehn"); //TERMINATE_ALL_CUSTOM_SCRIPTS_WITH_THIS_NAME
+					WriteMemory<uint32_t>(0x6E2BB3, 0xFFEA50A9, true); //unhook stuff hooked by IndieVehHandlings.cs
+					lg << "WARNING: You are using 'IndieVehHandlings.cs', it's useless now, delete it!!!\n";
+					lg.flush();
+				}
+				bTerminateIndieVehHandScript = false;
+			}
 		};
 
 
@@ -436,7 +605,7 @@ public:
 		{
 			lastInitializedVehicle = vehicle;
 			lastInitializedVehicleModel = modelId;
-			if (iniLogModelRender && useLog)
+			if (iniLogModelRender)
 			{
 				lg << "After Init model " << lastInitializedVehicleModel << "\n";
 				lg.flush();
@@ -457,7 +626,7 @@ public:
 		vehiclePreRenderEvent += [](CVehicle *vehicle)
 		{
 			lastRenderedVehicleModel = vehicle->m_nModelIndex;
-			if (iniLogModelRender && useLog)
+			if (iniLogModelRender)
 			{
 				lg << "After Pre Render " << lastRenderedVehicleModel << "\n";
 				lg.flush();
@@ -471,7 +640,7 @@ public:
 			tempVehicleModel = -1;
 			lastInitializedVehicleModel = -1;
 			lastRenderedVehicleModel = vehicle->m_nModelIndex;
-			if (iniLogModelRender && useLog)
+			if (iniLogModelRender)
 			{
 				lg << "Before Render " << lastRenderedVehicleModel << "\n";
 				lg.flush();
@@ -523,11 +692,14 @@ public:
 
 
 			// For IndieVehHandling / Get re-search
-			bool isIndieHandling = true;
+			bool isIndieHandling = false;
 			if (IsIndieHandling(vehicle, &handling))
 			{
 				isIndieHandling = true;
 				bReSearch = ExtraInfoBitReSearch(vehicle, handling);
+			}
+			else {
+				lg << "WARNING: Car isn't indie handling, something is wrong. " << vehicle << endl;
 			}
 
 			// Search nodes
@@ -829,7 +1001,7 @@ public:
 
 			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x1000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, " (end): Game will crash. Check MixMods' Crash List.");
 		
-			if (iniLogModelRender && useLog)
+			if (iniLogModelRender)
 			{
 				lg << "VehFuncs Update Finished " << vehicle->m_nModelIndex << "\n";
 				lg.flush();
@@ -849,7 +1021,7 @@ public:
 				ProcessSpoiler(vehicle, xdata.spoilerFrames, true);
 			}
 
-			if (iniLogModelRender && useLog)
+			if (iniLogModelRender)
 			{
 				lg << "Render Finished " << vehicle->m_nModelIndex << "\n";
 				lg.flush();
@@ -866,7 +1038,7 @@ public:
 		// -- Flush log during unfocus (ie minimizing)
 		Events::onPauseAllSounds += []
 		{
-			if (useLog) lg.flush();
+			lg.flush();
 		};
 
 		/*
@@ -921,6 +1093,9 @@ public:
 								if (useLog) lg << "Extras: Jumping class nodes \n";
 								frame = tempFrame;
 								continue;
+							}
+							else {
+								break;
 							}
 						}
 						
@@ -1466,9 +1641,82 @@ public:
 } vehfuncs;
 
 
+// IndieVehicles
+
+void SetIndieNewHandling(CVehicle* vehicle, tHandlingData* originalHandling, bool newTires)
+{
+	tExtendedHandlingData* newHandling = new tExtendedHandlingData;
+	if (!newHandling)
+	{
+		lg << "ERROR: Unable to allocate new handling - " << (int)newHandling << "\n";
+		lg.flush();
+		MessageBoxA(0, "ERROR: Unable to allocate new handling. It's recommended not to continue playing, report the problem sending the IndieVehicles.log.", "IndieVehicles", 0);
+		return;
+	}
+	if (!originalHandling)
+	{
+		lg << "ERROR: Original handling isn't valid - " << (int)originalHandling << " - model ID " << vehicle->m_nModelIndex << "\n";
+		lg.flush();
+		MessageBoxA(0, "ERROR: Original handling isn't valid. It's recommended not to continue playing, report the problem sending the IndieVehicles.log.", "IndieVehicles", 0);
+		return;
+	}
+	memset(newHandling, 0, sizeof(tExtendedHandlingData));
+	memmove(newHandling, originalHandling, sizeof(tHandlingData));
+	WriteTiresToNewHandling(newHandling, newTires);
+	vehicle->m_pHandlingData = (tHandlingData*)newHandling;
+}
+
+
+void WriteTiresToNewHandling(tExtendedHandlingData* handling, bool newTires)
+{
+	handling->tuningModFlags.bTire1 = true;
+	if (newTires)
+	{
+		handling->fTireWear[0] = 255.0;
+		handling->fTireWear[1] = 255.0;
+		handling->fTireWear[2] = 255.0;
+		handling->fTireWear[3] = 255.0;
+	}
+	else
+	{
+		float rand = CGeneral::GetRandomNumberInRange(160.0f, 240.0f); //base value
+		handling->fTireWear[0] = rand; //FL
+		handling->fTireWear[1] = (rand + CGeneral::GetRandomNumberInRange(-20.0f, 5.0f)); //RL
+		handling->fTireWear[2] = (rand + CGeneral::GetRandomNumberInRange(-10.0f, 10.0f)); //FR
+		handling->fTireWear[3] = (rand + CGeneral::GetRandomNumberInRange(-20.0f, 5.0f)); //RR
+	}
+}
+
+CColModel* SetNewCol(CVehicle* vehicle)
+{
+	CColModel* newCol = new CColModel;
+	if (newCol == nullptr)
+	{
+		lg << "ERROR: Unable to allocate new col model\n";
+		lg.flush();
+		MessageBoxA(0, "ERROR: Unable to allocate new col model. It's recommended not to continue playing, report the problem sending the IndieVehicles.log.", "IndieVehicles", 0);
+		return nullptr;
+	}
+
+	newCol->AllocateData();
+	if (newCol->m_pColData == nullptr)
+	{
+		lg << "ERROR: Unable to allocate new col data\n";
+		lg.flush();
+		MessageBoxA(0, "ERROR: Unable to allocate new col data. It's recommended not to continue playing, report the problem sending the IndieVehicles.log.", "IndieVehicles", 0);
+		return nullptr;
+	}
+
+	CColModel* originalColModel = CModelInfo::GetModelInfo(vehicle->m_nModelIndex)->m_pColModel;
+	*newCol = *originalColModel;
+	return newCol;
+}
+
+
+
 void LogLastVehicleRendered()
 {
-	if (lastRenderedVehicleModel > 0 && useLog)
+	if (lastRenderedVehicleModel > 0)
 	{
 		lg << "Last rendered vehicle model ID is '" << lastRenderedVehicleModel << "'. Note: not always the last rendered vehicle is the crash reason, this information may be useless. \n";
 		lg.flush();
@@ -1479,11 +1727,9 @@ void LogCrashText(string str)
 {
 	if (!ignoreCrashInfo)
 	{
-		if (useLog)
-		{
-			lg << str;
-			lg.flush();
-		}
+		lg << str;
+		lg.flush();
+
 		if (MessageBoxA(0, str.c_str(), "VehFuncs", MB_OKCANCEL) == IDCANCEL) ignoreCrashInfo = true;
 	}
 }
@@ -1493,11 +1739,10 @@ void LogVehicleModelWithText(string str1, int vehicleModel, string str2)
 	if (!ignoreCrashInfo)
 	{
 		string crashInfo = str1 + str2;
-		if (useLog)
-		{
-			lg << crashInfo;
-			lg.flush();
-		}
+
+		lg << crashInfo;
+		lg.flush();
+
 		if (MessageBoxA(0, crashInfo.c_str(), "VehFuncs", MB_OKCANCEL) == IDCANCEL) ignoreCrashInfo = true;
 	}
 }
@@ -1666,4 +1911,55 @@ RpAtomic *__cdecl CustomMoveObjectsCB(RpAtomic *atomic, RwFrame *frame)
 	}
 
 	return atomic;
+}
+
+// IndieVehicles
+
+extern "C" int32_t __declspec(dllexport) GetWheelSize(CVehicle * vehicle, int front)
+{
+	float size;
+	ExtraData& xdata = extraInfo.Get(vehicle);
+	if (front) size = xdata.wheelFrontSize;
+	else size = xdata.wheelRearSize;
+	return *reinterpret_cast<int32_t*>(std::addressof(size));
+}
+ 
+extern "C" void __declspec(dllexport) SetWheelSize(CVehicle * vehicle, int front, float size)
+{
+	ExtraData& xdata = extraInfo.Get(vehicle);
+	if (!xdata.flags.bCollModel)
+	{
+		xdata.colModel = SetNewCol(vehicle);
+		if (xdata.colModel) xdata.flags.bCollModel = true;
+	}
+	if (front) xdata.wheelFrontSize = size;
+	else xdata.wheelRearSize = size;
+	return;
+}
+
+extern "C" int32_t __declspec(dllexport) GetColl(CVehicle * vehicle)
+{
+	ExtraData& xdata = extraInfo.Get(vehicle);
+	if (!xdata.flags.bCollModel)
+	{
+		xdata.colModel = SetNewCol(vehicle);
+	}
+	return (int32_t)xdata.colModel;
+}
+
+extern "C" void __declspec(dllexport) SetNewHandling(CVehicle * vehicle, tHandlingData * newOriginalHandling)
+{
+	ExtraData& xdata = extraInfo.Get(vehicle);
+	if (xdata.flags.bHandling)
+	{
+		delete (tExtendedHandlingData*)vehicle->m_pHandlingData;
+	}
+	SetIndieNewHandling(vehicle, newOriginalHandling, true);
+	xdata.flags.bHandling = true;
+	return;
+}
+
+extern "C" void __declspec(dllexport) ignore3() // it appears on crash logs, like modloader.log
+{
+	return;
 }

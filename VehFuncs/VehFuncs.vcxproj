@@ -22,14 +22,14 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='GTASA zDebug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -42,14 +42,14 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='GTASA Release|Win32'">
-    <OutDir>G:\GTA SA The Modded Edition\modloader\VehFuncs\</OutDir>
+    <OutDir>G:\GTA San Andreas - Urbanize\modloader\VehFuncs\</OutDir>
     <IntDir>$(ProjectDir).obj\GTASA\Release\</IntDir>
     <TargetName>VehFuncs</TargetName>
     <TargetExt>.asi</TargetExt>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='GTASA zDebug|Win32'">
-    <OutDir>G:\GTA SA The Modded Edition\modloader\VehFuncs\</OutDir>
+    <OutDir>G:\GTA San Andreas - Urbanize\modloader\VehFuncs\</OutDir>
     <IntDir>$(ProjectDir).obj\GTASA\Debug\</IntDir>
     <TargetName>VehFuncs</TargetName>
     <TargetExt>.asi</TargetExt>

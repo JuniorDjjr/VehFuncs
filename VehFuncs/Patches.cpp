@@ -418,6 +418,7 @@ namespace Patches
 	void __declspec(naked) CheckCrashWorldRemove()
 	{
 		__asm {
+			push esi
 			mov     esi, [esp + 8]
 
 			test esi, esi

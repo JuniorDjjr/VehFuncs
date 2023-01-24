@@ -327,7 +327,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 				}
 				else
 				{
-					if (useLog) lg << "Select " << random << " from total " << (totalClass - 1) << " is " << GetFrameNodeName(classNodes[random]) << "\n";
+					if (useLog) lg << "Select " << random << " from max " << (totalClass - 1) << " is " << GetFrameNodeName(classNodes[random]) << "\n";
 					if (classNodesPercent[random] != 100)
 					{
 						int randomPercent = Random(1, 100);

@@ -493,11 +493,9 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 									pos.y = vehicle->m_placement.m_vPosn.y;
 									pos.z = vehicle->m_placement.m_vPosn.z;
 									CPedModelInfo *modelInfo = (CPedModelInfo *)CModelInfo::GetModelInfo(model);
-									lg << "Charac: creating ped " << (i + 1) << " model " << model << "\n";
-									lg.flush();
+									if (useLog) lg << "Charac: creating ped " << (i + 1) << " model " << model << "\n";
 									pass = CPopulation::AddPed((ePedType)modelInfo->m_nPedType, model, pos, 0);
-									lg << "Charac: ped created, get door " << (i + 1) << " model " << model << "\n";
-									lg.flush();
+									if (useLog) lg << "Charac: ped created, get door " << (i + 1) << " model " << model << "\n";
 									int doorNodeId = CCarEnterExit::ComputeTargetDoorToEnterAsPassenger(vehicle, i);
 									CCarEnterExit::SetPedInCarDirect(pass, vehicle, doorNodeId, false);
 									MarkModelAsNoLongerNeeded(model);
@@ -523,41 +521,38 @@ void SetCharacteristicsForIndieHandling(CVehicle * vehicle, bool bReSearch)
 		// Double exhaust
 		if (xdata.doubleExhaust >= 0) 
 		{
-			if (bIndieVehicles) vehicle->m_pHandlingData->m_nModelFlags.m_bDoubleExhaust = xdata.doubleExhaust;
-			else if (useLog) lg << "(ERROR) 'Double exhaust' need IndieVehicles.asi installed \n";
+			if (useLog) lg << "'Double Exhaust' changed to " << (int)xdata.doubleExhaust << "\n";
+			vehicle->m_pHandlingData->m_nModelFlags.m_bDoubleExhaust = xdata.doubleExhaust;
 		}
 
 		// Swinging chassis
 		if (xdata.swingingChassis >= 0)
 		{
-			if (bIndieVehicles) {
-				vehicle->m_nHandlingFlags.bSwingingChassis = xdata.swingingChassis;
-				vehicle->m_pHandlingData->m_nHandlingFlags.m_bSwingingChassis = xdata.swingingChassis;
-				CAutomobile *automobile = reinterpret_cast<CAutomobile*>(vehicle);
-				if (xdata.swingingChassis == 1) {
-					// ref 6B0F3B
-					int modelId = vehicle->m_nModelIndex;
-					float angle = 0.02f;
-					automobile->m_swingingChassis.m_nDoorState = eDoorState::DOOR_HIT_MAX_END;
-					if (modelId == 598 || modelId == 419)
-					{
-						angle = 0.03f;
-					}
-					else if (modelId == 409)
-					{
-						angle = 0.01f;
-					}
-					automobile->m_swingingChassis.m_nAxis = 2;
-					automobile->m_swingingChassis.m_nDirn = 196;
-					automobile->m_swingingChassis.m_fOpenAngle = 3.1415927f * angle;
-					automobile->m_swingingChassis.m_fClosedAngle = angle * -3.1415927f;
-					lg << "'Swinging chassis' enable \n";
+			vehicle->m_nHandlingFlags.bSwingingChassis = xdata.swingingChassis;
+			vehicle->m_pHandlingData->m_nHandlingFlags.m_bSwingingChassis = xdata.swingingChassis;
+			CAutomobile *automobile = reinterpret_cast<CAutomobile*>(vehicle);
+			if (xdata.swingingChassis == 1) {
+				// ref 6B0F3B
+				int modelId = vehicle->m_nModelIndex;
+				float angle = 0.02f;
+				automobile->m_swingingChassis.m_nDoorState = eDoorState::DOOR_HIT_MAX_END;
+				if (modelId == 598 || modelId == 419)
+				{
+					angle = 0.03f;
 				}
-				else {
-					automobile->m_swingingChassis.m_nDoorState = eDoorState::DOOR_NOTHING;
+				else if (modelId == 409)
+				{
+					angle = 0.01f;
 				}
+				automobile->m_swingingChassis.m_nAxis = 2;
+				automobile->m_swingingChassis.m_nDirn = 196;
+				automobile->m_swingingChassis.m_fOpenAngle = 3.1415927f * angle;
+				automobile->m_swingingChassis.m_fClosedAngle = angle * -3.1415927f;
+				if (useLog) lg << "'Swinging chassis' enable \n";
 			}
-			else if (useLog) lg << "(ERROR) 'Swinging chassis' need IndieVehicles.asi installed \n";
+			else {
+				automobile->m_swingingChassis.m_nDoorState = eDoorState::DOOR_NOTHING;
+			}
 		}
 	}
 
