@@ -77,6 +77,15 @@ std::list<std::pair<unsigned int *, unsigned int>> resetMats;
 typedef CVector* (__cdecl* TMGetDummyNumber)(int vehicleRef, int dummyId, CVector *posResult);
 TMGetDummyNumber tm_TMGetDummyNumber = nullptr;
 
+typedef void(__cdecl* Ext_SetVehicleBackfireMode)(CVehicle* vehicle, int mode);
+Ext_SetVehicleBackfireMode sz_Ext_SetVehicleBackfireMode = nullptr;
+
+typedef void(__cdecl* Ext_SetVehicleSubDefinitionName)(CVehicle* vehicle, char* pSubDefinitionName);
+Ext_SetVehicleSubDefinitionName sz_Ext_SetVehicleSubDefinitionName = nullptr;
+
+typedef int(__cdecl* Ext_GetVehicleDoingBackfire)(CVehicle* vehicle);
+Ext_GetVehicleDoingBackfire sz_Ext_GetVehicleDoingBackfire = nullptr;
+
 // Ini settings
 bool useLog = true;
 float iniDefaultDirtMult = 1.0f;
@@ -407,6 +416,20 @@ public:
 			}
 			else {
 				tm_TMGetDummyNumber = 0;
+			}
+
+			// 
+			HINSTANCE moduleSZ = GetModuleHandleA("Soundize (Junior_Djjr).asi");
+			if (moduleSZ) {
+				sz_Ext_SetVehicleBackfireMode = (Ext_SetVehicleBackfireMode)GetProcAddress(moduleSZ, "Ext_SetVehicleBackfireMode");
+				sz_Ext_SetVehicleSubDefinitionName = (Ext_SetVehicleSubDefinitionName)GetProcAddress(moduleSZ, "Ext_SetVehicleSubDefinitionName");
+				sz_Ext_GetVehicleDoingBackfire = (Ext_GetVehicleDoingBackfire)GetProcAddress(moduleSZ, "Ext_GetVehicleDoingBackfire");
+			}
+			else {
+				sz_Ext_SetVehicleBackfireMode = 0;
+				sz_Ext_SetVehicleSubDefinitionName = 0;
+				sz_Ext_GetVehicleDoingBackfire = 0;
+				lg << "Warning: Soundize isn't installed" << std::endl;
 			}
 
 			// Preprocess hierarchy find damage atomics to apply damageable
@@ -918,92 +941,95 @@ public:
 					if (xdata.backfireMatrixHigh[i]) { delete xdata.backfireMatrixHigh[i]; xdata.backfireMatrixHigh[i] = nullptr; }
 				}
 			}
-			int backfire = Ext_GetVehicleDoingBackfire(vehicle);
-			if (backfire > 0) {
-				bool isDoubleExhaust = vehicle->m_pHandlingData->m_nModelFlags.m_bDoubleExhaust;
-				if (xdata.backfire == nullptr || (isDoubleExhaust && xdata.backfireMatrix[1] == nullptr))
-				{
-					CVehicleModelInfo* vehModelInfo = (CVehicleModelInfo*)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
-					if (vehModelInfo) {
-						RwV3d exhaustPos;
-						RwMatrix* matrix = (RwMatrix*)vehicle->m_matrix;
+			if (sz_Ext_GetVehicleDoingBackfire) {
 
-						RwFrame *chassisFrame = reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[CAR_CHASSIS];
-						if (!chassisFrame)
-						{
-							chassisFrame = reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[CAR_NODE_NONE];
-						}
-						if (chassisFrame)
-						{
-							//matrix = (RwMatrix*)&chassisFrame->modelling;
-						}
+				int backfire = sz_Ext_GetVehicleDoingBackfire(vehicle);
+				if (backfire > 0) {
+					bool isDoubleExhaust = vehicle->m_pHandlingData->m_nModelFlags.m_bDoubleExhaust;
+					if (xdata.backfire == nullptr || (isDoubleExhaust && xdata.backfireMatrix[1] == nullptr))
+					{
+						CVehicleModelInfo* vehModelInfo = (CVehicleModelInfo*)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
+						if (vehModelInfo) {
+							RwV3d exhaustPos;
+							RwMatrix* matrix = (RwMatrix*)vehicle->m_matrix;
 
-						CVector* resultDummyPos = GetVehicleDummyPosAdapted(vehicle, 6);
-						exhaustPos.x = resultDummyPos->x;
-						exhaustPos.y = resultDummyPos->y;
-						exhaustPos.z = resultDummyPos->z;
-
-						FxSystemBP_c* blueprint = g_fxMan.FindFxSystemBP("backfire");
-						if (blueprint == nullptr)
-						{
-							blueprint = g_fxMan.FindFxSystemBP("gunflash");
-						}
-
-						FxSystemBP_c* blueprintHigh = g_fxMan.FindFxSystemBP("backfire_high");
-						if (blueprintHigh == nullptr)
-						{
-							blueprintHigh = blueprint;
-						}
-
-						if (blueprint)
-						{
-							int i = 0;
-							int totalExhausts = 1 + (int)isDoubleExhaust;
-
-							for (int i = 0; i < totalExhausts; i++)
+							RwFrame* chassisFrame = reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[CAR_CHASSIS];
+							if (!chassisFrame)
 							{
-								if (xdata.backfireMatrix[i] == nullptr)
+								chassisFrame = reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[CAR_NODE_NONE];
+							}
+							if (chassisFrame)
+							{
+								//matrix = (RwMatrix*)&chassisFrame->modelling;
+							}
+
+							CVector* resultDummyPos = GetVehicleDummyPosAdapted(vehicle, 6);
+							exhaustPos.x = resultDummyPos->x;
+							exhaustPos.y = resultDummyPos->y;
+							exhaustPos.z = resultDummyPos->z;
+
+							FxSystemBP_c* blueprint = g_fxMan.FindFxSystemBP("backfire");
+							if (blueprint == nullptr)
+							{
+								blueprint = g_fxMan.FindFxSystemBP("gunflash");
+							}
+
+							FxSystemBP_c* blueprintHigh = g_fxMan.FindFxSystemBP("backfire_high");
+							if (blueprintHigh == nullptr)
+							{
+								blueprintHigh = blueprint;
+							}
+
+							if (blueprint)
+							{
+								int i = 0;
+								int totalExhausts = 1 + (int)isDoubleExhaust;
+
+								for (int i = 0; i < totalExhausts; i++)
 								{
-									RwMatrix* transformMatrix = new RwMatrix();
-									RwMatrix* transformMatrixHigh = new RwMatrix();
+									if (xdata.backfireMatrix[i] == nullptr)
+									{
+										RwMatrix* transformMatrix = new RwMatrix();
+										RwMatrix* transformMatrixHigh = new RwMatrix();
 
-									RwMatrixTranslate(transformMatrix, &exhaustPos, RwOpCombineType::rwCOMBINEREPLACE);
-									RwMatrixRotate(transformMatrix, (RwV3d*)0x008D2E10, 180.0f, RwOpCombineType::rwCOMBINEPRECONCAT);
+										RwMatrixTranslate(transformMatrix, &exhaustPos, RwOpCombineType::rwCOMBINEREPLACE);
+										RwMatrixRotate(transformMatrix, (RwV3d*)0x008D2E10, 180.0f, RwOpCombineType::rwCOMBINEPRECONCAT);
 
-									RwMatrixTranslate(transformMatrixHigh, &exhaustPos, RwOpCombineType::rwCOMBINEREPLACE);
-									RwMatrixRotate(transformMatrixHigh, (RwV3d*)0x008D2E10, 180.0f, RwOpCombineType::rwCOMBINEPRECONCAT);
-									if (blueprint) xdata.backfire[i] = g_fxMan.CreateFxSystem(blueprint, transformMatrix, matrix, true);
-									if (blueprintHigh) xdata.backfireHigh[i] = g_fxMan.CreateFxSystem(blueprintHigh, transformMatrixHigh, matrix, true);
-									xdata.backfireMatrix[i] = transformMatrix;
-									xdata.backfireMatrixHigh[i] = transformMatrixHigh;
+										RwMatrixTranslate(transformMatrixHigh, &exhaustPos, RwOpCombineType::rwCOMBINEREPLACE);
+										RwMatrixRotate(transformMatrixHigh, (RwV3d*)0x008D2E10, 180.0f, RwOpCombineType::rwCOMBINEPRECONCAT);
+										if (blueprint) xdata.backfire[i] = g_fxMan.CreateFxSystem(blueprint, transformMatrix, matrix, true);
+										if (blueprintHigh) xdata.backfireHigh[i] = g_fxMan.CreateFxSystem(blueprintHigh, transformMatrixHigh, matrix, true);
+										xdata.backfireMatrix[i] = transformMatrix;
+										xdata.backfireMatrixHigh[i] = transformMatrixHigh;
+									}
+									exhaustPos.x *= -1.0f;
 								}
-								exhaustPos.x *= -1.0f;
 							}
 						}
 					}
-				}
-				if (backfire == 1) {
-					if (xdata.backfire[0])
-					{
-						xdata.backfire[0]->SetRateMult(CGeneral::GetRandomNumberInRange(0.15f, 0.25f));
-						xdata.backfire[0]->Play();
+					if (backfire == 1) {
+						if (xdata.backfire[0])
+						{
+							xdata.backfire[0]->SetRateMult(CGeneral::GetRandomNumberInRange(0.15f, 0.25f));
+							xdata.backfire[0]->Play();
+						}
+						if (isDoubleExhaust && xdata.backfire[1])
+						{
+							xdata.backfire[1]->SetRateMult(CGeneral::GetRandomNumberInRange(0.15f, 0.25f));
+							xdata.backfire[1]->Play();
+						}
 					}
-					if (isDoubleExhaust && xdata.backfire[1])
-					{
-						xdata.backfire[1]->SetRateMult(CGeneral::GetRandomNumberInRange(0.15f, 0.25f));
-						xdata.backfire[1]->Play();
-					}
-				}
-				else if (backfire == 2) {
-					if (xdata.backfireHigh[0])
-					{
-						xdata.backfireHigh[0]->SetRateMult(CGeneral::GetRandomNumberInRange(0.7f, 0.9f));
-						xdata.backfireHigh[0]->Play();
-					}
-					if (isDoubleExhaust && xdata.backfireHigh[1])
-					{
-						xdata.backfireHigh[1]->SetRateMult(CGeneral::GetRandomNumberInRange(0.7f, 0.9f));
-						xdata.backfireHigh[1]->Play();
+					else if (backfire == 2) {
+						if (xdata.backfireHigh[0])
+						{
+							xdata.backfireHigh[0]->SetRateMult(CGeneral::GetRandomNumberInRange(0.7f, 0.9f));
+							xdata.backfireHigh[0]->Play();
+						}
+						if (isDoubleExhaust && xdata.backfireHigh[1])
+						{
+							xdata.backfireHigh[1]->SetRateMult(CGeneral::GetRandomNumberInRange(0.7f, 0.9f));
+							xdata.backfireHigh[1]->Play();
+						}
 					}
 				}
 			}
@@ -1140,7 +1166,9 @@ public:
 
 			if (xdata.flags.bWasRenderedOnce == false) {
 				xdata.flags.bWasRenderedOnce = true;
-				if (xdata.backfireMode != -1) Ext_SetVehicleBackfireMode(vehicle, xdata.backfireMode);
+				if (xdata.backfireMode != -1 && sz_Ext_SetVehicleBackfireMode != nullptr) {
+					sz_Ext_SetVehicleBackfireMode(vehicle, xdata.backfireMode);
+				}
 			}
 
 			// Post reset flags

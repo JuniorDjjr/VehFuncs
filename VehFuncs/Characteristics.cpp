@@ -253,7 +253,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 			int i = 4;
 
 			if (useLog) lg << "Charac: Found '_sz=' (Soundize) to sub definition: '" << &name[found + i] << "'\n";
-			Ext_SetVehicleSubDefinitionName(vehicle, (char*)&name[found + i]);
+			if (sz_Ext_SetVehicleSubDefinitionName) sz_Ext_SetVehicleSubDefinitionName(vehicle, (char*)&name[found + i]);
 		}
 
 		// Soundize Backfire Mode
@@ -265,6 +265,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 			ExtendedData& xdata = xData.Get(vehicle);
 
 			xdata.backfireMode = digit1;
+			if (useLog) lg << "Charac: Found '_backfire=' (Soundize backfire) to: '" << digit1 << "'\n";
 		}
 
 		// Double exhaust smoke
