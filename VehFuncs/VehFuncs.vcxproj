@@ -68,7 +68,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>false</SDLCheck>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(PLUGIN_SDK_DIR)\plugin_sa\;$(PLUGIN_SDK_DIR)\plugin_sa\game_sa\;$(PLUGIN_SDK_DIR)\shared\;$(PLUGIN_SDK_DIR)\shared\game\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(PLUGIN_SDK_DIR)\plugin_sa\;$(PLUGIN_SDK_DIR)\plugin_sa\game_sa\;$(PLUGIN_SDK_DIR)\shared\;$(PLUGIN_SDK_DIR)\shared\game\;$(SolutionDir)\Soundize\;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_NDEBUG;_USING_V110_SDK71_;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;GTASA;GTAGAME_NAME="San Andreas";GTAGAME_ABBR="SA";GTAGAME_ABBRLOW="sa";GTAGAME_PROTAGONISTNAME="CJ";GTAGAME_CITYNAME="San Andreas";_LA_SUPPORT;PLUGIN_SGV_10US;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/Zc:threadSafeInit- %(AdditionalOptions)</AdditionalOptions>
@@ -79,7 +79,7 @@
       <GenerateDebugInformation>No</GenerateDebugInformation>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <AdditionalLibraryDirectories>$(PLUGIN_SDK_DIR)\output\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>plugin.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>plugin.lib;Soundize\Soundize (Junior_Djjr).lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -118,6 +118,7 @@
     <ClCompile Include="GearAndFan.cpp" />
     <ClCompile Include="GSXAPI.cpp" />
     <ClCompile Include="HandsFix.cpp" />
+    <ClCompile Include="IndieVehHandlings\IndieVehHandlingsAPI.cpp" />
     <ClCompile Include="Steer.cpp" />
     <ClCompile Include="Trifork.cpp" />
     <ClCompile Include="LoadModel.cpp" />
@@ -148,6 +149,8 @@
     <ClInclude Include="Footpegs.h" />
     <ClInclude Include="GearAndFan.h" />
     <ClInclude Include="GSXAPI.h" />
+    <ClInclude Include="IndieVehHandlings\ExtendedHandling.h" />
+    <ClInclude Include="IndieVehHandlings\IndieVehHandlingsAPI.h" />
     <ClInclude Include="IniReader\IniReader.h" />
     <ClInclude Include="IniReader\ini_parser.hpp" />
     <ClInclude Include="Steer.h" />

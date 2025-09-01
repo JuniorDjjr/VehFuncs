@@ -10,6 +10,7 @@
 #include "Utilities.h"
 #include "CPedModelInfo.h"
 #include "CModelInfo.h"
+#include "Soundize\Soundize.h"
 #include <bitset>
 
 // Disable warnings (caution!)
@@ -177,39 +178,6 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				xdata.mdpmCustomMaxVol = maxVol;
 			}
 
-			// Sound engine
-			found = name.find("_se=");
-			if (found != string::npos)
-			{
-				int i = 4;
-				int sound1 = stoi(&name[found + i]);
-
-				do {
-					++i;
-					if ((found + i) >= 22) {
-						break;
-					}
-				} while (name[found + i] != ',');
-
-				if ((found + i) <= 22) {
-					++i;
-					int sound2 = stoi(&name[found + i]);
-					if (useLog) lg << "Charac: Found '_se=' (sound engine) to sound 1 '" << sound1 << "' sound 2 '" << sound2 << "'\n";
-					vehicle->m_vehicleAudio.m_nEngineAccelerateSoundBankId = sound1;
-					vehicle->m_vehicleAudio.m_nEngineDecelerateSoundBankId = sound2;
-
-					int soundId = 0;
-					do
-						CVehicle__CancelVehicleEngineSound(&vehicle->m_vehicleAudio, soundId++);
-					while (soundId < 12);
-					CAEVehicleAudioEntity__StoppedUsingBankSlot(vehicle->m_vehicleAudio.m_nEngineBankSlotId);
-					vehicle->m_vehicleAudio.m_nEngineBankSlotId = CAEVehicleAudioEntity__RequestBankSlot(sound2);
-				}
-				else {
-					if (useLog) lg << "Charac: ERROR '_se=' (sound engine) can't read values vehicle ID " << vehicle->m_nModelIndex << "\n";
-				}
-			}
-
 			// Dirty (drt=5-9)
 			found = name.find("_drt=");
 			if (found != string::npos)
@@ -243,6 +211,60 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 
 				xdata.dirtyLevel = dirtyLevel;
 			}
+		} //end of no ReSearch
+
+		// Sound engine
+		found = name.find("_se=");
+		if (found != string::npos)
+		{
+			int i = 4;
+			int sound1 = stoi(&name[found + i]);
+
+			do {
+				++i;
+				if ((found + i) >= 22) {
+					break;
+				}
+			} while (name[found + i] != ',');
+
+			if ((found + i) <= 22) {
+				++i;
+				int sound2 = stoi(&name[found + i]);
+				if (useLog) lg << "Charac: Found '_se=' (sound engine) to sound 1 '" << sound1 << "' sound 2 '" << sound2 << "'\n";
+				vehicle->m_vehicleAudio.m_nEngineAccelerateSoundBankId = sound1;
+				vehicle->m_vehicleAudio.m_nEngineDecelerateSoundBankId = sound2;
+
+				int soundId = 0;
+				do
+					CVehicle__CancelVehicleEngineSound(&vehicle->m_vehicleAudio, soundId++);
+				while (soundId < 12);
+				CAEVehicleAudioEntity__StoppedUsingBankSlot(vehicle->m_vehicleAudio.m_nEngineBankSlotId);
+				vehicle->m_vehicleAudio.m_nEngineBankSlotId = CAEVehicleAudioEntity__RequestBankSlot(sound2);
+			}
+			else {
+				if (useLog) lg << "Charac: ERROR '_se=' (sound engine) can't read values vehicle ID " << vehicle->m_nModelIndex << "\n";
+			}
+		}
+
+		// Soundize
+		found = name.find("_sz=");
+		if (found != string::npos)
+		{
+			int i = 4;
+
+			if (useLog) lg << "Charac: Found '_sz=' (Soundize) to sub definition: '" << &name[found + i] << "'\n";
+			Ext_SetVehicleSubDefinitionName(vehicle, (char*)&name[found + i]);
+		}
+
+		// Soundize Backfire Mode
+		found = name.find("_backfire=");
+		if (found != string::npos)
+		{
+			int digit1 = name[found + 10] - '0';
+
+			ExtendedData& xdata = xData.Get(vehicle);
+
+			xdata.backfireMode = digit1;
 		}
 
 		// Double exhaust smoke

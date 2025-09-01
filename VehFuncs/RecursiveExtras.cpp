@@ -334,6 +334,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 						if (classNodesPercent[random] < randomPercent)
 						{
 							//if (useLog) lg << "Extras: Class " << GetFrameNodeName(classNodes[random]) << " not selected: " << classNodesPercent[random] << " percent\n";
+							if (totalClass <= 1) break;
 							continue;
 						}
 					}

@@ -121,15 +121,7 @@ extern "C" int32_t __declspec(dllexport) Ext_GetMDPMnpcCustomMaxVol(CVehicle * v
 
 extern "C" uint32_t __declspec(dllexport) Ext_GetVehicleDummyPosAdapted(CVehicle * vehicle, int dummyId)
 {
-	// This may be used by CLEO+ GET_CAR_DUMMY_COORD_OFFSET
-	// TODO: get custom dummy pos, if any
-	if (vehicle && dummyId >= 0) {
-		CVehicleModelInfo *vehModelInfo = (CVehicleModelInfo *)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
-		if (vehModelInfo) {
-			return (uint32_t)&vehModelInfo->m_pVehicleStruct->m_avDummyPos[dummyId];
-		}
-	}
-	return 0;
+	return (uint32_t)GetVehicleDummyPosAdapted(vehicle, dummyId);
 }
 
 /*
@@ -177,6 +169,8 @@ void CloneNodeAlt(RwFrame *frame, RwFrame *parent, bool isRoot)
 	return;
 }
 
+bool createCloneNoRender = false;
+
 void CloneNode(RwFrame *frame, RpClump * clump, RwFrame *parent, bool isRoot, bool isVarWheel)
 {
 	RwFrame * newFrame;
@@ -212,6 +206,8 @@ void CloneNode(RwFrame *frame, RpClump * clump, RwFrame *parent, bool isRoot, bo
 		}
 
 		RwFrameAddChild(parent, newFrame);
+
+		if (createCloneNoRender) FRAME_EXTENSION(newFrame)->flags.bNeverRender = true;
 
 		if (RwFrame * nextFrame = frame->child) CloneNode(nextFrame, clump, newFrame, false, isVarWheel);
 		if (RwFrame * nextFrame = frame->next)  CloneNode(nextFrame, clump, parent, false, isVarWheel);

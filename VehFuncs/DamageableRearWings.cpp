@@ -10,11 +10,11 @@ void MyCustomVehicleDamageComponent(CAutomobile *car, int component, float inten
 		unsigned char panelId;
 		if (component == 11) {
 			panelId = 2;
-			frame = CClumpModelInfo::GetFrameFromName(car->m_pRwClump, "wing_lr_dummy");
+			frame = CClumpModelInfo::GetFrameFromName(car->m_pRwClump, (char*)"wing_lr_dummy");
 		}
 		else {
 			panelId = 3;
-			frame = CClumpModelInfo::GetFrameFromName(car->m_pRwClump, "wing_rr_dummy");
+			frame = CClumpModelInfo::GetFrameFromName(car->m_pRwClump, (char*)"wing_rr_dummy");
 		}
 		if (frame) { // if component found
 			if (car->m_damageManager.ProgressPanelDamage(panelId)) {

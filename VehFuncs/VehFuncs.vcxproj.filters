@@ -89,6 +89,9 @@
     <ClCompile Include="DigitalOdometer.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="IndieVehHandlings\IndieVehHandlingsAPI.cpp">
+      <Filter>IndieVehHandlings</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AtomicsVisibility.h">
@@ -187,6 +190,12 @@
     <ClInclude Include="DamageableRearWings.h">
       <Filter>Source</Filter>
     </ClInclude>
+    <ClInclude Include="IndieVehHandlings\ExtendedHandling.h">
+      <Filter>IndieVehHandlings</Filter>
+    </ClInclude>
+    <ClInclude Include="IndieVehHandlings\IndieVehHandlingsAPI.h">
+      <Filter>IndieVehHandlings</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">
@@ -203,6 +212,9 @@
     </Filter>
     <Filter Include="IniReader">
       <UniqueIdentifier>{8a298add-e44a-45b2-933e-fb39b1b3b40e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="IndieVehHandlings">
+      <UniqueIdentifier>{0cdae7d6-bd04-40f8-8d72-0facbcef231f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

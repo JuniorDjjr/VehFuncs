@@ -3,9 +3,13 @@
 #include "NodeName.h"
 #include "CVisibilityPlugins.h"
 
+extern bool createCloneNoRender;
+
 void SetWheel(RwFrame * frame[6], CVehicle * vehicle)
 {
 	if (useLog) lg << "Wheel: Processing wheel \n";
+	bool hasTuningWheel = (int)vehicle->m_anUpgrades[0] >= 0;
+	//lg << "Wheel: upgrade " << (int)hasTuningWheel << std::endl;
 	for (int j = 0; j < 6; j++)
 	{
 		if (frame[j])
@@ -61,7 +65,9 @@ void SetWheel(RwFrame * frame[6], CVehicle * vehicle)
 
 							if (wheelFrame) {
 								if (useLog) lg << "Wheel: Copying wheel: " << wheelId << " \n";
+								createCloneNoRender = hasTuningWheel;
 								CloneNode(frame[j]->child, vehicle->m_pRwClump, wheelFrame, false, true);
+								createCloneNoRender = false;
 								CVisibilityPlugins::SetFrameHierarchyId(frame[j]->child, wheelId);
 							}
 							else

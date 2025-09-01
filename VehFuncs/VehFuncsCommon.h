@@ -18,6 +18,9 @@ extern unsigned int FramePluginOffset;
 
 #define FRAME_EXTENSION(frame) ((FramePlugin *)((unsigned int)frame + FramePluginOffset))
 
+CVector* GetVehicleDummyPosAdapted(CVehicle* vehicle, int dummyId);
+
+
 struct FramePlugin
 {
 	// plugin data
@@ -101,6 +104,9 @@ public:
 	float mdpmCustomMinVol;
 	float mdpmCustomMaxVol;
 
+	//Soundize
+	int backfireMode;
+
 	// Speedometer
 	RwFrame * speedoFrame;
 	float speedoMult;
@@ -130,6 +136,7 @@ public:
 		unsigned char bUpgradesUpdated : 1;
 		unsigned char bPreservePaintjobColor : 1;
 		unsigned char bPreservePaintjobColorButNotForever : 1;
+		unsigned char bWasRenderedOnce : 1;
 	} flags;
 
 	RwFrame *triforkFrame;
@@ -144,6 +151,12 @@ public:
 	list<RwFrame*> spoilerFrames;
 	list<F_an*> anims;
 	list<RwFrame*> steer;
+
+	//Backfire
+	FxSystem_c* backfire[2];
+	FxSystem_c* backfireHigh[2];
+	RwMatrix* backfireMatrix[2];
+	RwMatrix* backfireMatrixHigh[2];
 	
 	// ---- Init
 	ExtendedData(CVehicle *vehicle)
@@ -190,6 +203,9 @@ public:
 		mdpmCustomMinVol = 0.0f;
 		mdpmCustomMaxVol = 0.0f;
 
+		//Soundize
+		backfireMode = -1;
+
 		// Speedometer
 		speedoFrame = nullptr;
 		speedoMult = 1.0f;
@@ -209,6 +225,7 @@ public:
 		flags.bUpgradesUpdated = 0;
 		flags.bPreservePaintjobColor = 0;
 		flags.bPreservePaintjobColorButNotForever = 0;
+		flags.bWasRenderedOnce = 0;
 
 		// Popup lights
 		popupProgress[0] = 0.0f;
@@ -232,6 +249,15 @@ public:
 		spoilerFrames.clear();
 		anims.clear();
 		steer.clear();
+
+		//Backfire
+		for (int i = 0; i < 2; i++)
+		{
+			backfire[i] = nullptr;
+			backfireHigh[i] = nullptr;
+			backfireMatrix[i] = nullptr;
+			backfireMatrixHigh[i] = nullptr;
+		}
 	}
 	 
 	// ---- Destroy
@@ -248,6 +274,14 @@ public:
 		if (!fpegBack.empty())
 		{
 			for (auto it : fpegBack) delete it;
+		}
+		//Backfire
+		for (int i = 0; i < 2; i++)
+		{
+			if (backfire[i]) backfire[i]->Kill();
+			if (backfireHigh[i]) backfireHigh[i]->Kill();
+			if (backfireMatrix[i]) delete backfireMatrix[i];
+			if (backfireMatrixHigh[i]) delete backfireMatrixHigh[i];
 		}
 	}
 

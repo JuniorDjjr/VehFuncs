@@ -295,19 +295,19 @@ namespace Patches
 			switch (id)
 			{
 			case eCarNodes::CAR_WHEEL_LF:
-				frame = CClumpModelInfo::GetFrameFromName(clump, "wheel_lf_dummy");
+				frame = CClumpModelInfo::GetFrameFromName(clump, (char*)"wheel_lf_dummy");
 				break;
 			case eCarNodes::CAR_WHEEL_LB:
-				frame = CClumpModelInfo::GetFrameFromName(clump, "wheel_lb_dummy");
+				frame = CClumpModelInfo::GetFrameFromName(clump, (char*)"wheel_lb_dummy");
 				break;
 			case eCarNodes::CAR_WHEEL_RF:
-				frame = CClumpModelInfo::GetFrameFromName(clump, "wheel_rf_dummy");
+				frame = CClumpModelInfo::GetFrameFromName(clump, (char*)"wheel_rf_dummy");
 				break;
 			case eCarNodes::CAR_WHEEL_RB:
-				frame = CClumpModelInfo::GetFrameFromName(clump, "wheel_rb_dummy");
+				frame = CClumpModelInfo::GetFrameFromName(clump, (char*)"wheel_rb_dummy");
 				break;
 			default:
-				frame = CClumpModelInfo::GetFrameFromName(clump, "wheel_lf_dummy");
+				frame = CClumpModelInfo::GetFrameFromName(clump, (char*)"wheel_lf_dummy");
 				break;
 			}
 			if (frame)

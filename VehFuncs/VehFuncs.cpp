@@ -33,6 +33,7 @@
 #include "Steer.h"
  
 // Dependences
+#include "Soundize/Soundize.h"
 #include "../injector/assembly.hpp"
 #include "extensions/ScriptCommands.h"
 #include "CVisibilityPlugins.h"
@@ -44,6 +45,7 @@
 #include "CTask.h"
 #include "CTimer.h"
 #include "CVector.h"
+#include "FxManager_c.h"
 #include "CText.h"
 #include <time.h>
 #include <stdio.h>
@@ -71,6 +73,9 @@ int lastInitializedVehicleModel = -1;
 extern RwTexDictionary *vehicletxdArray[4];
 extern int vehicletxdIndexArray[4];
 std::list<std::pair<unsigned int *, unsigned int>> resetMats;
+
+typedef CVector* (__cdecl* TMGetDummyNumber)(int vehicleRef, int dummyId, CVector *posResult);
+TMGetDummyNumber tm_TMGetDummyNumber = nullptr;
 
 // Ini settings
 bool useLog = true;
@@ -146,7 +151,7 @@ public:
 		 
 		lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		lg << "VF v2.4 \n";
+		lg << "VF v2.5 \n";
 
 		if (ini.data.size() == 0) lg << "ERROR: Unable to read 'VehFuncs.ini'\n";
 
@@ -395,7 +400,14 @@ public:
 			MakeNOP(0x00734240, 6);
 			MakeJMP(0x00734240, Patches::ForceRenderCustomLODTrainAlpha);
 			
-			
+			// 
+			HINSTANCE moduleTM = GetModuleHandleA("TM.asi");
+			if (moduleTM) {
+				tm_TMGetDummyNumber = (TMGetDummyNumber)GetProcAddress(moduleTM, "TMGetDummyNumber");
+			}
+			else {
+				tm_TMGetDummyNumber = 0;
+			}
 
 			// Preprocess hierarchy find damage atomics to apply damageable
 			MakeCALL(0x4C9173, Patches::FindDamage::CustomFindDamageAtomics, true);
@@ -896,6 +908,105 @@ public:
 					if (xdata.smoothBrakePedal < 0.0f) xdata.smoothBrakePedal = 0.0f;
 				}
 			}
+			if (!vehicle->m_nVehicleFlags.bEngineOn) {
+				for (int i = 0; i < 2; i++)
+				{
+					// this way will not just save memory but mainly keep adapted for Tuning Mod exhaust position updates
+					if (xdata.backfire[i]) { xdata.backfire[i]->Kill(); xdata.backfire[i] = nullptr; }
+					if (xdata.backfireHigh[i]) { xdata.backfireHigh[i]->Kill(); xdata.backfireHigh[i] = nullptr; }
+					if (xdata.backfireMatrix[i]) { delete xdata.backfireMatrix[i]; xdata.backfireMatrix[i] = nullptr; }
+					if (xdata.backfireMatrixHigh[i]) { delete xdata.backfireMatrixHigh[i]; xdata.backfireMatrixHigh[i] = nullptr; }
+				}
+			}
+			int backfire = Ext_GetVehicleDoingBackfire(vehicle);
+			if (backfire > 0) {
+				bool isDoubleExhaust = vehicle->m_pHandlingData->m_nModelFlags.m_bDoubleExhaust;
+				if (xdata.backfire == nullptr || (isDoubleExhaust && xdata.backfireMatrix[1] == nullptr))
+				{
+					CVehicleModelInfo* vehModelInfo = (CVehicleModelInfo*)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
+					if (vehModelInfo) {
+						RwV3d exhaustPos;
+						RwMatrix* matrix = (RwMatrix*)vehicle->m_matrix;
+
+						RwFrame *chassisFrame = reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[CAR_CHASSIS];
+						if (!chassisFrame)
+						{
+							chassisFrame = reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[CAR_NODE_NONE];
+						}
+						if (chassisFrame)
+						{
+							//matrix = (RwMatrix*)&chassisFrame->modelling;
+						}
+
+						CVector* resultDummyPos = GetVehicleDummyPosAdapted(vehicle, 6);
+						exhaustPos.x = resultDummyPos->x;
+						exhaustPos.y = resultDummyPos->y;
+						exhaustPos.z = resultDummyPos->z;
+
+						FxSystemBP_c* blueprint = g_fxMan.FindFxSystemBP("backfire");
+						if (blueprint == nullptr)
+						{
+							blueprint = g_fxMan.FindFxSystemBP("gunflash");
+						}
+
+						FxSystemBP_c* blueprintHigh = g_fxMan.FindFxSystemBP("backfire_high");
+						if (blueprintHigh == nullptr)
+						{
+							blueprintHigh = blueprint;
+						}
+
+						if (blueprint)
+						{
+							int i = 0;
+							int totalExhausts = 1 + (int)isDoubleExhaust;
+
+							for (int i = 0; i < totalExhausts; i++)
+							{
+								if (xdata.backfireMatrix[i] == nullptr)
+								{
+									RwMatrix* transformMatrix = new RwMatrix();
+									RwMatrix* transformMatrixHigh = new RwMatrix();
+
+									RwMatrixTranslate(transformMatrix, &exhaustPos, RwOpCombineType::rwCOMBINEREPLACE);
+									RwMatrixRotate(transformMatrix, (RwV3d*)0x008D2E10, 180.0f, RwOpCombineType::rwCOMBINEPRECONCAT);
+
+									RwMatrixTranslate(transformMatrixHigh, &exhaustPos, RwOpCombineType::rwCOMBINEREPLACE);
+									RwMatrixRotate(transformMatrixHigh, (RwV3d*)0x008D2E10, 180.0f, RwOpCombineType::rwCOMBINEPRECONCAT);
+									if (blueprint) xdata.backfire[i] = g_fxMan.CreateFxSystem(blueprint, transformMatrix, matrix, true);
+									if (blueprintHigh) xdata.backfireHigh[i] = g_fxMan.CreateFxSystem(blueprintHigh, transformMatrixHigh, matrix, true);
+									xdata.backfireMatrix[i] = transformMatrix;
+									xdata.backfireMatrixHigh[i] = transformMatrixHigh;
+								}
+								exhaustPos.x *= -1.0f;
+							}
+						}
+					}
+				}
+				if (backfire == 1) {
+					if (xdata.backfire[0])
+					{
+						xdata.backfire[0]->SetRateMult(CGeneral::GetRandomNumberInRange(0.15f, 0.25f));
+						xdata.backfire[0]->Play();
+					}
+					if (isDoubleExhaust && xdata.backfire[1])
+					{
+						xdata.backfire[1]->SetRateMult(CGeneral::GetRandomNumberInRange(0.15f, 0.25f));
+						xdata.backfire[1]->Play();
+					}
+				}
+				else if (backfire == 2) {
+					if (xdata.backfireHigh[0])
+					{
+						xdata.backfireHigh[0]->SetRateMult(CGeneral::GetRandomNumberInRange(0.7f, 0.9f));
+						xdata.backfireHigh[0]->Play();
+					}
+					if (isDoubleExhaust && xdata.backfireHigh[1])
+					{
+						xdata.backfireHigh[1]->SetRateMult(CGeneral::GetRandomNumberInRange(0.7f, 0.9f));
+						xdata.backfireHigh[1]->Play();
+					}
+				}
+			}
 
 			///////////////////////////////////////////////////////////////////////////////////////
 
@@ -1025,6 +1136,11 @@ public:
 			{
 				lg << "Render Finished " << vehicle->m_nModelIndex << "\n";
 				lg.flush();
+			}
+
+			if (xdata.flags.bWasRenderedOnce == false) {
+				xdata.flags.bWasRenderedOnce = true;
+				if (xdata.backfireMode != -1) Ext_SetVehicleBackfireMode(vehicle, xdata.backfireMode);
 			}
 
 			// Post reset flags
@@ -1712,6 +1828,24 @@ CColModel* SetNewCol(CVehicle* vehicle)
 	return newCol;
 }
 
+CVector tempDummyPosResult;
+CVector *GetVehicleDummyPosAdapted(CVehicle* vehicle, int dummyId) {
+	// This is also used by CLEO+ GET_CAR_DUMMY_COORD
+	if (vehicle && dummyId >= 0) {
+		if (tm_TMGetDummyNumber != nullptr) {
+			int vehicleRef = CPools::GetVehicleRef(vehicle);
+			if (vehicleRef != 0 && vehicleRef != -1) {
+				tm_TMGetDummyNumber(vehicleRef, dummyId, &tempDummyPosResult);
+				return &tempDummyPosResult;
+			}
+		}
+		CVehicleModelInfo* vehModelInfo = (CVehicleModelInfo*)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
+		if (vehModelInfo) {
+			return &vehModelInfo->m_pVehicleStruct->m_avDummyPos[dummyId];
+		}
+	}
+	return nullptr;
+}
 
 
 void LogLastVehicleRendered()
@@ -1749,6 +1883,7 @@ void LogVehicleModelWithText(string str1, int vehicleModel, string str2)
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
+	//lg << "addupgrade " << GetFrameNodeName(frame) << std::endl;
 	if (RwFrame * newFrame = frame->child)  CustomRwFrameForAllChildren_AddUpgrade_Recurse(newFrame, callback, data);
 	return frame;
 }
