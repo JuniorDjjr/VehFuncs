@@ -74,9 +74,11 @@ extern RwTexDictionary *vehicletxdArray[4];
 extern int vehicletxdIndexArray[4];
 std::list<std::pair<unsigned int *, unsigned int>> resetMats;
 
+// -- Tuning Mod
 typedef CVector* (__cdecl* TMGetDummyNumber)(int vehicleRef, int dummyId, CVector *posResult);
 TMGetDummyNumber tm_TMGetDummyNumber = nullptr;
 
+// -- Soundize
 typedef void(__cdecl* Ext_SetVehicleBackfireMode)(CVehicle* vehicle, int mode);
 Ext_SetVehicleBackfireMode sz_Ext_SetVehicleBackfireMode = nullptr;
 
@@ -85,6 +87,23 @@ Ext_SetVehicleSubDefinitionName sz_Ext_SetVehicleSubDefinitionName = nullptr;
 
 typedef int(__cdecl* Ext_GetVehicleDoingBackfire)(CVehicle* vehicle);
 Ext_GetVehicleDoingBackfire sz_Ext_GetVehicleDoingBackfire = nullptr;
+
+// -- ModelExtras
+struct ME_ExhaustInfo {
+public:
+	RwFrame* pFrame;
+	CRGBA Color;
+	float fSpeedMul;
+	float fLifeTime;
+	float fSizeMul;
+	bool bNitroEffect;
+};
+
+typedef unsigned int(__cdecl* ME_GetExhaustCount)(CVehicle* pVeh);
+ME_GetExhaustCount pME_GetExhaustCount = nullptr;
+
+typedef ME_ExhaustInfo(__cdecl* ME_GetExhaustData)(CVehicle* pVeh, int index);
+ME_GetExhaustData pME_GetExhaustData = nullptr;
 
 // Ini settings
 bool useLog = true;
@@ -160,7 +179,7 @@ public:
 		 
 		lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		lg << "VF v2.5 \n";
+		lg << "VF v2.5.1 \n";
 
 		if (ini.data.size() == 0) lg << "ERROR: Unable to read 'VehFuncs.ini'\n";
 
@@ -178,6 +197,9 @@ public:
 		// Patch for additional vehicle*.txd. Need it even before vehicle.txd loading due to copcarla loading order.
 		patch::RedirectCall(0x4C7533, Patches::Custom_RwTexDictionaryFindNamedTexture, true);
 		patch::RedirectCall(0x731733, Patches::Custom_RwTexDictionaryFindNamedTexture, true); // for map etc
+
+		patch::RedirectCall(0x6D308A, Patches::Custom_SetWindowOpen_GetFrameFromId, true);
+		patch::RedirectCall(0x6D30BA, Patches::Custom_ClearWindowOpen_GetFrameFromId, true);
 
 		// Fix "ug_" dummies outside "chassis" (ID 1) using first node (ID 0) (usually a wheel node).
 		MakeInline<0x004C8FA1, 0x004C8FA1 + 6>([](reg_pack& regs)
@@ -197,7 +219,7 @@ public:
 				if (regs.eax)
 				{
 					RpAtomic *atomic = (RpAtomic *)regs.eax;
-					if ((uintptr_t)atomic->geometry < (uintptr_t)0x1000)
+					if ((uintptr_t)atomic->geometry < (uintptr_t)0x10000)
 					{
 						CAtomicModelInfo* modelInfo = reinterpret_cast<CAtomicModelInfo*>(regs.esi);
 						LogVehicleModelWithText("GAME CRASH CAtomicModelInfo::DeleteRwObject: For TXD index (normally same as vehicle model ID) ", modelInfo->m_nTxdIndex, ": Game will crash. Check '0x004C444A' on MixMods' Crash List.");
@@ -213,7 +235,7 @@ public:
 			});
 			MakeInline<0x006E3D9C, 0x006E3D9C + 6>([](reg_pack& regs)
 			{
-				if (regs.eax < (uintptr_t)0x1000)
+				if (regs.eax < (uintptr_t)0x10000)
 				{
 					LogVehicleModelWithText("GAME CRASH ComputeAnimDoorOffsets on vehicle model ID ", tempVehicleModel, ": Vehicle anim group not loaded. Maybe vehicle.ide line is wrong for handling.cfg line (wrong anim groups). Check '0x006E3D9C' on MixMods' Crash List.");
 				}
@@ -416,6 +438,7 @@ public:
 			}
 			else {
 				tm_TMGetDummyNumber = 0;
+				lg << "Info: Tuning Mod isn't installed" << std::endl;
 			}
 
 			// 
@@ -429,7 +452,20 @@ public:
 				sz_Ext_SetVehicleBackfireMode = 0;
 				sz_Ext_SetVehicleSubDefinitionName = 0;
 				sz_Ext_GetVehicleDoingBackfire = 0;
-				lg << "Warning: Soundize isn't installed" << std::endl;
+				lg << "Info: Soundize isn't installed" << std::endl;
+			}
+			
+			// 
+			HINSTANCE moduleME = GetModuleHandleA("ModelExtras.asi");
+			if (moduleME) {
+
+				pME_GetExhaustCount = (ME_GetExhaustCount)GetProcAddress(moduleME, "ME_GetExhaustCount");
+				pME_GetExhaustData = (ME_GetExhaustData)GetProcAddress(moduleME, "ME_GetExhaustData");
+			}
+			else {
+				pME_GetExhaustCount = 0;
+				pME_GetExhaustData = 0;
+				lg << "Info: ModelExtras isn't installed" << std::endl;
 			}
 
 			// Preprocess hierarchy find damage atomics to apply damageable
@@ -487,6 +523,7 @@ public:
 					if (noLights) *(uint32_t*)(regs.esp - 0x4) = 0x6E28EF; //don't process lights
 				}
 			});
+
 
 
 			// Upgrade updated
@@ -666,7 +703,7 @@ public:
 				lg << "After Pre Render " << lastRenderedVehicleModel << "\n";
 				lg.flush();
 			}
-			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x1000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, ": Game will crash. Check MixMods' Crash List.");
+			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x10000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, ": Game will crash. Check MixMods' CrashInfo list.");
 		};
 
 		// -- On vehicle render
@@ -680,7 +717,7 @@ public:
 				lg << "Before Render " << lastRenderedVehicleModel << "\n";
 				lg.flush();
 			}
-			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x1000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, " (start): Game will crash. Check MixMods' Crash List.");
+			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x10000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, " (start): Game will crash. Check MixMods' CrashInfo list.");
 
 			// Reset material stuff (after render) - doesn't work on .after, I don't know why...
 			for (auto &p : resetMats)
@@ -698,7 +735,7 @@ public:
 			if (customSeedList.size() > 0)
 			{
 				list<CustomSeed> customSeedsToRemove;
-				if (useLog && bNewFrame) lg << "Custom Seed: Running list size " << customSeedList.size() << "\n";
+				//if (useLog && bNewFrame) lg << "Custom Seed: Running list size " << customSeedList.size() << "\n";
 
 				for (list<CustomSeed>::iterator it = customSeedList.begin(); it != customSeedList.end(); ++it)
 				{
@@ -935,10 +972,21 @@ public:
 				for (int i = 0; i < 2; i++)
 				{
 					// this way will not just save memory but mainly keep adapted for Tuning Mod exhaust position updates
+					xdata.flags.bBackfireIsUpdated = false;
 					if (xdata.backfire[i]) { xdata.backfire[i]->Kill(); xdata.backfire[i] = nullptr; }
 					if (xdata.backfireHigh[i]) { xdata.backfireHigh[i]->Kill(); xdata.backfireHigh[i] = nullptr; }
 					if (xdata.backfireMatrix[i]) { delete xdata.backfireMatrix[i]; xdata.backfireMatrix[i] = nullptr; }
-					if (xdata.backfireMatrixHigh[i]) { delete xdata.backfireMatrixHigh[i]; xdata.backfireMatrixHigh[i] = nullptr; }
+					//Extras
+					for (int i = 0; i < xdata.extraExhaustsCount; i++)
+					{
+						if (xdata.backfireExtra != nullptr)
+						{
+							if (xdata.backfireExtra[i]) { xdata.backfireExtra[i]->Kill(); xdata.backfireExtra[i] = nullptr; }
+							if (xdata.backfireHighExtra[i]) { xdata.backfireHighExtra[i]->Kill(); xdata.backfireHighExtra[i] = nullptr; }
+							if (xdata.backfireMatrixExtra[i]) { delete xdata.backfireMatrixExtra[i];xdata.backfireMatrixExtra[i] = nullptr; }
+						}
+					}
+
 				}
 			}
 			if (sz_Ext_GetVehicleDoingBackfire) {
@@ -946,22 +994,13 @@ public:
 				int backfire = sz_Ext_GetVehicleDoingBackfire(vehicle);
 				if (backfire > 0) {
 					bool isDoubleExhaust = vehicle->m_pHandlingData->m_nModelFlags.m_bDoubleExhaust;
-					if (xdata.backfire == nullptr || (isDoubleExhaust && xdata.backfireMatrix[1] == nullptr))
+					if (xdata.flags.bBackfireIsUpdated == false)
 					{
+						xdata.flags.bBackfireIsUpdated = true;
 						CVehicleModelInfo* vehModelInfo = (CVehicleModelInfo*)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
 						if (vehModelInfo) {
 							RwV3d exhaustPos;
-							RwMatrix* matrix = (RwMatrix*)vehicle->m_matrix;
-
-							RwFrame* chassisFrame = reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[CAR_CHASSIS];
-							if (!chassisFrame)
-							{
-								chassisFrame = reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[CAR_NODE_NONE];
-							}
-							if (chassisFrame)
-							{
-								//matrix = (RwMatrix*)&chassisFrame->modelling;
-							}
+							RwMatrix* vehicleMatrix = (RwMatrix*)vehicle->m_matrix;
 
 							CVector* resultDummyPos = GetVehicleDummyPosAdapted(vehicle, 6);
 							exhaustPos.x = resultDummyPos->x;
@@ -974,7 +1013,7 @@ public:
 								blueprint = g_fxMan.FindFxSystemBP("gunflash");
 							}
 
-							FxSystemBP_c* blueprintHigh = g_fxMan.FindFxSystemBP("backfire_high");
+							FxSystemBP_c* blueprintHigh = g_fxMan.FindFxSystemBP("backfire_high"); 
 							if (blueprintHigh == nullptr)
 							{
 								blueprintHigh = blueprint;
@@ -982,27 +1021,65 @@ public:
 
 							if (blueprint)
 							{
-								int i = 0;
-								int totalExhausts = 1 + (int)isDoubleExhaust;
-
-								for (int i = 0; i < totalExhausts; i++)
+								if (exhaustPos.x != 0.0f || exhaustPos.y != 0.0f || exhaustPos.z != 0.0f)
 								{
-									if (xdata.backfireMatrix[i] == nullptr)
+									int i = 0;
+									int totalExhausts = 1 + (int)isDoubleExhaust;
+
+									for (int i = 0; i < totalExhausts; i++)
 									{
-										RwMatrix* transformMatrix = new RwMatrix();
-										RwMatrix* transformMatrixHigh = new RwMatrix();
+										if (xdata.backfireMatrix[i] == nullptr)
+										{
+											RwMatrix* transformMatrix = new RwMatrix();
 
-										RwMatrixTranslate(transformMatrix, &exhaustPos, RwOpCombineType::rwCOMBINEREPLACE);
-										RwMatrixRotate(transformMatrix, (RwV3d*)0x008D2E10, 180.0f, RwOpCombineType::rwCOMBINEPRECONCAT);
+											RwMatrixTranslate(transformMatrix, &exhaustPos, RwOpCombineType::rwCOMBINEREPLACE);
+											RwMatrixRotate(transformMatrix, (RwV3d*)0x008D2E10, 180.0f, RwOpCombineType::rwCOMBINEPRECONCAT);
 
-										RwMatrixTranslate(transformMatrixHigh, &exhaustPos, RwOpCombineType::rwCOMBINEREPLACE);
-										RwMatrixRotate(transformMatrixHigh, (RwV3d*)0x008D2E10, 180.0f, RwOpCombineType::rwCOMBINEPRECONCAT);
-										if (blueprint) xdata.backfire[i] = g_fxMan.CreateFxSystem(blueprint, transformMatrix, matrix, true);
-										if (blueprintHigh) xdata.backfireHigh[i] = g_fxMan.CreateFxSystem(blueprintHigh, transformMatrixHigh, matrix, true);
-										xdata.backfireMatrix[i] = transformMatrix;
-										xdata.backfireMatrixHigh[i] = transformMatrixHigh;
+											if (blueprint) xdata.backfire[i] = g_fxMan.CreateFxSystem(blueprint, transformMatrix, vehicleMatrix, true);
+											if (blueprintHigh) xdata.backfireHigh[i] = g_fxMan.CreateFxSystem(blueprintHigh, transformMatrix, vehicleMatrix, true);
+
+											xdata.backfireMatrix[i] = transformMatrix;
+										}
+										exhaustPos.x *= -1.0f;
 									}
-									exhaustPos.x *= -1.0f;
+								}
+								if (pME_GetExhaustCount != nullptr)
+								{
+									int extraExhaustsCount = pME_GetExhaustCount(vehicle);
+									xdata.extraExhaustsCount = extraExhaustsCount;
+
+									if (extraExhaustsCount > 0)
+									{
+										xdata.backfireExtra = new FxSystem_c*[extraExhaustsCount];
+										xdata.backfireHighExtra = new FxSystem_c*[extraExhaustsCount];
+										xdata.backfireMatrixExtra = new RwMatrix*[extraExhaustsCount];
+
+										for (int i = 0; i < extraExhaustsCount; i++)
+										{
+											ME_ExhaustInfo exhaustInfo = pME_GetExhaustData(vehicle, i);
+											if (exhaustInfo.pFrame != nullptr) {
+
+												RwMatrix* exhaustMatrix = (RwMatrix*)&exhaustInfo.pFrame->modelling;
+
+												RwV3d exhaustPos = exhaustMatrix->pos;
+												//lg << "exhaust offset pos " << exhaustPos.x << " " << exhaustPos.y << std::endl;
+
+												RwMatrix* transformMatrix = new RwMatrix(); //I think is safer to have my own matrix intead of using the matrix directly from the exhaust frame
+												memcpy_s(transformMatrix, 0x40, exhaustMatrix, 0x40);
+
+												if (blueprint) xdata.backfireExtra[i] = g_fxMan.CreateFxSystem(blueprint, transformMatrix, vehicleMatrix, true);
+												if (blueprintHigh) xdata.backfireHighExtra[i] = g_fxMan.CreateFxSystem(blueprintHigh, transformMatrix, vehicleMatrix, true);
+
+												xdata.backfireMatrixExtra[i] = transformMatrix;
+											}
+											else {
+												xdata.backfireExtra[i] = nullptr;
+												xdata.backfireHighExtra[i] = nullptr;
+												xdata.backfireMatrixExtra[i] = nullptr;
+											}
+										}
+									}
+
 								}
 							}
 						}
@@ -1018,6 +1095,17 @@ public:
 							xdata.backfire[1]->SetRateMult(CGeneral::GetRandomNumberInRange(0.15f, 0.25f));
 							xdata.backfire[1]->Play();
 						}
+						//extras
+						for (int i = 0; i < xdata.extraExhaustsCount; i++)
+						{
+							lg << "exhaust extra backfire 1a " << i << " " << xdata.backfireExtra[i] << std::endl;
+							if (xdata.backfireExtra[i])
+							{
+								xdata.backfireExtra[i]->SetRateMult(CGeneral::GetRandomNumberInRange(0.15f, 0.25f));
+								xdata.backfireExtra[i]->Play();
+								lg << "exhaust extra backfire 1 " << i << " " << xdata.backfireExtra[i]->m_nPlayStatus << std::endl;
+							}
+						}
 					}
 					else if (backfire == 2) {
 						if (xdata.backfireHigh[0])
@@ -1029,6 +1117,17 @@ public:
 						{
 							xdata.backfireHigh[1]->SetRateMult(CGeneral::GetRandomNumberInRange(0.7f, 0.9f));
 							xdata.backfireHigh[1]->Play();
+						}
+						//extras
+						for (int i = 0; i < xdata.extraExhaustsCount; i++)
+						{
+							lg << "exhaust extra backfire 2a " << i << " " << xdata.backfireHighExtra[i] << std::endl;
+							if (xdata.backfireHighExtra[i])
+							{
+								xdata.backfireHighExtra[i]->SetRateMult(CGeneral::GetRandomNumberInRange(0.7f, 0.9f));
+								xdata.backfireHighExtra[i]->Play();
+								lg << "exhaust extra backfire 2 " << i << " " << xdata.backfireHighExtra[i]->m_nPlayStatus << std::endl;
+							}
 						}
 					}
 				}
@@ -1136,7 +1235,7 @@ public:
 			// Process steer
 			if (!xdata.steer.empty()) ProcessSteer(vehicle, xdata.steer);
 
-			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x1000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, " (end): Game will crash. Check MixMods' Crash List.");
+			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x10000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, " (end): Game will crash. Check MixMods' CrashInfo list.");
 		
 			if (iniLogModelRender)
 			{
@@ -2110,6 +2209,11 @@ extern "C" int32_t __declspec(dllexport) GetColl(CVehicle * vehicle)
 	return (int32_t)xdata.colModel;
 }
 
+extern "C" int __declspec(dllexport) ignore3() // it appears on crash logs, like modloader.log
+{
+	return 0;
+}
+
 extern "C" void __declspec(dllexport) SetNewHandling(CVehicle * vehicle, tHandlingData * newOriginalHandling)
 {
 	ExtraData& xdata = extraInfo.Get(vehicle);
@@ -2122,7 +2226,7 @@ extern "C" void __declspec(dllexport) SetNewHandling(CVehicle * vehicle, tHandli
 	return;
 }
 
-extern "C" void __declspec(dllexport) ignore3() // it appears on crash logs, like modloader.log
+extern "C" int __declspec(dllexport) ignore4() // it appears on crash logs, like modloader.log
 {
-	return;
+	return 0;
 }

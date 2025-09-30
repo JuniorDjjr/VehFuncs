@@ -287,6 +287,45 @@ namespace Patches
 		}
 	}
 
+
+	void Custom_WindowOpen_GetFrameFromId_SetFlag(RwFrame* frame, bool set)
+	{
+		if (frame == nullptr) return;
+
+		const string name = GetFrameNodeName(frame);
+		size_t found = name.find("glass");
+		size_t found2 = name.find("window");
+		if (found != string::npos || found2 != string::npos)
+		{
+			RwFrameForAllObjects(frame, set ? CVehicleModelInfo::SetAtomicFlagCB : CVehicleModelInfo::ClearAtomicFlagCB, (void*)0x1000);
+		}
+
+		/////////////////////////////////////////
+		if (RwFrame* newFrame = frame->child) Custom_WindowOpen_GetFrameFromId_SetFlag(newFrame, set);
+		if (RwFrame* newFrame = frame->next)  Custom_WindowOpen_GetFrameFromId_SetFlag(newFrame, set);
+
+		return;
+	}
+
+
+	RwFrame* __cdecl Custom_SetWindowOpen_GetFrameFromId(RpClump* clump, int id)
+	{
+		RwFrame *frame = CClumpModelInfo::GetFrameFromId(clump, id);
+		if (frame) {
+			Custom_WindowOpen_GetFrameFromId_SetFlag(frame, true);
+		}
+		return frame;
+	}
+
+	RwFrame* __cdecl Custom_ClearWindowOpen_GetFrameFromId(RpClump* clump, int id)
+	{
+		RwFrame* frame = CClumpModelInfo::GetFrameFromId(clump, id);
+		if (frame) {
+			Custom_WindowOpen_GetFrameFromId_SetFlag(frame, false);
+		}
+		return frame;
+	}
+
 	RwFrame* MyGetWheelPosnGetFrameById(RpClump *clump, int id)
 	{
 		RwFrame *frame = CClumpModelInfo::GetFrameFromId(clump, id);

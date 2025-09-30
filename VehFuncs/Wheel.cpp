@@ -5,11 +5,17 @@
 
 extern bool createCloneNoRender;
 
+int CVehicle__GetReplacementUpgrade(CVehicle *_this, int nodeId)
+{
+	return ((int(__thiscall*)(CVehicle*, int))0x6D3A50)(_this, nodeId);
+}
+
 void SetWheel(RwFrame * frame[6], CVehicle * vehicle)
 {
 	if (useLog) lg << "Wheel: Processing wheel \n";
-	bool hasTuningWheel = (int)vehicle->m_anUpgrades[0] >= 0;
-	//lg << "Wheel: upgrade " << (int)hasTuningWheel << std::endl;
+	createCloneNoRender = false;
+	bool hasTuningWheel = CVehicle__GetReplacementUpgrade(vehicle, 2) != -1;
+	lg << "Wheel: upgrade " << (int)CVehicle__GetReplacementUpgrade(vehicle, 2) << std::endl;
 	for (int j = 0; j < 6; j++)
 	{
 		if (frame[j])

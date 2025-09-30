@@ -137,6 +137,7 @@ public:
 		unsigned char bPreservePaintjobColor : 1;
 		unsigned char bPreservePaintjobColorButNotForever : 1;
 		unsigned char bWasRenderedOnce : 1;
+		unsigned char bBackfireIsUpdated : 1;
 	} flags;
 
 	RwFrame *triforkFrame;
@@ -156,7 +157,11 @@ public:
 	FxSystem_c* backfire[2];
 	FxSystem_c* backfireHigh[2];
 	RwMatrix* backfireMatrix[2];
-	RwMatrix* backfireMatrixHigh[2];
+
+	int extraExhaustsCount;
+	FxSystem_c** backfireExtra;
+	FxSystem_c** backfireHighExtra;
+	RwMatrix** backfireMatrixExtra;
 	
 	// ---- Init
 	ExtendedData(CVehicle *vehicle)
@@ -226,6 +231,7 @@ public:
 		flags.bPreservePaintjobColor = 0;
 		flags.bPreservePaintjobColorButNotForever = 0;
 		flags.bWasRenderedOnce = 0;
+		flags.bBackfireIsUpdated = 0;
 
 		// Popup lights
 		popupProgress[0] = 0.0f;
@@ -256,8 +262,11 @@ public:
 			backfire[i] = nullptr;
 			backfireHigh[i] = nullptr;
 			backfireMatrix[i] = nullptr;
-			backfireMatrixHigh[i] = nullptr;
 		}
+		extraExhaustsCount = 0;
+		backfireExtra = nullptr;
+		backfireHighExtra = nullptr;
+		backfireMatrixExtra = nullptr;
 	}
 	 
 	// ---- Destroy
@@ -281,7 +290,16 @@ public:
 			if (backfire[i]) backfire[i]->Kill();
 			if (backfireHigh[i]) backfireHigh[i]->Kill();
 			if (backfireMatrix[i]) delete backfireMatrix[i];
-			if (backfireMatrixHigh[i]) delete backfireMatrixHigh[i];
+		}
+		//Backfire Extras
+		for (int i = 0; i < extraExhaustsCount; i++)
+		{
+			if (backfireExtra != nullptr)
+			{
+				if (backfireExtra[i]) backfireExtra[i]->Kill();
+				if (backfireHighExtra[i]) backfireHighExtra[i]->Kill();
+				if (backfireMatrixExtra[i]) delete backfireMatrixExtra[i];
+			}
 		}
 	}
 
@@ -316,6 +334,31 @@ public:
 		spoilerFrames.clear();
 		anims.clear();
 		steer.clear();
+
+		//Backfire
+		for (int i = 0; i < 2; i++)
+		{
+			if (backfire[i]) backfire[i]->Kill();
+			if (backfireHigh[i]) backfireHigh[i]->Kill();
+			if (backfireMatrix[i]) delete backfireMatrix[i];
+			backfire[i] = nullptr;
+			backfireHigh[i] = nullptr;
+			backfireMatrix[i] = nullptr;
+		}
+		//Backfire Extras
+		for (int i = 0; i < extraExhaustsCount; i++)
+		{
+			if (backfireExtra != nullptr)
+			{
+				if (backfireExtra[i]) backfireExtra[i]->Kill();
+				if (backfireHighExtra[i]) backfireHighExtra[i]->Kill();
+				if (backfireMatrixExtra[i]) delete backfireMatrixExtra[i];
+			}
+		}
+		extraExhaustsCount = 0;
+		backfireExtra = nullptr;
+		backfireHighExtra = nullptr;
+		backfireMatrixExtra = nullptr;
 	}
 };
 
