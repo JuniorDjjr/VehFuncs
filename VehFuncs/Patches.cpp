@@ -288,7 +288,7 @@ namespace Patches
 	}
 
 
-	void Custom_WindowOpen_GetFrameFromId_SetFlag(RwFrame* frame, bool set)
+	void Custom_WindowOpen_GetFrameFromId_SetFlag(RwFrame* frame, bool set, bool isStart)
 	{
 		if (frame == nullptr) return;
 
@@ -301,8 +301,10 @@ namespace Patches
 		}
 
 		/////////////////////////////////////////
-		if (RwFrame* newFrame = frame->child) Custom_WindowOpen_GetFrameFromId_SetFlag(newFrame, set);
-		if (RwFrame* newFrame = frame->next)  Custom_WindowOpen_GetFrameFromId_SetFlag(newFrame, set);
+		if (RwFrame* newFrame = frame->child) Custom_WindowOpen_GetFrameFromId_SetFlag(newFrame, set, false);
+		if (!isStart) {
+			if (RwFrame* newFrame = frame->next)  Custom_WindowOpen_GetFrameFromId_SetFlag(newFrame, set, false);
+		}
 
 		return;
 	}
@@ -312,7 +314,7 @@ namespace Patches
 	{
 		RwFrame *frame = CClumpModelInfo::GetFrameFromId(clump, id);
 		if (frame) {
-			Custom_WindowOpen_GetFrameFromId_SetFlag(frame, true);
+			Custom_WindowOpen_GetFrameFromId_SetFlag(frame, true, true);
 		}
 		return frame;
 	}
@@ -321,7 +323,7 @@ namespace Patches
 	{
 		RwFrame* frame = CClumpModelInfo::GetFrameFromId(clump, id);
 		if (frame) {
-			Custom_WindowOpen_GetFrameFromId_SetFlag(frame, false);
+			Custom_WindowOpen_GetFrameFromId_SetFlag(frame, false, true);
 		}
 		return frame;
 	}

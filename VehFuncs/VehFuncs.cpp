@@ -62,7 +62,7 @@ uintptr_t AtomicAlphaCallBack;
 uint32_t txdIndexStart;
 VehicleExtendedData<ExtendedData> xData;
 fstream lg;
-bool IVFinstalled = false, APPinstalled = false, bFirstFrame = false, bFirstScriptFrame = false, bInitPatched = false, bNewFrame = false, bIndieVehicles = false;
+bool IVFinstalled = false, APPinstalled = false, VehIKInstalled = false, bFirstFrame = false, bFirstScriptFrame = false, bInitPatched = false, bNewFrame = false, bIndieVehicles = false;
 CVehicle *curVehicle;
 bool noChassis = false;
 bool ignoreCrashInfo = false;
@@ -179,7 +179,7 @@ public:
 		 
 		lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		lg << "VF v2.5.1 \n";
+		lg << "VF v2.5.2 \n";
 
 		if (ini.data.size() == 0) lg << "ERROR: Unable to read 'VehFuncs.ini'\n";
 
@@ -431,7 +431,6 @@ public:
 			MakeNOP(0x00734240, 6);
 			MakeJMP(0x00734240, Patches::ForceRenderCustomLODTrainAlpha);
 			
-			// 
 			HINSTANCE moduleTM = GetModuleHandleA("TM.asi");
 			if (moduleTM) {
 				tm_TMGetDummyNumber = (TMGetDummyNumber)GetProcAddress(moduleTM, "TMGetDummyNumber");
@@ -441,7 +440,6 @@ public:
 				lg << "Info: Tuning Mod isn't installed" << std::endl;
 			}
 
-			// 
 			HINSTANCE moduleSZ = GetModuleHandleA("Soundize (Junior_Djjr).asi");
 			if (moduleSZ) {
 				sz_Ext_SetVehicleBackfireMode = (Ext_SetVehicleBackfireMode)GetProcAddress(moduleSZ, "Ext_SetVehicleBackfireMode");
@@ -455,7 +453,6 @@ public:
 				lg << "Info: Soundize isn't installed" << std::endl;
 			}
 			
-			// 
 			HINSTANCE moduleME = GetModuleHandleA("ModelExtras.asi");
 			if (moduleME) {
 
@@ -466,6 +463,16 @@ public:
 				pME_GetExhaustCount = 0;
 				pME_GetExhaustData = 0;
 				lg << "Info: ModelExtras isn't installed" << std::endl;
+			}
+			
+			HINSTANCE moduleVehIK = GetModuleHandleA("VehIK.asi");
+			if (moduleVehIK) {
+
+				VehIKInstalled = true;
+			}
+			else {
+				VehIKInstalled = false;
+				lg << "Info: VehIK isn't installed" << std::endl;
 			}
 
 			// Preprocess hierarchy find damage atomics to apply damageable
@@ -1758,13 +1765,15 @@ public:
 				}
 
 				// Steer
-				found = name.find("f_steer");
-				if (found != string::npos)
-				{
-					if (useLog) lg << "Steer: Found 'f_steer' \n";
-					if (CreateMatrixBackup(frame)) {
-						xdata.steer.push_back(frame);
-						FRAME_EXTENSION(frame)->owner = vehicle;
+				if (!VehIKInstalled) {
+					found = name.find("f_steer");
+					if (found != string::npos)
+					{
+						if (useLog) lg << "Steer: Found 'f_steer' \n";
+						if (CreateMatrixBackup(frame)) {
+							xdata.steer.push_back(frame);
+							FRAME_EXTENSION(frame)->owner = vehicle;
+						}
 					}
 				}
 
@@ -1773,26 +1782,28 @@ public:
 			{
 				if (!IVFinstalled) {
 					ExtendedData &xdata = xData.Get(vehicle);
-					found = name.find("movsteer");
-					if (found != string::npos)
-					{
+					if (!VehIKInstalled) {
 						found = name.find("movsteer");
 						if (found != string::npos)
 						{
-							if (name[8] == '_') {
-								if (isdigit(name[9])) {
-									if (useLog) lg << "Retrocompatibility: Found 'movsteer_*' \n";
+							found = name.find("movsteer");
+							if (found != string::npos)
+							{
+								if (name[8] == '_') {
+									if (isdigit(name[9])) {
+										if (useLog) lg << "Retrocompatibility: Found 'movsteer_*' \n";
+										if (CreateMatrixBackup(frame)) {
+											xdata.steer.push_back(frame);
+											FRAME_EXTENSION(frame)->owner = vehicle;
+										}
+									}
+								}
+								else {
+									if (useLog) lg << "Retrocompatibility: Found 'movsteer' \n";
 									if (CreateMatrixBackup(frame)) {
 										xdata.steer.push_back(frame);
 										FRAME_EXTENSION(frame)->owner = vehicle;
 									}
-								}
-							}
-							else {
-								if (useLog) lg << "Retrocompatibility: Found 'movsteer' \n";
-								if (CreateMatrixBackup(frame)) {
-									xdata.steer.push_back(frame);
-									FRAME_EXTENSION(frame)->owner = vehicle;
 								}
 							}
 						}
@@ -1800,14 +1811,16 @@ public:
 				}
 				if (!APPinstalled) {
 					ExtendedData &xdata = xData.Get(vehicle);
-					found = name.find("steering_dummy");
-					if (found != string::npos)
-					{
-						if (frame->child) {
-							if (useLog) lg << "Retrocompatibility: Found 'steering' \n";
-							if (CreateMatrixBackup(frame->child)) {
-								xdata.steer.push_back(frame->child);
-								FRAME_EXTENSION(frame->child)->owner = vehicle;
+					if (!VehIKInstalled) {
+						found = name.find("steering_dummy");
+						if (found != string::npos)
+						{
+							if (frame->child) {
+								if (useLog) lg << "Retrocompatibility: Found 'steering' \n";
+								if (CreateMatrixBackup(frame->child)) {
+									xdata.steer.push_back(frame->child);
+									FRAME_EXTENSION(frame->child)->owner = vehicle;
+								}
 							}
 						}
 					}
