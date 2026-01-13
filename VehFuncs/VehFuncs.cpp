@@ -112,6 +112,7 @@ float iniDefaultSteerAngle = 100.0f;
 bool iniLogNoTextureFound = false;
 bool iniLogModelRender = false;
 bool iniShowCrashInfos = true;
+bool iniEnableAdditionalVehicleTxd = true;
 
 // IndieVehicles
 
@@ -164,6 +165,7 @@ public:
 			iniShowCrashInfos = ini.ReadInteger("Test", "ShowCrashInfos", 0);
 			iniDefaultDirtMult = ini.ReadFloat("Settings", "DefaultDirtMult", 1.0f);
 			iniDefaultSteerAngle = ini.ReadFloat("Settings", "DefaultSteerAngle", 100.0f);
+			iniEnableAdditionalVehicleTxd = ini.ReadInteger("Settings", "EnableAdditionalVehicleTxd", 1);
 			if (ini.ReadInteger("Settings", "NoSwingingChassis", 0) == 1)
 			{
 				MakeInline<0x006AC104, 0x006AC104 + 7>([](reg_pack& regs)
