@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-2022
+    env:
+      PLUGIN_SDK_DIR: ${{ github.workspace }}\plugin-sdk
+
+    steps:
+      - name: Checkout VehFuncs
+        uses: actions/checkout@v4
+
+      - name: Checkout plugin-sdk
+        uses: actions/checkout@v4
+        with:
+          repository: DK22Pac/plugin-sdk
+          path: plugin-sdk
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Generate plugin-sdk project
+        shell: cmd
+        run: '"%PLUGIN_SDK_DIR%\tools\premake\premake5" vs2022 --file="%PLUGIN_SDK_DIR%\tools\premake\premake5.lua"'
+
+      - name: Build plugin-sdk
+        shell: cmd
+        run: msbuild "%PLUGIN_SDK_DIR%\plugin.sln" /p:Configuration=Release /p:Platform="Mixed Platforms" /t:plugin_sa /m
+
+      - name: Build VehFuncs
+        shell: cmd
+        run: msbuild VehFuncs.sln /p:Configuration="GTASA Release" /p:Platform=x86 /p:OutDir=%GITHUB_WORKSPACE%\output\ /m
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VehFuncs
+          path: output/VehFuncs.asi

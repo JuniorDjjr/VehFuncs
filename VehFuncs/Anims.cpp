@@ -66,14 +66,14 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 				{
 				case 0:
 					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off \n";
-					if (!vehicle->m_nVehicleFlags.bEngineOn)
+					if (!vehicle->bEngineOn)
 						open = true;
 					else
 						open = false;
 					break;
 				case 1:
 					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": engine off or alarm on \n";
-					if (!vehicle->m_nVehicleFlags.bEngineOn)
+					if (!vehicle->bEngineOn)
 						open = true;
 					else
 						open = false;
@@ -169,7 +169,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 				{
 					if (an->progress == 0.0f)
 					{
-						if (CWeather::Rain > 0.1f && vehicle->m_nVehicleFlags.bEngineOn && vehicle->m_pDriver)
+						if (CWeather::Rain > 0.1f && vehicle->bEngineOn && vehicle->m_pDriver)
 						{
 							if (CWeather::Rain > 0.4f || CTimer::m_snTimeInMilliseconds > an->nextTimeToOpen)
 							{

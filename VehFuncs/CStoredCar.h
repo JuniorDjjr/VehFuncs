@@ -2,7 +2,7 @@
 #ifndef CStoredCar_h
 #define CStoredCar_h
 #include <cstdint>
-#include <game_sa\CVector.h>
+#include "CVector.h"
 
 /*00000000 pos             RwV3D ?
 0000000C handling_flags  dd ?
