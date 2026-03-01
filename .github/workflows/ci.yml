@@ -1,28 +1,23 @@
-name: CI
+name: VehFuncs Build
 
 on:
   push:
-    branches: [master]
+    branches: master
   pull_request:
-    branches: [master]
-  workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   build:
     name: Build
-    runs-on: windows-2022
+    runs-on: windows-latest
     env:
       PLUGIN_SDK_DIR: ${{ github.workspace }}\plugin-sdk
 
     steps:
       - name: Checkout VehFuncs
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout plugin-sdk
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: DK22Pac/plugin-sdk
           path: plugin-sdk
@@ -43,7 +38,7 @@ jobs:
         run: msbuild VehFuncs.sln /p:Configuration="GTASA Release" /p:Platform=x86 /p:OutDir=%GITHUB_WORKSPACE%\output\ /m
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: VehFuncs
           path: output/VehFuncs.asi
