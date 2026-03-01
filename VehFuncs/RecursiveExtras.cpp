@@ -258,7 +258,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 						int percent = stoi(&tempNodeName[found + 1]);
 						if (percent != 100)
 						{
-							int randomPercent = Random(1, 100);
+							int randomPercent = RandomNumberInRange(1, 100);
 							if (percent < randomPercent)
 							{
 								if (useLog) lg << "Class condition: " << tempNodeName << " not added due to percent\n";
@@ -312,14 +312,14 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 		{
 			// Randomize (:+) or just fix max
 			if (randomizeVariations == true)
-				selectVariations = Random(selectVariations, totalClass);
+				selectVariations = RandomNumberInRange(selectVariations, totalClass);
 			else
 				if (selectVariations > totalClass) selectVariations = totalClass;
 
 			// Insert classes
 			int i = 0;
 			do {
-				random = Random(0, totalClass - 1);
+				random = RandomNumberInRange(0, totalClass - 1);
 
 				if (classNodes[random] == nullptr) 
 				{
@@ -330,7 +330,7 @@ void ProcessClassesRecursive(RwFrame * frame, CVehicle * vehicle, bool bReSearch
 					if (useLog) lg << "Select " << random << " from max " << (totalClass - 1) << " is " << GetFrameNodeName(classNodes[random]) << "\n";
 					if (classNodesPercent[random] != 100)
 					{
-						int randomPercent = Random(1, 100);
+						int randomPercent = RandomNumberInRange(1, 100);
 						if (classNodesPercent[random] < randomPercent)
 						{
 							//if (useLog) lg << "Extras: Class " << GetFrameNodeName(classNodes[random]) << " not selected: " << classNodesPercent[random] << " percent\n";
@@ -488,7 +488,7 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 
 		// -- Randomize (:+) or just fix max
 		if (randomizeVariations == true)
-			selectVariations = Random(selectVariations, frames);
+			selectVariations = RandomNumberInRange(selectVariations, frames);
 		else
 			if (selectVariations > frames) selectVariations = frames;
 
@@ -523,11 +523,11 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 		do {
 			if (selectVariations == 0)  // if ":0" or : was not set and just 1 frame = 50% chance to not appear
 			{ 
-				if (Random(0, frames) == 0) break;
+				if (RandomNumberInRange(0, frames) == 0) break;
 			}
 			if (loopClassFrames > 0)  // from class frames array
 			{ 
-				random = Random(0, classFrames - 1);
+				random = RandomNumberInRange(0, classFrames - 1);
 				if (extraFramesMatchClass[random] != nullptr)
 				{
 					i++;
@@ -542,7 +542,7 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 			}
 			else  // from normal frames array
 			{ 
-				if (frames > 1) random = Random(0, frames - 1);
+				if (frames > 1) random = RandomNumberInRange(0, frames - 1);
 				if (extraFrames[random] != nullptr)
 				{
 					if (FrameIsOtherClass(extraFrames[random]))

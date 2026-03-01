@@ -38,7 +38,7 @@ float GetVehicleSpeedRealistic(CVehicle * vehicle)
 
 int GetDefaultLodForInteriorMinor(CVehicle *vehicle) {
 	int setLod = -2;
-	if (vehicle->m_nVehicleFlags.bIsBig || vehicle->m_nVehicleFlags.bIsBus || vehicle->m_nVehicleSubClass == VEHICLE_PLANE || vehicle->m_nVehicleSubClass == VEHICLE_HELI)
+	if (vehicle->bIsBig || vehicle->bIsBus || vehicle->m_nVehicleSubClass == VEHICLE_PLANE || vehicle->m_nVehicleSubClass == VEHICLE_HELI)
 	{
 		setLod = -9;
 	}

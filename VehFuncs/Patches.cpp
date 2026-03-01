@@ -30,7 +30,7 @@ namespace Patches
 	void __cdecl RenderBusCheck(CVehicle *veh)
 	{
 		valid = 1;
-		if (veh->m_nVehicleFlags.bIsBus) 
+		if (veh->bIsBus) 
 		{
 			int model = veh->m_nModelIndex;
 			if (model == MODEL_BUS)
@@ -415,7 +415,7 @@ namespace Patches
 	void __cdecl UseCopLightsCheck(CVehicle *veh)
 	{
 		valid = 0;
-		if (veh->m_nVehicleFlags.bSirenOrAlarm) 
+		if (veh->bSirenOrAlarm) 
 		{
 			ExtendedData &xdata = xData.Get(veh);
 			valid = xdata.coplightFrame ? 1 : 0;
