@@ -106,6 +106,7 @@ public:
 
 	//Soundize
 	int backfireMode;
+	int turbo;
 
 	// Speedometer
 	RwFrame * speedoFrame;
@@ -210,6 +211,7 @@ public:
 
 		//Soundize
 		backfireMode = -1;
+		turbo = -1;
 
 		// Speedometer
 		speedoFrame = nullptr;

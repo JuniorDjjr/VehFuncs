@@ -268,6 +268,18 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 			if (useLog) lg << "Charac: Found '_backfire=' (Soundize backfire) to: '" << digit1 << "'\n";
 		}
 
+		// Soundize Turbo
+		found = name.find("_turbo=");
+		if (found != string::npos)
+		{
+			int digit1 = name[found + 7] - '0';
+
+			ExtendedData& xdata = xData.Get(vehicle);
+
+			xdata.turbo = digit1;
+			if (useLog) lg << "Charac: Found '_turbo=' (Soundize turbo) to: '" << digit1 << "'\n";
+		}
+
 		// Double exhaust smoke
 		found = name.find("_dexh=");
 		if (found != string::npos)

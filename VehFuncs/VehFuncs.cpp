@@ -88,6 +88,17 @@ Ext_SetVehicleSubDefinitionName sz_Ext_SetVehicleSubDefinitionName = nullptr;
 typedef int(__cdecl* Ext_GetVehicleDoingBackfire)(CVehicle* vehicle);
 Ext_GetVehicleDoingBackfire sz_Ext_GetVehicleDoingBackfire = nullptr;
 
+
+typedef void(__cdecl* Ext_SetVehicleTurbo)(CVehicle* vehicle, int turbo);
+Ext_SetVehicleTurbo sz_Ext_SetVehicleTurbo = nullptr;
+
+typedef int(__cdecl* Ext_GetVehicleTurbo)(CVehicle* vehicle);
+Ext_GetVehicleTurbo sz_Ext_GetVehicleTurbo = nullptr;
+
+typedef float(__cdecl* Ext_GetVehicleTurboBoost)(CVehicle* vehicle);
+Ext_GetVehicleTurboBoost sz_Ext_GetVehicleTurboBoost = nullptr;
+
+
 // -- ModelExtras
 struct ME_ExhaustInfo {
 public:
@@ -179,7 +190,7 @@ public:
 		 
 		lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		lg << "VF v2.5.2 \n";
+		lg << "VF v2.5.3 \n";
 
 		if (ini.data.size() == 0) lg << "ERROR: Unable to read 'VehFuncs.ini'\n";
 
@@ -445,11 +456,18 @@ public:
 				sz_Ext_SetVehicleBackfireMode = (Ext_SetVehicleBackfireMode)GetProcAddress(moduleSZ, "Ext_SetVehicleBackfireMode");
 				sz_Ext_SetVehicleSubDefinitionName = (Ext_SetVehicleSubDefinitionName)GetProcAddress(moduleSZ, "Ext_SetVehicleSubDefinitionName");
 				sz_Ext_GetVehicleDoingBackfire = (Ext_GetVehicleDoingBackfire)GetProcAddress(moduleSZ, "Ext_GetVehicleDoingBackfire");
+
+				sz_Ext_SetVehicleTurbo = (Ext_SetVehicleTurbo)GetProcAddress(moduleSZ, "Ext_SetVehicleTurbo");
+				sz_Ext_GetVehicleTurbo = (Ext_GetVehicleTurbo)GetProcAddress(moduleSZ, "Ext_GetVehicleTurbo");
+				sz_Ext_GetVehicleTurboBoost = (Ext_GetVehicleTurboBoost)GetProcAddress(moduleSZ, "Ext_GetVehicleTurboBoost");
 			}
 			else {
 				sz_Ext_SetVehicleBackfireMode = 0;
 				sz_Ext_SetVehicleSubDefinitionName = 0;
 				sz_Ext_GetVehicleDoingBackfire = 0;
+				sz_Ext_SetVehicleTurbo = 0;
+				sz_Ext_GetVehicleTurbo = 0;
+				sz_Ext_GetVehicleTurboBoost = 0;
 				lg << "Info: Soundize isn't installed" << std::endl;
 			}
 			
@@ -1000,14 +1018,34 @@ public:
 
 				int backfire = sz_Ext_GetVehicleDoingBackfire(vehicle);
 				if (backfire > 0) {
-					bool isDoubleExhaust = vehicle->m_pHandlingData->m_nModelFlags.m_bDoubleExhaust;
+
+					bool isDoubleExhaust = false;
+					int vehicleExtra0 = vehicle->m_anExtras[0];
+					if (vehicle->m_nModelIndex == eModelID::MODEL_FCR900 && vehicleExtra0 == 1) {
+						isDoubleExhaust = true;
+					}
+					else if (vehicle->m_nModelIndex == eModelID::MODEL_BF400 && vehicleExtra0 == 2)
+					{
+						isDoubleExhaust = true;
+					}
+					else {
+						isDoubleExhaust = vehicle->m_pHandlingData->m_nModelFlags.m_bDoubleExhaust;
+					}
+
 					if (xdata.flags.bBackfireIsUpdated == false)
 					{
 						xdata.flags.bBackfireIsUpdated = true;
 						CVehicleModelInfo* vehModelInfo = (CVehicleModelInfo*)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
 						if (vehModelInfo) {
 							RwV3d exhaustPos;
+							RwV3d exhaustPosAdditional;
+							bool useAdditionalExhaustPos = false;
 							RwMatrix* vehicleMatrix = (RwMatrix*)vehicle->m_matrix;
+
+							if (vehicle->m_nModelIndex == eModelID::MODEL_NRG500 && (vehicleExtra0 == 0 || vehicleExtra0 == 1)) {
+								exhaustPosAdditional = GetVehicleDummyPosAdapted(vehicle, 11)->ToRwV3d();
+								useAdditionalExhaustPos = true;
+							}
 
 							CVector* resultDummyPos = GetVehicleDummyPosAdapted(vehicle, 6);
 							exhaustPos.x = resultDummyPos->x;
@@ -1028,28 +1066,7 @@ public:
 
 							if (blueprint)
 							{
-								if (exhaustPos.x != 0.0f || exhaustPos.y != 0.0f || exhaustPos.z != 0.0f)
-								{
-									int i = 0;
-									int totalExhausts = 1 + (int)isDoubleExhaust;
-
-									for (int i = 0; i < totalExhausts; i++)
-									{
-										if (xdata.backfireMatrix[i] == nullptr)
-										{
-											RwMatrix* transformMatrix = new RwMatrix();
-
-											RwMatrixTranslate(transformMatrix, &exhaustPos, RwOpCombineType::rwCOMBINEREPLACE);
-											RwMatrixRotate(transformMatrix, (RwV3d*)0x008D2E10, 180.0f, RwOpCombineType::rwCOMBINEPRECONCAT);
-
-											if (blueprint) xdata.backfire[i] = g_fxMan.CreateFxSystem(blueprint, transformMatrix, vehicleMatrix, true);
-											if (blueprintHigh) xdata.backfireHigh[i] = g_fxMan.CreateFxSystem(blueprintHigh, transformMatrix, vehicleMatrix, true);
-
-											xdata.backfireMatrix[i] = transformMatrix;
-										}
-										exhaustPos.x *= -1.0f;
-									}
-								}
+								bool hasMEexhaust = false;
 								if (pME_GetExhaustCount != nullptr)
 								{
 									int extraExhaustsCount = pME_GetExhaustCount(vehicle);
@@ -1057,6 +1074,8 @@ public:
 
 									if (extraExhaustsCount > 0)
 									{
+										hasMEexhaust = true;
+
 										xdata.backfireExtra = new FxSystem_c*[extraExhaustsCount];
 										xdata.backfireHighExtra = new FxSystem_c*[extraExhaustsCount];
 										xdata.backfireMatrixExtra = new RwMatrix*[extraExhaustsCount];
@@ -1087,6 +1106,28 @@ public:
 										}
 									}
 
+								}
+								if (!hasMEexhaust && (exhaustPos.x != 0.0f || exhaustPos.y != 0.0f || exhaustPos.z != 0.0f))
+								{
+									int i = 0;
+									int totalExhausts = 1 + (int)isDoubleExhaust;
+
+									for (int i = 0; i < totalExhausts; i++)
+									{
+										if (xdata.backfireMatrix[i] == nullptr)
+										{
+											RwMatrix* transformMatrix = new RwMatrix();
+
+											RwMatrixTranslate(transformMatrix, (i == 1 && useAdditionalExhaustPos) ? &exhaustPosAdditional : &exhaustPos, RwOpCombineType::rwCOMBINEREPLACE);
+											RwMatrixRotate(transformMatrix, (RwV3d*)0x008D2E10, 180.0f, RwOpCombineType::rwCOMBINEPRECONCAT);
+
+											if (blueprint) xdata.backfire[i] = g_fxMan.CreateFxSystem(blueprint, transformMatrix, vehicleMatrix, true);
+											if (blueprintHigh) xdata.backfireHigh[i] = g_fxMan.CreateFxSystem(blueprintHigh, transformMatrix, vehicleMatrix, true);
+
+											xdata.backfireMatrix[i] = transformMatrix;
+										}
+										exhaustPos.x *= -1.0f;
+									}
 								}
 							}
 						}
@@ -1274,6 +1315,9 @@ public:
 				xdata.flags.bWasRenderedOnce = true;
 				if (xdata.backfireMode != -1 && sz_Ext_SetVehicleBackfireMode != nullptr) {
 					sz_Ext_SetVehicleBackfireMode(vehicle, xdata.backfireMode);
+				}
+				if (xdata.turbo != -1 && sz_Ext_SetVehicleTurbo != nullptr) {
+					sz_Ext_SetVehicleTurbo(vehicle, xdata.turbo);
 				}
 			}
 
