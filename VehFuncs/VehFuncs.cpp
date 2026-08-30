@@ -13,6 +13,7 @@
 #include "Utilities.h"
 #include "DamageableRearWings.h" 
 #include "IndieVehHandlings/ExtendedHandling.h"
+#include "ProperShaders.h"
 //#include "CheckRepair.h"
 
 // Mod funcs
@@ -190,7 +191,7 @@ public:
 		 
 		lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		lg << "VF v2.5.3 \n";
+		lg << "VF v2.5.4 \n";
 
 		if (ini.data.size() == 0) lg << "ERROR: Unable to read 'VehFuncs.ini'\n";
 
@@ -426,11 +427,11 @@ public:
 
 			// LODs (make our custom LOD always render)
 			MakeNOP(0x00733241, 6);
-			MakeJMP(0x00733241, Patches::ForceRenderCustomLOD);
+			MakeJMP(0x00733241, Patches::ForceRenderCustomLOD); //CVisibilityPlugins::RenderVehicleHiDetailCB
 			MakeNOP(0x00733F80, 6);
-			MakeJMP(0x00733F80, Patches::ForceRenderCustomLODAlpha);
+			MakeJMP(0x00733F80, Patches::ForceRenderCustomLODAlpha); //CVisibilityPlugins::RenderVehicleHiDetailAlphaCB
 			MakeNOP(0x007344A0, 6);
-			MakeJMP(0x007344A0, Patches::ForceRenderCustomLODBoatAlpha);
+			MakeJMP(0x007344A0, Patches::ForceRenderCustomLODBoatAlpha); //CVisibilityPlugins::RenderVehicleHiDetailAlphaCB_Boat
 			MakeNOP(0x00733550, 6);
 			MakeJMP(0x00733550, Patches::ForceRenderCustomLODBoat);
 			MakeNOP(0x00733420, 6);
@@ -483,6 +484,8 @@ public:
 				lg << "Info: ModelExtras isn't installed" << std::endl;
 			}
 			
+			LoadProperShadersApi();
+
 			HINSTANCE moduleVehIK = GetModuleHandleA("VehIK.asi");
 			if (moduleVehIK) {
 
@@ -500,7 +503,7 @@ public:
 
 			// Render bus driver
 			MakeNOP(0x0064BCB3, 6);
-			MakeCALL(0x0064BCB3, Patches::RenderBus);
+			MakeCALL(0x0064BCB3, Patches::RenderBus); // patch where sets ped render flag
 
 
 			// Cop functions
@@ -722,18 +725,28 @@ public:
 		// -- On vehicle pre render
 		vehiclePreRenderEvent += [](CVehicle *vehicle)
 		{
+			//lg << "vehiclePreRenderEvent, frame " << CTimer::m_FrameCounter << " vehicle " << vehicle << "\n";
+
 			lastRenderedVehicleModel = vehicle->m_nModelIndex;
 			if (iniLogModelRender)
 			{
 				lg << "After Pre Render " << lastRenderedVehicleModel << "\n";
 				lg.flush();
 			}
-			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x10000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, ": Game will crash. Check MixMods' CrashInfo list.");
+			if ((uintptr_t)vehicle->m_pRwClump < (uintptr_t)0x100000 && iniShowCrashInfos) LogVehicleModelWithText("GAME CRASH Clump is invalid on vehicle model ID ", vehicle->m_nModelIndex, ": Game will crash. Check MixMods' CrashInfo list.");
 		};
 
 		// -- On vehicle render
 		Events::vehicleRenderEvent.before += [](CVehicle *vehicle)
 		{
+			// Proper Shaders renders the world several times per frame (shadow maps,
+			// reflection captures...) and this event fires on every one of them.
+			// Everything below is per-frame work, so only run it on the pass the
+			// player actually sees. Must be kept in sync with the .after event.
+			if (IsDuplicatedRenderCall()) return;
+
+			//lg << "vehicleRenderEvent.before, frame " << CTimer::m_FrameCounter << " vehicle " << vehicle << "\n";
+
 			tempVehicleModel = -1;
 			lastInitializedVehicleModel = -1;
 			lastRenderedVehicleModel = vehicle->m_nModelIndex;
@@ -1296,6 +1309,12 @@ public:
 
 		Events::vehicleRenderEvent.after += [](CVehicle *vehicle)
 		{
+			// Skipped on the same render calls the .before event skips, so the two
+			// stay paired (ProcessSpoiler, the flags reset below...).
+			if (IsDuplicatedRenderCall()) return;
+
+			//lg << "vehicleRenderEvent.after, frame " << CTimer::m_FrameCounter << " vehicle " << vehicle << "\n";
+
 			curVehicle = vehicle;
 			ExtendedData &xdata = xData.Get(vehicle);
 

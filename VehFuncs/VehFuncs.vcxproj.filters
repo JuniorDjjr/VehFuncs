@@ -22,6 +22,9 @@
     <ClCompile Include="GSXAPI.cpp">
       <Filter>API</Filter>
     </ClCompile>
+    <ClCompile Include="ProperShaders.cpp">
+      <Filter>API</Filter>
+    </ClCompile>
     <ClCompile Include="IndieVehHandlingsAPI.cpp">
       <Filter>API</Filter>
     </ClCompile>
@@ -82,7 +85,6 @@
     <ClCompile Include="Steer.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="CustomVisibilityRender.cpp" />
     <ClCompile Include="DamageableRearWings.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -91,6 +93,9 @@
     </ClCompile>
     <ClCompile Include="IndieVehHandlings\IndieVehHandlingsAPI.cpp">
       <Filter>IndieVehHandlings</Filter>
+    </ClCompile>
+    <ClCompile Include="CustomVisibilityRender.cpp">
+      <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -111,6 +116,12 @@
     </ClInclude>
     <ClInclude Include="Utilities.h">
       <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="ProperShaders.h">
+      <Filter>API</Filter>
+    </ClInclude>
+    <ClInclude Include="ProperShadersAPI.h">
+      <Filter>API</Filter>
     </ClInclude>
     <ClInclude Include="GSXAPI.h">
       <Filter>API</Filter>
