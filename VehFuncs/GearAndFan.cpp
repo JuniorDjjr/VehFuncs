@@ -2,11 +2,17 @@
 #include "NodeName.h"
 #include "CTimer.h"
 
-void ProcessRotatePart(CVehicle *vehicle, list<RwFrame*> frames, bool isGear)
+void ProcessRotatePart(CVehicle *vehicle, list<RwFrame*> &frames, bool isGear)
 {
-	for (RwFrame *frame : frames)
+	// Taken by reference: this used to copy the whole list every frame, for
+	// every vehicle on screen.
+	for (list<RwFrame*>::iterator it = frames.begin(); it != frames.end(); )
 	{
-		if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
+		RwFrame *frame = *it;
+		const bool keep = frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle;
+		if (keep) ++it; else it = frames.erase(it);
+
+		if (keep)
 		{
 			const string name = GetFrameNodeName(frame);
 
@@ -50,12 +56,6 @@ void ProcessRotatePart(CVehicle *vehicle, list<RwFrame*> frames, bool isGear)
 			RwFrameRotate(frame, axis, speedMult, rwCOMBINEPRECONCAT);
 
 			RwFrameUpdateObjects(frame);
-		}
-		else
-		{
-			ExtendedData &xdata = xData.Get(vehicle);
-			if (isGear) xdata.gearFrame.remove(frame);
-			else xdata.fanFrame.remove(frame);
 		}
 	}
 }

@@ -7,10 +7,14 @@
 
 const float DEFAULT_SPEED = 0.005f;
 
-void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
+void ProcessAnims(CVehicle *vehicle, list<F_an*> &items)
 {
-	for (F_an *an : items)
+	// Taken by reference: this used to copy the whole list every frame, for
+	// every vehicle on screen.
+	for (list<F_an*>::iterator it = items.begin(); it != items.end(); )
 	{
+		F_an *an = *it;
+
 		// we will not make previous-values-compatibility here
 		// TODO: set this during the part store
 		float speed = 0.0;
@@ -24,13 +28,18 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 		int startNameIndex = 6;
 
 		RwFrame *frame = an->frame;
-		if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
+
+		// Decided and advanced up front: the body below uses `continue`, and the
+		// dead-node path erases the entry the loop is standing on.
+		const bool keep = frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle;
+		if (keep) ++it; else it = items.erase(it);
+
+		if (keep)
 		{
 			bool open = false;
 			int mode = an->mode;
 			int submode = an->submode;
 			int timeLimit = 0;
-			bool validThisFrame = false;
 
 			switch (mode)
 			{
@@ -187,7 +196,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 			}
 
 
-			if (!mode == 0)
+			if (mode != 0)
 			{
 				if (open)
 				{
@@ -200,9 +209,6 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 			}
 
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
-
-			ExtendedData &xdata = xData.Get(vehicle);
-
 
 			//f_an1a=ax45z10s2
 			const string name = GetFrameNodeName(frame);
@@ -304,9 +310,7 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> items)
 		}
 		else
 		{
-			ExtendedData &xdata = xData.Get(vehicle);
 			delete an;
-			xdata.anims.remove(an);
 		}
 	}
 }

@@ -2,7 +2,7 @@
 #include "CVisibilityPlugins.h"
 #include "AtomicsVisibility.h"
 
-void ProcessSpoiler(CVehicle *vehicle, list<RwFrame*> frames, bool after)
+void ProcessSpoiler(CVehicle *vehicle, const list<RwFrame*> &frames, bool after)
 {
 	// Process hide spoiler for tuning
 	if (!frames.empty())
@@ -33,10 +33,9 @@ void ProcessSpoiler(CVehicle *vehicle, list<RwFrame*> frames, bool after)
 					ShowAllNodesRecursive_Forced(frame, true);
 				}
 			}
-			else
-			{
-				frames.remove(frame);
-			}
+			// Nothing to do for a dead node. This used to call frames.remove(),
+			// which only ever hit the by-value copy of the list - so it removed
+			// nothing - while invalidating the iterator this loop was using.
 		}
 	}
 }

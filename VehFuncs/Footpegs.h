@@ -16,4 +16,4 @@ public:
 	}
 };
 
-void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> items, int mode);
+void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> &items, int mode);

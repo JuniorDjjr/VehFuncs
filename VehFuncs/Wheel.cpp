@@ -14,8 +14,9 @@ void SetWheel(RwFrame * frame[6], CVehicle * vehicle)
 {
 	if (useLog) lg << "Wheel: Processing wheel \n";
 	createCloneNoRender = false;
-	bool hasTuningWheel = CVehicle__GetReplacementUpgrade(vehicle, 2) != -1;
-	lg << "Wheel: upgrade " << (int)CVehicle__GetReplacementUpgrade(vehicle, 2) << std::endl;
+	int wheelUpgrade = CVehicle__GetReplacementUpgrade(vehicle, 2);
+	bool hasTuningWheel = wheelUpgrade != -1;
+	if (useLog) lg << "Wheel: upgrade " << wheelUpgrade << std::endl;
 	for (int j = 0; j < 6; j++)
 	{
 		if (frame[j])
@@ -24,7 +25,7 @@ void SetWheel(RwFrame * frame[6], CVehicle * vehicle)
 			{
 				const string name = GetFrameNodeName(frame[j]);
 
-				for (int i = 8; i <= 13; i++)
+				for (int i = 8; i <= 13 && i <= (int)name.length(); i++)
 				{
 					if (name[i] == '\0' || name[i] == ':' || name[i] == '?') break;
 					if (name[i] == '1')
@@ -69,7 +70,7 @@ void SetWheel(RwFrame * frame[6], CVehicle * vehicle)
 								wheelFrame = reinterpret_cast<CAutomobile*>(vehicle)->m_aCarNodes[wheelId]; // this doesn't work for bikes, idkw
 							}
 
-							if (wheelFrame) {
+							if (wheelFrame && frame[j]->child) {
 								if (useLog) lg << "Wheel: Copying wheel: " << wheelId << " \n";
 								createCloneNoRender = hasTuningWheel;
 								CloneNode(frame[j]->child, vehicle->m_pRwClump, wheelFrame, false, true);

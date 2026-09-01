@@ -91,9 +91,6 @@
     <ClCompile Include="DigitalOdometer.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="IndieVehHandlings\IndieVehHandlingsAPI.cpp">
-      <Filter>IndieVehHandlings</Filter>
-    </ClCompile>
     <ClCompile Include="CustomVisibilityRender.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -202,9 +199,6 @@
       <Filter>Source</Filter>
     </ClInclude>
     <ClInclude Include="IndieVehHandlings\ExtendedHandling.h">
-      <Filter>IndieVehHandlings</Filter>
-    </ClInclude>
-    <ClInclude Include="IndieVehHandlings\IndieVehHandlingsAPI.h">
       <Filter>IndieVehHandlings</Filter>
     </ClInclude>
   </ItemGroup>

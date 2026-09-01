@@ -99,7 +99,9 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				int j = 0;
 				char s[32] = { 0 };
 				stringstream ss(&name[found + 4]);
-				while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  xdata.color[j] = num; j++; } catch (const exception &) { xdata.color[j] = -1; j++; } }
+				// j is bounded: a fifth value used to write past color[4] and corrupt
+				// the members stored after it.
+				while (j < 4 && ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  xdata.color[j] = num; j++; } catch (const exception &) { xdata.color[j] = -1; j++; } }
 
 				if (useLog) lg << "Charac: Found 'cl' (colors) " << xdata.color[0] << " " << xdata.color[1] << " " << xdata.color[2] << " " << xdata.color[3] << "\n";
 			}
@@ -114,19 +116,24 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				stringstream ss(&name[found + 5]);
 				while (ss.getline(s, sizeof(s), ',')) { try { int num = stoi(s);  driverList.push_back(num); } catch (const exception &) { break; } }
 
-				ExtendedData &xdata = xData.Get(vehicle);
+				// An empty list underflowed size() - 1 and then dereferenced end().
+				if (!driverList.empty())
+				{
+					ExtendedData &xdata = xData.Get(vehicle);
 
-				srand((xdata.randomSeed + xdata.randomSeedUsage));
-				xdata.randomSeedUsage++;
+					srand((xdata.randomSeed + xdata.randomSeedUsage));
+					xdata.randomSeedUsage++;
 
-				int rand = Random(0, (driverList.size() - 1));
+					int rand = Random(0, (driverList.size() - 1));
 
-				list<int>::iterator it = driverList.begin();
-				advance(it, rand);
-				int driverModel = *it;
+					list<int>::iterator it = driverList.begin();
+					advance(it, rand);
+					int driverModel = *it;
 
-				if (useLog) lg << "Charac: Found 'drv' (driver), selected '" << driverModel << "' at '" << name << "'\n";
-				xdata.driverModel = driverModel;
+					if (useLog) lg << "Charac: Found 'drv' (driver), selected '" << driverModel << "' at '" << name << "'\n";
+					xdata.driverModel = driverModel;
+				}
+				else if (useLog) lg << "Charac: ERROR 'drv' (driver) has no valid model at '" << name << "'\n";
 			}
 
 			// Occupants
@@ -158,7 +165,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 				i++;
 				do {
 					i++;
-				} while (name[found + i] != ',');
+				} while ((found + i) < name.length() && name[found + i] != ',');
 
 				i++;
 				float minVol = stof(&name[found + i]);
@@ -166,7 +173,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 
 				do {
 					i++;
-				} while (name[found + i] != '-');
+				} while ((found + i) < name.length() && name[found + i] != '-');
 				i++;
 
 				float maxVol = stof(&name[found + i]);
@@ -222,12 +229,12 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 
 			do {
 				++i;
-				if ((found + i) >= 22) {
+				if ((found + i) >= 22 || (found + i) >= name.length()) {
 					break;
 				}
 			} while (name[found + i] != ',');
 
-			if ((found + i) <= 22) {
+			if ((found + i) <= 22 && (found + i) < name.length() && name[found + i] == ',') {
 				++i;
 				int sound2 = stoi(&name[found + i]);
 				if (useLog) lg << "Charac: Found '_se=' (sound engine) to sound 1 '" << sound1 << "' sound 2 '" << sound2 << "'\n";

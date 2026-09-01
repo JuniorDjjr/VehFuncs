@@ -19,16 +19,18 @@ extern "C" int32_t __declspec(dllexport) Ext_GetCarSeed(CVehicle * vehicle)
 
 extern "C" void __declspec(dllexport) Ext_SetCarSeed(CVehicle * vehicle, int seed) 
 {
-	CustomSeed * newCustomSeed = new CustomSeed((int)vehicle, seed, CTimer::m_snTimeInMilliseconds + 1000);
+	// Built on the stack: the list stores a copy, so the heap allocation this
+	// used to do was leaked on every call.
+	CustomSeed newCustomSeed((int)vehicle, seed, CTimer::m_snTimeInMilliseconds + 1000);
 
 	if (vehicle->m_nVehicleSubClass == VEHICLE_HELI) {
 		if (useLog) lg << "Custom Seed: Currently VehFuncs (more specifically, plugin-sdk + SilentPatch) is incompatible with helicopters!!! \n";
 	}
 	else 
 	{
-		if (useLog) lg << "Custom Seed: New seed: " << newCustomSeed->seed << " for vehicle " << newCustomSeed->pvehicle << "\n";
+		if (useLog) lg << "Custom Seed: New seed: " << newCustomSeed.seed << " for vehicle " << newCustomSeed.pvehicle << "\n";
 		list<CustomSeed> &customSeedList = getCustomSeedList();
-		customSeedList.push_back(*newCustomSeed);
+		customSeedList.push_back(newCustomSeed);
 	}
 }
 

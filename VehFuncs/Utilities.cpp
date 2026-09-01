@@ -215,8 +215,20 @@ void CloneNode(RwFrame *frame, RpClump * clump, RwFrame *parent, bool isRoot, bo
 	return;
 }
 
+// CAREFUL: the two recursive calls below read frame->child / frame->next AFTER
+// RwFrameDestroy() has already destroyed the frame, and that is deliberate.
+// RwFrameDestroy unlinks the frame from its parent, which clears 'next', so the
+// sibling branch never actually fires and this only ever walks down the child
+// chain of the node it was given.
+//
+// Callers depend on that. Recursive Extras deletes the variations it did not
+// pick by calling this on each unselected frame, and those frames are siblings
+// of the selected one - reading the links before the destroy makes the sibling
+// walk real and takes the selected part down with them.
 void DestroyNodeHierarchyRecursive(RwFrame * frame)
 {
+	if (frame == nullptr) return;
+
 	RpAtomic * atomic = (RpAtomic *)GetFirstObject(frame);
 	if (atomic != nullptr) 
 	{

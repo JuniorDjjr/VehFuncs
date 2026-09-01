@@ -4,7 +4,7 @@
 #include "PerlinNoise\SimplexNoise.h"
 #include "MatrixBackup.h"
 
-void ProcessShake(CVehicle *vehicle, list<RwFrame*> frames)
+void ProcessShake(CVehicle *vehicle, list<RwFrame*> &frames)
 {
 	ExtendedData &xdata = xData.Get(vehicle);
 
@@ -12,10 +12,15 @@ void ProcessShake(CVehicle *vehicle, list<RwFrame*> frames)
 	xdata.dotLife += CTimer::ms_fTimeStep * (0.2f * ((xdata.smoothGasPedal * 2.0f) + 1.0f));
 	if (xdata.dotLife >= 100.0f) xdata.dotLife = 1.0f;
 
-	for (list<RwFrame*>::iterator it = frames.begin(); it != frames.end(); ++it)
+	// Taken by reference: this used to copy the whole list every frame, for
+	// every vehicle on screen.
+	for (list<RwFrame*>::iterator it = frames.begin(); it != frames.end(); )
 	{
 		RwFrame * frame = *it;
-		if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
+		const bool keep = frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle;
+		if (keep) ++it; else it = frames.erase(it);
+
+		if (keep)
 		{
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
 
@@ -71,11 +76,6 @@ void ProcessShake(CVehicle *vehicle, list<RwFrame*> frames)
 				RwFrameRotate(frame, axis, angle, rwCOMBINEPRECONCAT);
 			}
 			RwFrameUpdateObjects(frame);
-		}
-		else
-		{
-			ExtendedData &xdata = xData.Get(vehicle);
-			xdata.shakeFrame.remove(*it);
 		}
 	}
 }

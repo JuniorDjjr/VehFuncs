@@ -465,6 +465,7 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 									string className = (string)*it;
 									if (frameClass.length() == className.length() && strcmp(&frameClass[0], &className[0]) == 0)
 									{
+										if (classFrames >= 32) break; // array is 33 wide, last slot is the terminator
 										extraFramesMatchClass[classFrames] = tempFrame;
 										if (useLog) lg << "Extras: Added to match class: " << tempFrameName << "\n";
 										classFrames++;
@@ -494,8 +495,10 @@ void ProcessExtraRecursive(RwFrame * frame, CVehicle * vehicle)
 
 
 		// -- Terminator for faster 'DeleteAllExtraFramesFromArray'
-		extraFrames[(frames + 1)] = (RwFrame *)1;
-		extraFramesMatchClass[(classFrames + 1)] = (RwFrame *)1;
+		// Clamped: with a full array, frames + 1 indexed past the end and
+		// smashed the stack.
+		extraFrames[(frames + 1) < 33 ? (frames + 1) : 32] = (RwFrame *)1;
+		extraFramesMatchClass[(classFrames + 1) < 33 ? (classFrames + 1) : 32] = (RwFrame *)1;
 
 
 		// -- Show has class

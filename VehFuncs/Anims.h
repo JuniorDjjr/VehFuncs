@@ -11,7 +11,7 @@ public:
 	int mode;
 	int submode;
 	bool opening;
-	int nextTimeToOpen;
+	unsigned int nextTimeToOpen;
 
 	F_an(RwFrame *newframe)
 	{
@@ -24,4 +24,4 @@ public:
 	}
 };
 
-void ProcessAnims(CVehicle *vehicle, list<F_an*> items);
+void ProcessAnims(CVehicle *vehicle, list<F_an*> &items);

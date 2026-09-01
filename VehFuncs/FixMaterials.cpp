@@ -21,8 +21,6 @@ void FixMaterials(RpClump * clump)
 
 RpMaterial *MaterialCallback(RpMaterial *material, void *data)
 {
-	ExtendedData &xdata = xData.Get(curVehicle);
-
 	switch (CheckMaterials(material, (RpAtomic *)data))
 	{
 	case MatFuncType::ivf:
@@ -62,11 +60,11 @@ RpMaterial *MaterialCallback(RpMaterial *material, void *data)
 		material->color.red = 0xFF; material->color.green = 0xFF; material->color.blue = 0xFF;
 		break;
 	case MatFuncType::taxi:
-		xdata.taxiSignMaterial = material;
+		xData.Get(curVehicle).taxiSignMaterial = material;
 		break;
 	case MatFuncType::brakeDisc:
 		material->color.red = 0xFF; material->color.green = 0xFF; material->color.blue = 0xFF;
-		xdata.brakeDiscMaterial = material;
+		xData.Get(curVehicle).brakeDiscMaterial = material;
 		break;
 	default:
 		break;

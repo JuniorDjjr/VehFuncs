@@ -3,11 +3,17 @@
 
 extern float iniDefaultSteerAngle;
 
-void ProcessSteer(CVehicle *vehicle, list<RwFrame*> frames)
+void ProcessSteer(CVehicle *vehicle, list<RwFrame*> &frames)
 {
-	for (RwFrame *frame : frames)
+	// Taken by reference: this used to copy the whole list every frame, for
+	// every vehicle on screen.
+	for (list<RwFrame*>::iterator it = frames.begin(); it != frames.end(); )
 	{
-		if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
+		RwFrame *frame = *it;
+		const bool keep = frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle;
+		if (keep) ++it; else it = frames.erase(it);
+
+		if (keep)
 		{
 			const string name = GetFrameNodeName(frame);
 
@@ -36,11 +42,6 @@ void ProcessSteer(CVehicle *vehicle, list<RwFrame*> frames)
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
 			RwFrameRotate(frame, (RwV3d*)0x008D2E0C, angle, rwCOMBINEPRECONCAT);
 			RwFrameUpdateObjects(frame);
-		}
-		else
-		{
-			ExtendedData &xdata = xData.Get(vehicle);
-			xdata.steer.remove(frame);
 		}
 	}
 }

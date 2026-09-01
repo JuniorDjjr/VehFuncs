@@ -2,11 +2,17 @@
 #include "NodeName.h"
 #include "MatrixBackup.h"
 
-void ProcessPedal(CVehicle *vehicle, list<RwFrame*> frames, int mode)
+void ProcessPedal(CVehicle *vehicle, list<RwFrame*> &frames, int mode)
 {
-	for (RwFrame *frame : frames)
+	// Taken by reference: this used to copy the whole list every frame, for
+	// every vehicle on screen.
+	for (list<RwFrame*>::iterator it = frames.begin(); it != frames.end(); )
 	{
-		if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
+		RwFrame *frame = *it;
+		const bool keep = frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle;
+		if (keep) ++it; else it = frames.erase(it);
+
+		if (keep)
 		{
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
 
@@ -58,11 +64,6 @@ void ProcessPedal(CVehicle *vehicle, list<RwFrame*> frames, int mode)
 				}
 			}
 			RwFrameUpdateObjects(frame);
-		}
-		else
-		{
-			ExtendedData &xdata = xData.Get(vehicle);
-			if (mode == 1) xdata.gaspedalFrame.remove(frame); else xdata.brakepedalFrame.remove(frame);
 		}
 	}
 }

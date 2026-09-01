@@ -88,6 +88,7 @@ void SetupDigitalSpeedo(CVehicle * vehicle, RwFrame * frame)
 			RpAtomic * newAtomic;
 			for (int i = 0; i < 10; i++)
 			{
+				if (frameDigits == nullptr) break;
 				tempAtomic = (RpAtomic *)GetFirstObject(frameDigits);
 				for (int j = 2; j >= 0; j--)
 				{

@@ -29,8 +29,12 @@ void SetupDigitalOdometer(CVehicle * vehicle, RwFrame * frame)
 
 			if (isdigit(name[5])) {
 				int digitIndex = name[5] - '0' - 1;
-				xdata.odometerDigits[digitIndex] = frame;
-				FRAME_EXTENSION(frame)->LODdist = setLod;
+				// A '0' digit gave -1 here and wrote before the array.
+				if (digitIndex >= 0 && digitIndex < 9) {
+					xdata.odometerDigits[digitIndex] = frame;
+					FRAME_EXTENSION(frame)->LODdist = setLod;
+				}
+				else if (useLog) lg << "DigitalOdometer: (error) digit out of range at '" << name << "'\n";
 			}
 			else {
 				if (frameDigits == nullptr)
@@ -53,13 +57,20 @@ void SetupDigitalOdometer(CVehicle * vehicle, RwFrame * frame)
 			if (frame == nullptr) break;
 		}
 
+		if (frameDigits == nullptr) {
+			if (useLog) lg << "DigitalOdometer: (error) 'f_dodometer' has no digits node\n";
+			return;
+		}
+
 		// Set digits to frames
 		RpAtomic * tempAtomic;
 		RpAtomic * newAtomic;
 		for (int i = 0; i < 10; i++)
 		{
+			if (frameDigits == nullptr) break;
 			tempAtomic = (RpAtomic *)GetFirstObject(frameDigits);
-			for (int j = 10; j >= 0; j--)
+			// odometerDigits only has 9 entries; j started at 10.
+			for (int j = 8; j >= 0; j--)
 			{
 				if (xdata.odometerDigits[j]) {
 					newAtomic = RpAtomicClone(tempAtomic);
@@ -94,7 +105,7 @@ void ProcessDigitalOdometer(CVehicle * vehicle, RwFrame * frame)
 					numLimit++;
 				}
 			}
-			numLimit = pow(10, numLimit);
+			numLimit = (int)pow(10, numLimit);
 			if (finalKms >= numLimit) finalKms = numLimit - 1;
 
 			for (int i = 0; i < 9; ++i)
@@ -105,7 +116,7 @@ void ProcessDigitalOdometer(CVehicle * vehicle, RwFrame * frame)
 					if (i == 0) digitNum = finalKms % 10;
 					else
 					{
-						int power = pow(10, i);
+						int power = (int)pow(10, i);
 						digitNum = (finalKms / power) % 10;
 						if (power > finalKms) canHideZeroes = true;
 					}

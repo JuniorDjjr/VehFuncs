@@ -6,7 +6,7 @@
 
 const float DEFAULT_SPEED = 0.01f;
 
-void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> items, int mode)
+void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> &items, int mode)
 {
 	float speed = 0.0;
 	float ax = 90;
@@ -16,10 +16,19 @@ void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> items, int mode)
 	float y = 0;
 	float z = 0;
 
-	for (auto footpegs : items)
+	// Taken by reference: this used to copy the whole list every frame, for
+	// every vehicle on screen.
+	for (list<F_footpegs*>::iterator it = items.begin(); it != items.end(); )
 	{
+		F_footpegs *footpegs = *it;
 		RwFrame *frame = footpegs->frame;
-		if (frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle)
+
+		// Decided and advanced up front: the body below uses `continue`, and the
+		// dead-node path erases the entry the loop is standing on.
+		const bool keep = frame->object.parent && FRAME_EXTENSION(frame)->owner == vehicle;
+		if (keep) ++it; else it = items.erase(it);
+
+		if (keep)
 		{
 			bool open = false;
 
@@ -43,9 +52,6 @@ void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> items, int mode)
 
 
 			RestoreMatrixBackup(&frame->modelling, FRAME_EXTENSION(frame)->origMatrix);
-
-			ExtendedData &xdata = xData.Get(vehicle);
-
 
 			//f_fpeg1=ax45z10s2
 			const string name = GetFrameNodeName(frame);
@@ -177,9 +183,7 @@ void ProcessFootpegs(CVehicle *vehicle, list<F_footpegs*> items, int mode)
 		}
 		else
 		{
-			ExtendedData &xdata = xData.Get(vehicle);
 			delete footpegs;
-			if (mode == 1) xdata.fpegFront.remove(footpegs); else xdata.fpegBack.remove(footpegs);
 		}
 	}
 }

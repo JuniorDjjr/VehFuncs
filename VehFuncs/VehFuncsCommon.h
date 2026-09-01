@@ -170,6 +170,7 @@ public:
 		// Process flags
 		nodesProcess = true;
 		nodesProcessForIndieHandling = true;
+		nodesProcessInRender = false;
 
 		// Management
 		randomSeed = rand();
