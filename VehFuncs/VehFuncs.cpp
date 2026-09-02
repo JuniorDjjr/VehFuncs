@@ -149,6 +149,10 @@ public:
 };
 VehicleExtendedData<ExtraData> extraInfo;
 
+bool bBeforeVehicleRenderLoggedOnce = false;
+bool bAfterVehicleRenderLoggedOnce = false;
+bool bSetModelLoggedOnce = false;
+
 bool bTerminateIndieVehHandScript = true;
 
 void asm_fmul(float f) {
@@ -703,6 +707,11 @@ public:
 		// -- On vehicle set model
 		Events::vehicleSetModelEvent += [](CVehicle *vehicle, int modelId) 
 		{
+			if (!bSetModelLoggedOnce) {
+				lg << "Core: Set model event is called successfully." << std::endl;
+				bSetModelLoggedOnce = true;
+			}
+
 			lastInitializedVehicle = vehicle;
 			lastInitializedVehicleModel = modelId;
 			if (iniLogModelRender)
@@ -744,6 +753,11 @@ public:
 			// Everything below is per-frame work, so only run it on the pass the
 			// player actually sees. Must be kept in sync with the .after event.
 			if (IsDuplicatedRenderCall()) return;
+
+			if (!bBeforeVehicleRenderLoggedOnce) {
+				lg << "Core: Vehicle render event 'before' is called successfully." << std::endl;
+				bBeforeVehicleRenderLoggedOnce = true;
+			}
 
 			//lg << "vehicleRenderEvent.before, frame " << CTimer::m_FrameCounter << " vehicle " << vehicle << "\n";
 
@@ -1312,6 +1326,11 @@ public:
 			// Skipped on the same render calls the .before event skips, so the two
 			// stay paired (ProcessSpoiler, the flags reset below...).
 			if (IsDuplicatedRenderCall()) return;
+
+			if (!bAfterVehicleRenderLoggedOnce) {
+				lg << "Core: Vehicle render event 'after' is called successfully." << std::endl;
+				bAfterVehicleRenderLoggedOnce = true;
+			}
 
 			//lg << "vehicleRenderEvent.after, frame " << CTimer::m_FrameCounter << " vehicle " << vehicle << "\n";
 

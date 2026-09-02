@@ -157,6 +157,39 @@ void ProcessAnims(CVehicle *vehicle, list<F_an*> &items)
 					break;
 				}
 				break;
+			case 5: // NOT occupant
+				switch (submode)
+				{
+				case 0:
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": driver \n";
+					if (!vehicle->m_pDriver)
+						open = true;
+					else
+						open = false;
+					break;
+				case 1:
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 1 \n";
+					if (!vehicle->m_apPassengers[0])
+						open = true;
+					else
+						open = false;
+					break;
+				case 2:
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 2 \n";
+					if (!vehicle->m_apPassengers[1])
+						open = true;
+					else
+						open = false;
+					break;
+				case 3:
+					//if (useLog) lg << "Anims: Found 'f_an" << mode << "' " << submode << ": passenger 3 \n";
+					if (!vehicle->m_apPassengers[2])
+						open = true;
+					else
+						open = false;
+					break;
+				}
+				break;
 			// INTERNAL
 			case 1001: //rain (f_wiper)
 				startNameIndex = 7;
