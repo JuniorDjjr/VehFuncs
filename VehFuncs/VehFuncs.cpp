@@ -195,7 +195,7 @@ public:
 		 
 		lg.open("VehFuncs.log", fstream::out | fstream::trunc);
 
-		lg << "VF v2.5.4 \n";
+		lg << "VF v2.5.5 \n";
 
 		if (ini.data.size() == 0) lg << "ERROR: Unable to read 'VehFuncs.ini'\n";
 
@@ -1641,6 +1641,7 @@ public:
 							}
 							break;
 						case 2:
+						case 5:
 							switch (submode)
 							{
 							case 0:
