@@ -13,6 +13,7 @@
 float ftest = 1.0f;
 
 extern bool iniLogNoTextureFound;
+extern bool iniEnableAdditionalVehicleTxd;
 RwTexDictionary *vehicletxdArray[4];
 int vehicletxdIndexArray[4];
 bool anyAdditionalVehicleTxd;
@@ -686,7 +687,7 @@ namespace Patches
 					}
 					else
 					{
-						if (txdName[0] == 'v' && strncmp(txdName, "vehicle", 7) == 0)
+						if (iniEnableAdditionalVehicleTxd && txdName[0] == 'v' && strncmp(txdName, "vehicle", 7) == 0)
 						{
 							int arrayIndex = txdName[len - 1] - '0' - 2; // first is 2
 							if (arrayIndex < 4) {
@@ -880,7 +881,7 @@ namespace Patches
 		texture = RwTexDictionaryFindNamedTexture(dict, name);
 		if (texture) return texture;
 
-		if (anyAdditionalVehicleTxd) {
+		if (iniEnableAdditionalVehicleTxd && anyAdditionalVehicleTxd) {
 			for (int i = 0; i < 4; ++i)
 			{
 				if (vehicletxdArray[i])
@@ -896,7 +897,7 @@ namespace Patches
 
 	void LoadAdditionalVehicleTxd()
 	{
-		if (anyAdditionalVehicleTxd) {
+		if (iniEnableAdditionalVehicleTxd && anyAdditionalVehicleTxd) {
 			for (int i = 0; i < 4; ++i)
 			{
 				if (vehicletxdIndexArray[i]) {
