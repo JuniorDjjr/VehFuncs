@@ -564,8 +564,10 @@ public:
 				*(uint32_t*)(regs.esp + 0x14) = -1; //mov     dword ptr [esp+14h], 0FFFFFFFFh
 
 				CVehicle *veh = (CVehicle *)regs.edi;
-				ExtendedData &xdata = xData.Get(veh);
-				xdata.flags.bUpgradesUpdated = true;
+				if (veh) {
+					ExtendedData &xdata = xData.Get(veh);
+					xdata.flags.bUpgradesUpdated = true;
+				}
 			});
 
 			MakeInline<0x006DF96C, 0x006DF96C + 6>([](reg_pack& regs)
@@ -574,8 +576,10 @@ public:
 				regs.esi = regs.eax; //mov     esi, eax
 
 				CVehicle *veh = (CVehicle *)regs.edi;
-				ExtendedData &xdata = xData.Get(veh);
-				xdata.flags.bUpgradesUpdated = true;
+				if (veh) {
+					ExtendedData &xdata = xData.Get(veh);
+					xdata.flags.bUpgradesUpdated = true;
+				}
 			});
 
 			// RpClumpRender
@@ -593,7 +597,7 @@ public:
 			{
 				regs.ecx = 0x3F800000; // original code
 				RwFrame *frame = (RwFrame *)regs.edi;
-				FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade = true;
+				if (frame) FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade = true;
 			});
 			// Set others to destroy
 			MakeInline<0x006D3539, 0x006D3539 + 5>([](reg_pack& regs)
@@ -603,7 +607,7 @@ public:
 				regs.esi = regs.eax;
 				regs.edi = *(uintptr_t*)(regs.esi + 0x4);
 				RwFrame *frame = (RwFrame *)regs.edi;
-				FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade = true;
+				if (frame) FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade = true;
 			}); 
 			// Add original
 			/*MakeInline<0x006D3A35, 0x006D3A35 + 18>([](reg_pack& regs)
@@ -2106,6 +2110,7 @@ void LogVehicleModelWithText(string str1, int vehicleModel, string str2)
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
+	if (frame == nullptr) return nullptr;
 	//lg << "addupgrade " << GetFrameNodeName(frame) << std::endl;
 	if (RwFrame * newFrame = frame->child)  CustomRwFrameForAllChildren_AddUpgrade_Recurse(newFrame, callback, data);
 	return frame;
@@ -2113,6 +2118,7 @@ RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade(RwFrame *frame, RwFrame 
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade_Recurse(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
+	if (frame == nullptr) return nullptr;
 	if (!FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade) FRAME_EXTENSION(frame)->flags.bNeverRender = true;
 
 	if (RwFrame * newFrame = frame->child)  CustomRwFrameForAllChildren_AddUpgrade_Recurse(newFrame, callback, data);
@@ -2122,6 +2128,7 @@ RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade_Recurse(RwFrame *frame, 
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
+	if (frame == nullptr) return nullptr;
 	// Similar to RwFrameForAllChildren
 	RwFrameForAllChildren(frame, (RwFrameCallBack)CustomRwFrameForAllChildren_RemoveUpgrade_Recurse, data);
 	return frame;
@@ -2129,6 +2136,7 @@ RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade(RwFrame *frame, RwFra
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
+	if (frame == nullptr) return nullptr;
 	if (FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade) {
 		RwFrameForAllObjects(frame, RemoveObjectsCB, data);
 	}
@@ -2145,6 +2153,7 @@ RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(RwFrame *fram
 
 RwFrame *__cdecl CustomRwFrameForAllObjects_Upgrades(RwFrame *frame, RpAtomicCallBack callback, void *data)
 {
+	if (frame == nullptr) return nullptr;
 	if (!rwLinkListEmpty(&frame->objectList))
 	{
 		RwObjectHasFrame * atomic;

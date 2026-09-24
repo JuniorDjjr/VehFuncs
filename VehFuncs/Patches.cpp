@@ -65,12 +65,14 @@ namespace Patches
 
 	void __cdecl NeverRenderCheck(RpAtomic *atomic)
 	{
+		if (!atomic) { valid = false; return; }
 		RwFrame *frame = (RwFrame *)atomic->object.object.parent;
+		if (!frame) { valid = false; return; }
 		if (FRAME_EXTENSION(frame)->flags.bNeverRender) {
 			valid = false;
 			return;
 		}
-		if (atomic->clump->object.type == 2 && FRAME_EXTENSION(frame)->LODdist != -100) {
+		if (atomic->clump && atomic->clump->object.type == 2 && FRAME_EXTENSION(frame)->LODdist != -100) {
 			int LODdistLevel = FRAME_EXTENSION(frame)->LODdist;
 			float LODdist = FRAME_EXTENSION(frame)->LODdist * 3.0f * TheCamera.m_fLODDistMultiplier;
 			//if (useLog) lg << pow(LODdist, 3) << " " << *(float*)0x00C88024 << "\n";
@@ -122,33 +124,36 @@ namespace Patches
 	void __declspec(naked) NeverRender()
 	{
 		__asm {
+			push    edi // RpAtomic
+			call    NeverRenderCheck
+			add     esp, 4 // params
 
-			push edi // RpAtomic
-			call NeverRenderCheck
-			add esp, 4 // params
+			cmp     valid, 1
+			jne     NeverRender_Skip
 
 			mov     eax, [edi+4]
+			test    eax, eax
+			jz      NeverRender_Skip
+
 			push    eax
 			mov     edx, 7F0990h
 			call    edx
 
-			cmp     valid, 1
-			je      NeverRender_IsValid
-			add esp, 4
-			push    749B4Eh
-			ret
-				
-			NeverRender_IsValid:
 			push    749B47h
+			ret
+
+		NeverRender_Skip:
+			push    749B4Eh
 			ret
 		}
 	}
 
 	void __cdecl ForceRenderCustomLODCheck(RpAtomic *atomic)
 	{
+		if (!atomic) return;
 		RwFrame *frame = (RwFrame *)atomic->object.object.parent;
 		ftest = *(float*)0x00C88024; //gVehicleDistanceFromCamera
-		if (atomic->clump->object.type == 2 && FRAME_EXTENSION(frame)->LODdist != -100) {
+		if (frame && atomic->clump && atomic->clump->object.type == 2 && FRAME_EXTENSION(frame)->LODdist != -100) {
 			if (FRAME_EXTENSION(frame)->LODdist >= 0) // >
 			{
 				if (*(float*)0x00C88024 < *(float*)0x00C8803C) // consider vehicle draw distance too (lod1)
