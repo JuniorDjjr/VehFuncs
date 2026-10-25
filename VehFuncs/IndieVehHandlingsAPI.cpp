@@ -91,22 +91,11 @@ void StoreHandlingData()
 	}
 	else
 	{
-		if (handlingManager == reinterpret_cast<cHandlingDataMgr*>(0x00C2B9C8))
-		{
-			// vanilla
-			hblockinfo.size = 224;
-			hblockinfo.start = reinterpret_cast<uint8_t*>(handlingManager) + 0x14;
-			hblockinfo.end = reinterpret_cast<uint8_t*>(handlingManager) + ReadMemory<uint32_t>(0x006F531E, true) + 0x14;
+		hblockinfo.size = 224;
+		hblockinfo.start = reinterpret_cast<uint8_t*>(handlingManager) + 0x14;
+		hblockinfo.end = reinterpret_cast<uint8_t*>(handlingManager) + ReadMemory<uint32_t>(0x006F531E, true) + 0x14;
 
-			if (useLog) lg << "Handling: Vanilla handling pointer: " << hblockinfo.start << " " << hblockinfo.size << " " << hblockinfo.end << " \n";
-		}
-		else
-		{
-			if (useLog) lg << "Handling: (ERROR) Unknown limit adjuster: " << handlingManager << " \n";
-			if (useLog) lg.flush();
-			MessageBoxA(0, "Unknown limit adjuster", "VehFuncs", 0);
-			throw runtime_error("VehFuncs Error: Unknown limit adjuster");
-		}
+		if (useLog) lg << "Handling: handling pointer: " << hblockinfo.start << " " << hblockinfo.size << " " << hblockinfo.end << " \n";
 	}
 }
 
