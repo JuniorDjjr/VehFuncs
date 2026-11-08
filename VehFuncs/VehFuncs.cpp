@@ -162,6 +162,12 @@ void asm_fmul(float f) {
 void WriteTiresToNewHandling(tExtendedHandlingData* handling, bool newTires);
 void SetIndieNewHandling(CVehicle* vehicle, tHandlingData* originalHandling, bool newTires);
 
+static inline bool IsValidUserPointer(const void* ptr)
+{
+	const uintptr_t addr = reinterpret_cast<uintptr_t>(ptr);
+	return addr >= 0x10000 && addr < 0x7FFF0000;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class VehFuncs
@@ -343,17 +349,25 @@ public:
 
 			// -- Coll model
 
+			alignas(CColModel) static uint8_t s_EmptyColModelData[sizeof(CColModel)] = {};
+			static CColModel* s_pEmptyColModel = reinterpret_cast<CColModel*>(s_EmptyColModelData);
+
 			// CEntity::GetColModel
 			MakeInline<0x00535300, 0x00535330>([](reg_pack& regs)
 			{
-				CEntity* entity = (CEntity*)regs.ecx;
+				CEntity* entity = reinterpret_cast<CEntity*>(regs.ecx);
+				if (!entity)
+				{
+					regs.eax = reinterpret_cast<uint32_t>(s_pEmptyColModel);
+					return;
+				}
+
 				CColModel* colModel = nullptr;
-				CBaseModelInfo* modelInfo = nullptr;
 
 				if (entity->m_nType == eEntityType::ENTITY_TYPE_VEHICLE)
 				{
 					unsigned char defaultVehicleColID = reinterpret_cast<CVehicle*>(entity)->m_nSpecialColModel;
-					if (defaultVehicleColID != 255)
+					if (defaultVehicleColID < 4)
 					{
 						colModel = &CVehicle::m_aSpecialColModel[defaultVehicleColID];
 					}
@@ -364,44 +378,103 @@ public:
 						{
 							colModel = xdata.colModel;
 						}
-						else
-						{
-							modelInfo = CModelInfo::GetModelInfo(entity->m_nModelIndex);
-							if (modelInfo) colModel = modelInfo->m_pColModel;
-						}
 					}
 				}
-				else
+
+				if (!colModel)
 				{
-					modelInfo = CModelInfo::GetModelInfo(entity->m_nModelIndex);
-					if (modelInfo) colModel = modelInfo->m_pColModel;
+					int modelIndex = entity->m_nModelIndex;
+					CBaseModelInfo* modelInfo = nullptr;
+
+					typedef CBaseModelInfo* (__stdcall *SampGetModelInfo_t)(int);
+					static SampGetModelInfo_t s_pfnSampGetModelInfo = []() -> SampGetModelInfo_t
+					{
+						HMODULE hSamp = GetModuleHandleA("samp.dll");
+						if (!hSamp) return nullptr;
+
+						auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(hSamp);
+						if (dos->e_magic != IMAGE_DOS_SIGNATURE) return nullptr;
+						auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS32*>(reinterpret_cast<const uint8_t*>(hSamp) + dos->e_lfanew);
+						if (nt->Signature != IMAGE_NT_SIGNATURE) return nullptr;
+
+						// SA-MP 0.3.DL-1 EntryPoint check
+						if (nt->OptionalHeader.AddressOfEntryPoint == 0x0FDB60)
+						{
+							return reinterpret_cast<SampGetModelInfo_t>(reinterpret_cast<uintptr_t>(hSamp) + 0xA7630);
+						}
+						return nullptr;
+					}();
+
+					if (s_pfnSampGetModelInfo)
+					{
+						modelInfo = s_pfnSampGetModelInfo(modelIndex);
+					}
+
+					if (!modelInfo)
+					{
+						int maxModels = *(const int*)0x40CD58;
+						if (modelIndex >= 0 && modelIndex < maxModels)
+						{
+							CBaseModelInfo** pModelInfoPtrs = *(CBaseModelInfo***)0x40CD67;
+							if (pModelInfoPtrs)
+							{
+								modelInfo = pModelInfoPtrs[modelIndex];
+							}
+						}
+					}
+
+					if (reinterpret_cast<uintptr_t>(modelInfo) >= 0x10000 && reinterpret_cast<uintptr_t>(modelInfo) < 0x7FFF0000)
+					{
+						colModel = modelInfo->m_pColModel;
+					}
 				}
-				regs.eax = (uint32_t)colModel;
+
+				if (reinterpret_cast<uintptr_t>(colModel) < 0x10000 || reinterpret_cast<uintptr_t>(colModel) >= 0x7FFF0000)
+				{
+					colModel = s_pEmptyColModel;
+				}
+
+				regs.eax = reinterpret_cast<uint32_t>(colModel);
 			});
 
 			// CBike::SetupSuspensionLines
 			MakeInline<0x006B89D4>([](reg_pack& regs)
 			{
-				CVehicle* vehicle = (CVehicle*)regs.ebx;
-				CBaseModelInfo* modelInfo = CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
+				CVehicle* vehicle = reinterpret_cast<CVehicle*>(regs.ebx);
+				CBaseModelInfo* modelInfo = nullptr;
+				if (vehicle && vehicle->m_nModelIndex >= 0 && vehicle->m_nModelIndex < CModelInfo::ms_modelInfoCount)
+				{
+					modelInfo = CModelInfo::ms_modelInfoPtrs[vehicle->m_nModelIndex];
+				}
 
-				regs.esi = (uint32_t)modelInfo;
+				regs.esi = reinterpret_cast<uint32_t>(modelInfo);
 
-				CColModel* colModel;
+				CColModel* colModel = nullptr;
 
 				ExtraData& xdata = extraInfo.Get(vehicle);
 				if (xdata.flags.bCollModel)
 				{
 					colModel = xdata.colModel;
 				}
-				else
+				else if (reinterpret_cast<uintptr_t>(modelInfo) >= 0x10000 && reinterpret_cast<uintptr_t>(modelInfo) < 0x7FFF0000)
 				{
 					colModel = modelInfo->m_pColModel;
 				}
-				*(uint32_t*)(regs.esp + 0x28) = (uint32_t)colModel;
-				regs.edi = (uint32_t)colModel->m_pColData;
-				regs.eax = (uint32_t)colModel->m_pColData->m_pLines;
-				regs.edx = *(uint32_t*)(regs.eax + 0x28);
+				*(uint32_t*)(regs.esp + 0x28) = reinterpret_cast<uint32_t>(colModel);
+				if (reinterpret_cast<uintptr_t>(colModel) >= 0x10000 && reinterpret_cast<uintptr_t>(colModel) < 0x7FFF0000 &&
+					reinterpret_cast<uintptr_t>(colModel->m_pColData) >= 0x10000 && reinterpret_cast<uintptr_t>(colModel->m_pColData) < 0x7FFF0000 &&
+					reinterpret_cast<uintptr_t>(colModel->m_pColData->m_pLines) >= 0x10000 && reinterpret_cast<uintptr_t>(colModel->m_pColData->m_pLines) < 0x7FFF0000)
+				{
+					regs.edi = reinterpret_cast<uint32_t>(colModel->m_pColData);
+					regs.eax = reinterpret_cast<uint32_t>(colModel->m_pColData->m_pLines);
+					regs.edx = *reinterpret_cast<uint32_t*>(regs.eax + 0x28);
+				}
+				else
+				{
+					regs.edi = 0;
+					regs.eax = 0;
+					regs.edx = 0;
+				}
 
 				regs.ecx = 0x47C34FFF; //mov ecx, 47C34FFFh
 			});
@@ -1077,22 +1150,27 @@ public:
 					if (xdata.flags.bBackfireIsUpdated == false)
 					{
 						xdata.flags.bBackfireIsUpdated = true;
-						CVehicleModelInfo* vehModelInfo = (CVehicleModelInfo*)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
+						CVehicleModelInfo* vehModelInfo = (vehicle && vehicle->m_nModelIndex >= 0 && vehicle->m_nModelIndex < CModelInfo::ms_modelInfoCount) ? (CVehicleModelInfo*)CModelInfo::ms_modelInfoPtrs[vehicle->m_nModelIndex] : nullptr;
 						if (vehModelInfo) {
-							RwV3d exhaustPos;
-							RwV3d exhaustPosAdditional;
+							RwV3d exhaustPos = { 0.0f, 0.0f, 0.0f };
+							RwV3d exhaustPosAdditional = { 0.0f, 0.0f, 0.0f };
 							bool useAdditionalExhaustPos = false;
 							RwMatrix* vehicleMatrix = (RwMatrix*)vehicle->m_matrix;
 
 							if (vehicle->m_nModelIndex == eModelID::MODEL_NRG500 && (vehicleExtra0 == 0 || vehicleExtra0 == 1)) {
-								exhaustPosAdditional = *(RwV3d*)GetVehicleDummyPosAdapted(vehicle, 11);
-								useAdditionalExhaustPos = true;
+								CVector* pAdditional = GetVehicleDummyPosAdapted(vehicle, 11);
+								if (pAdditional) {
+									exhaustPosAdditional = *(RwV3d*)pAdditional;
+									useAdditionalExhaustPos = true;
+								}
 							}
 
 							CVector* resultDummyPos = GetVehicleDummyPosAdapted(vehicle, 6);
-							exhaustPos.x = resultDummyPos->x;
-							exhaustPos.y = resultDummyPos->y;
-							exhaustPos.z = resultDummyPos->z;
+							if (resultDummyPos) {
+								exhaustPos.x = resultDummyPos->x;
+								exhaustPos.y = resultDummyPos->y;
+								exhaustPos.z = resultDummyPos->z;
+							}
 
 							FxSystemBP_c* blueprint = g_fxMan.FindFxSystemBP(const_cast<char*>("backfire"));
 							if (blueprint == nullptr)
@@ -2061,8 +2139,12 @@ CColModel* SetNewCol(CVehicle* vehicle)
 		return nullptr;
 	}
 
-	CColModel* originalColModel = CModelInfo::GetModelInfo(vehicle->m_nModelIndex)->m_pColModel;
-	*newCol = *originalColModel;
+	int modelIndex = vehicle ? vehicle->m_nModelIndex : -1;
+	CBaseModelInfo* minfo = (modelIndex >= 0 && modelIndex < CModelInfo::ms_modelInfoCount) ? CModelInfo::ms_modelInfoPtrs[modelIndex] : nullptr;
+	if (reinterpret_cast<uintptr_t>(minfo) >= 0x10000 && minfo->m_pColModel)
+	{
+		*newCol = *minfo->m_pColModel;
+	}
 	return newCol;
 }
 
@@ -2077,7 +2159,10 @@ CVector *GetVehicleDummyPosAdapted(CVehicle* vehicle, int dummyId) {
 				return &tempDummyPosResult;
 			}
 		}
-		CVehicleModelInfo* vehModelInfo = (CVehicleModelInfo*)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
+		CVehicleModelInfo* vehModelInfo = nullptr;
+		if (vehicle->m_nModelIndex >= 0 && vehicle->m_nModelIndex < CModelInfo::ms_modelInfoCount) {
+			vehModelInfo = (CVehicleModelInfo*)CModelInfo::ms_modelInfoPtrs[vehicle->m_nModelIndex];
+		}
 		if (vehModelInfo) {
 			return &vehModelInfo->m_pVehicleStruct->m_avDummyPos[dummyId];
 		}

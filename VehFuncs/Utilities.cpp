@@ -13,22 +13,27 @@
 float GetVehicleSpeedRealistic(CVehicle * vehicle)
 {
 	float wheelSpeed = 0.0;
-	CVehicleModelInfo * vehicleModelInfo = (CVehicleModelInfo *)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
-	if (vehicle->m_nVehicleSubClass == VEHICLE_BIKE || vehicle->m_nVehicleSubClass == VEHICLE_BMX)
+	int modelIndex = vehicle ? vehicle->m_nModelIndex : -1;
+	CVehicleModelInfo * vehicleModelInfo = (modelIndex >= 0 && modelIndex < CModelInfo::ms_modelInfoCount) ? (CVehicleModelInfo *)CModelInfo::ms_modelInfoPtrs[modelIndex] : nullptr;
+	if (vehicleModelInfo && (vehicle->m_nVehicleSubClass == VEHICLE_BIKE || vehicle->m_nVehicleSubClass == VEHICLE_BMX))
 	{
 		CBike * bike = (CBike *)vehicle;
 		wheelSpeed = ((bike->m_aWheelAngularVelocity[0] * vehicleModelInfo->m_fWheelSizeFront) +
 			(bike->m_aWheelAngularVelocity[1] * vehicleModelInfo->m_fWheelSizeRear)) / 2.0f;
 	}
-	else if (vehicle->m_nVehicleSubClass == VEHICLE_AUTOMOBILE || vehicle->m_nVehicleSubClass == VEHICLE_MTRUCK || vehicle->m_nVehicleSubClass == VEHICLE_QUAD)
+	else if (vehicleModelInfo && (vehicle->m_nVehicleSubClass == VEHICLE_AUTOMOBILE || vehicle->m_nVehicleSubClass == VEHICLE_MTRUCK || vehicle->m_nVehicleSubClass == VEHICLE_QUAD))
 	{
 		CAutomobile * automobile = (CAutomobile *)vehicle;
 		wheelSpeed = ((automobile->m_fWheelSpeed[0] + automobile->m_fWheelSpeed[1] * vehicleModelInfo->m_fWheelSizeFront) +
 			(automobile->m_fWheelSpeed[2] + automobile->m_fWheelSpeed[3] * vehicleModelInfo->m_fWheelSizeRear)) / 4.0f;
 	}
-	else
+	else if (vehicle)
 	{
 		return (vehicle->m_vecMoveSpeed.Magnitude() * 50.0f) * 3.6f;
+	}
+	else
+	{
+		return 0.0f;
 	}
 	wheelSpeed /= 2.45f; // tweak based on distance (manually testing)
 	wheelSpeed *= -186.0f; // tweak based on km/h
