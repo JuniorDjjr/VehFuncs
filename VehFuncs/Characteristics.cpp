@@ -353,7 +353,7 @@ void FindVehicleCharacteristicsFromNode(RwFrame * frame, CVehicle * vehicle, boo
 
 		// Make driver be rendered in bus if it's already inside it (created in same frame)
 		CPed *busDriver = vehicle->m_pDriver;
-		if (busDriver) { busDriver->m_nPedFlags.bRenderPedInCar = true; }
+		if (busDriver) { busDriver->bRenderPedInCar = true; }
 	}
 
 	return;
@@ -404,7 +404,7 @@ void SetCharacteristicsInRender(CVehicle * vehicle, bool bReSearch)
 		{
 			if ((int)xdata.paintjob > 0) {
 				if (useLog) lg << "Charac: Applying paintjob: " << (int)xdata.paintjob << " keep color " << (bool)xdata.flags.bPreservePaintjobColor << "\n";
-				vehicle->m_nVehicleFlags.bDontSetColourWhenRemapping = xdata.flags.bPreservePaintjobColor;
+				vehicle->bDontSetColourWhenRemapping = xdata.flags.bPreservePaintjobColor;
 				vehicle->SetRemap(xdata.paintjob - 1);
 				if (vehicle->m_nRemapTxd >= 0)
 				{
@@ -564,14 +564,14 @@ void SetCharacteristicsForIndieHandling(CVehicle * vehicle, bool bReSearch)
 		if (xdata.doubleExhaust >= 0) 
 		{
 			if (useLog) lg << "'Double Exhaust' changed to " << (int)xdata.doubleExhaust << "\n";
-			vehicle->m_pHandlingData->m_nModelFlags.m_bDoubleExhaust = xdata.doubleExhaust;
+			vehicle->m_pHandlingData->m_bDoubleExhaust = xdata.doubleExhaust;
 		}
 
 		// Swinging chassis
 		if (xdata.swingingChassis >= 0)
 		{
 			vehicle->m_nHandlingFlags.bSwingingChassis = xdata.swingingChassis;
-			vehicle->m_pHandlingData->m_nHandlingFlags.m_bSwingingChassis = xdata.swingingChassis;
+			vehicle->m_pHandlingData->m_bSwingingChassis = xdata.swingingChassis;
 			CAutomobile *automobile = reinterpret_cast<CAutomobile*>(vehicle);
 			if (xdata.swingingChassis == 1) {
 				// ref 6B0F3B

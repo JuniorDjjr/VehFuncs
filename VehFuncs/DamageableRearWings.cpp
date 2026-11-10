@@ -73,7 +73,7 @@ void PatchDamageableRearWings() {
 		// Damage also rear wings to cars (by default the code only damages rear doors for vans)
 		if (i & 0x20)
 		{
-			if (vehicle->m_nVehicleFlags.bIsVan)
+			if (vehicle->bIsVan)
 			{
 				*(uintptr_t*)(regs.esp - 0x4) = 0x6A7F6D;
 			}
@@ -83,7 +83,7 @@ void PatchDamageableRearWings() {
 		}
 		else {
 			if (i && i & 0x40) {
-				if (vehicle->m_nVehicleFlags.bIsVan)
+				if (vehicle->bIsVan)
 				{
 					*(uintptr_t*)(regs.esp - 0x4) = 0x6A7FA3;
 				}

@@ -1,4 +1,4 @@
-﻿/*
+/*
     Author: Junior_Djjr - MixMods.com.br
     Created using https://github.com/DK22Pac/plugin-sdk
 */
@@ -119,6 +119,7 @@ ME_GetExhaustData pME_GetExhaustData = nullptr;
 
 // Ini settings
 bool useLog = true;
+int iniSampMode = 0;
 float iniDefaultDirtMult = 1.0f;
 float iniDefaultSteerAngle = 100.0f;
 bool iniLogNoTextureFound = false;
@@ -161,6 +162,12 @@ void asm_fmul(float f) {
 void WriteTiresToNewHandling(tExtendedHandlingData* handling, bool newTires);
 void SetIndieNewHandling(CVehicle* vehicle, tHandlingData* originalHandling, bool newTires);
 
+static inline bool IsValidUserPointer(const void* ptr)
+{
+	const uintptr_t addr = reinterpret_cast<uintptr_t>(ptr);
+	return addr >= 0x10000 && addr < 0x7FFF0000;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class VehFuncs
@@ -180,6 +187,7 @@ public:
 			iniShowCrashInfos = ini.ReadInteger("Test", "ShowCrashInfos", 0);
 			iniDefaultDirtMult = ini.ReadFloat("Settings", "DefaultDirtMult", 1.0f);
 			iniDefaultSteerAngle = ini.ReadFloat("Settings", "DefaultSteerAngle", 100.0f);
+			iniSampMode = ini.ReadInteger("Settings", "SampMode", 0);
 			if (ini.ReadInteger("Settings", "NoSwingingChassis", 0) == 1)
 			{
 				MakeInline<0x006AC104, 0x006AC104 + 7>([](reg_pack& regs)
@@ -341,17 +349,25 @@ public:
 
 			// -- Coll model
 
+			alignas(CColModel) static uint8_t s_EmptyColModelData[sizeof(CColModel)] = {};
+			static CColModel* s_pEmptyColModel = reinterpret_cast<CColModel*>(s_EmptyColModelData);
+
 			// CEntity::GetColModel
 			MakeInline<0x00535300, 0x00535330>([](reg_pack& regs)
 			{
-				CEntity* entity = (CEntity*)regs.ecx;
+				CEntity* entity = reinterpret_cast<CEntity*>(regs.ecx);
+				if (!entity)
+				{
+					regs.eax = reinterpret_cast<uint32_t>(s_pEmptyColModel);
+					return;
+				}
+
 				CColModel* colModel = nullptr;
-				CBaseModelInfo* modelInfo = nullptr;
 
 				if (entity->m_nType == eEntityType::ENTITY_TYPE_VEHICLE)
 				{
 					unsigned char defaultVehicleColID = reinterpret_cast<CVehicle*>(entity)->m_nSpecialColModel;
-					if (defaultVehicleColID != 255)
+					if (defaultVehicleColID < 4)
 					{
 						colModel = &CVehicle::m_aSpecialColModel[defaultVehicleColID];
 					}
@@ -362,44 +378,103 @@ public:
 						{
 							colModel = xdata.colModel;
 						}
-						else
-						{
-							modelInfo = CModelInfo::GetModelInfo(entity->m_nModelIndex);
-							if (modelInfo) colModel = modelInfo->m_pColModel;
-						}
 					}
 				}
-				else
+
+				if (!colModel)
 				{
-					modelInfo = CModelInfo::GetModelInfo(entity->m_nModelIndex);
-					if (modelInfo) colModel = modelInfo->m_pColModel;
+					int modelIndex = entity->m_nModelIndex;
+					CBaseModelInfo* modelInfo = nullptr;
+
+					typedef CBaseModelInfo* (__stdcall *SampGetModelInfo_t)(int);
+					static SampGetModelInfo_t s_pfnSampGetModelInfo = []() -> SampGetModelInfo_t
+					{
+						HMODULE hSamp = GetModuleHandleA("samp.dll");
+						if (!hSamp) return nullptr;
+
+						auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(hSamp);
+						if (dos->e_magic != IMAGE_DOS_SIGNATURE) return nullptr;
+						auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS32*>(reinterpret_cast<const uint8_t*>(hSamp) + dos->e_lfanew);
+						if (nt->Signature != IMAGE_NT_SIGNATURE) return nullptr;
+
+						// SA-MP 0.3.DL-1 EntryPoint check
+						if (nt->OptionalHeader.AddressOfEntryPoint == 0x0FDB60)
+						{
+							return reinterpret_cast<SampGetModelInfo_t>(reinterpret_cast<uintptr_t>(hSamp) + 0xA7630);
+						}
+						return nullptr;
+					}();
+
+					if (s_pfnSampGetModelInfo)
+					{
+						modelInfo = s_pfnSampGetModelInfo(modelIndex);
+					}
+
+					if (!modelInfo)
+					{
+						int maxModels = *(const int*)0x40CD58;
+						if (modelIndex >= 0 && modelIndex < maxModels)
+						{
+							CBaseModelInfo** pModelInfoPtrs = *(CBaseModelInfo***)0x40CD67;
+							if (pModelInfoPtrs)
+							{
+								modelInfo = pModelInfoPtrs[modelIndex];
+							}
+						}
+					}
+
+					if (reinterpret_cast<uintptr_t>(modelInfo) >= 0x10000 && reinterpret_cast<uintptr_t>(modelInfo) < 0x7FFF0000)
+					{
+						colModel = modelInfo->m_pColModel;
+					}
 				}
-				regs.eax = (uint32_t)colModel;
+
+				if (reinterpret_cast<uintptr_t>(colModel) < 0x10000 || reinterpret_cast<uintptr_t>(colModel) >= 0x7FFF0000)
+				{
+					colModel = s_pEmptyColModel;
+				}
+
+				regs.eax = reinterpret_cast<uint32_t>(colModel);
 			});
 
 			// CBike::SetupSuspensionLines
 			MakeInline<0x006B89D4>([](reg_pack& regs)
 			{
-				CVehicle* vehicle = (CVehicle*)regs.ebx;
-				CBaseModelInfo* modelInfo = CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
+				CVehicle* vehicle = reinterpret_cast<CVehicle*>(regs.ebx);
+				CBaseModelInfo* modelInfo = nullptr;
+				if (vehicle && vehicle->m_nModelIndex >= 0 && vehicle->m_nModelIndex < CModelInfo::ms_modelInfoCount)
+				{
+					modelInfo = CModelInfo::ms_modelInfoPtrs[vehicle->m_nModelIndex];
+				}
 
-				regs.esi = (uint32_t)modelInfo;
+				regs.esi = reinterpret_cast<uint32_t>(modelInfo);
 
-				CColModel* colModel;
+				CColModel* colModel = nullptr;
 
 				ExtraData& xdata = extraInfo.Get(vehicle);
 				if (xdata.flags.bCollModel)
 				{
 					colModel = xdata.colModel;
 				}
-				else
+				else if (reinterpret_cast<uintptr_t>(modelInfo) >= 0x10000 && reinterpret_cast<uintptr_t>(modelInfo) < 0x7FFF0000)
 				{
 					colModel = modelInfo->m_pColModel;
 				}
-				*(uint32_t*)(regs.esp + 0x28) = (uint32_t)colModel;
-				regs.edi = (uint32_t)colModel->m_pColData;
-				regs.eax = (uint32_t)colModel->m_pColData->m_pLines;
-				regs.edx = *(uint32_t*)(regs.eax + 0x28);
+				*(uint32_t*)(regs.esp + 0x28) = reinterpret_cast<uint32_t>(colModel);
+				if (reinterpret_cast<uintptr_t>(colModel) >= 0x10000 && reinterpret_cast<uintptr_t>(colModel) < 0x7FFF0000 &&
+					reinterpret_cast<uintptr_t>(colModel->m_pColData) >= 0x10000 && reinterpret_cast<uintptr_t>(colModel->m_pColData) < 0x7FFF0000 &&
+					reinterpret_cast<uintptr_t>(colModel->m_pColData->m_pLines) >= 0x10000 && reinterpret_cast<uintptr_t>(colModel->m_pColData->m_pLines) < 0x7FFF0000)
+				{
+					regs.edi = reinterpret_cast<uint32_t>(colModel->m_pColData);
+					regs.eax = reinterpret_cast<uint32_t>(colModel->m_pColData->m_pLines);
+					regs.edx = *reinterpret_cast<uint32_t*>(regs.eax + 0x28);
+				}
+				else
+				{
+					regs.edi = 0;
+					regs.eax = 0;
+					regs.edx = 0;
+				}
 
 				regs.ecx = 0x47C34FFF; //mov ecx, 47C34FFFh
 			});
@@ -414,7 +489,16 @@ public:
 
 			srand(time(0));
 			StoreHandlingData();
-			ApplyGSX(); 
+
+			bool isSamp = (iniSampMode == 1) || (GetModuleHandleA("samp.dll") != nullptr);
+			if (!isSamp)
+			{
+				ApplyGSX();
+			}
+			else
+			{
+				if (useLog) lg << "SA-MP Mode enabled: GSX garage save features disabled.\n";
+			} 
 			//ApplyCheckRepair();
 			
 			AtomicAlphaCallBack = ReadMemory<int>(0x4C7842, false);
@@ -564,8 +648,10 @@ public:
 				*(uint32_t*)(regs.esp + 0x14) = -1; //mov     dword ptr [esp+14h], 0FFFFFFFFh
 
 				CVehicle *veh = (CVehicle *)regs.edi;
-				ExtendedData &xdata = xData.Get(veh);
-				xdata.flags.bUpgradesUpdated = true;
+				if (veh) {
+					ExtendedData &xdata = xData.Get(veh);
+					xdata.flags.bUpgradesUpdated = true;
+				}
 			});
 
 			MakeInline<0x006DF96C, 0x006DF96C + 6>([](reg_pack& regs)
@@ -574,8 +660,10 @@ public:
 				regs.esi = regs.eax; //mov     esi, eax
 
 				CVehicle *veh = (CVehicle *)regs.edi;
-				ExtendedData &xdata = xData.Get(veh);
-				xdata.flags.bUpgradesUpdated = true;
+				if (veh) {
+					ExtendedData &xdata = xData.Get(veh);
+					xdata.flags.bUpgradesUpdated = true;
+				}
 			});
 
 			// RpClumpRender
@@ -593,7 +681,7 @@ public:
 			{
 				regs.ecx = 0x3F800000; // original code
 				RwFrame *frame = (RwFrame *)regs.edi;
-				FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade = true;
+				if (frame) FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade = true;
 			});
 			// Set others to destroy
 			MakeInline<0x006D3539, 0x006D3539 + 5>([](reg_pack& regs)
@@ -603,7 +691,7 @@ public:
 				regs.esi = regs.eax;
 				regs.edi = *(uintptr_t*)(regs.esi + 0x4);
 				RwFrame *frame = (RwFrame *)regs.edi;
-				FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade = true;
+				if (frame) FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade = true;
 			}); 
 			// Add original
 			/*MakeInline<0x006D3A35, 0x006D3A35 + 18>([](reg_pack& regs)
@@ -864,7 +952,7 @@ public:
 				if (xdata.kms == -1.0f)
 				{
 					float factorA = Random(5000.0f, 300000.0f);
-					if (vehicle->m_nVehicleFlags.bIsDamaged) factorA *= 2.0f;
+					if (vehicle->bIsDamaged) factorA *= 2.0f;
 					float factorB = Random(0.0f, vehicle->m_fDirtLevel * 20000.0f);
 					xdata.kms = (factorA + factorB) * 40.0f;
 					//if (useLog) lg << (int)xdata.kms << ".\n";
@@ -1020,7 +1108,7 @@ public:
 					if (xdata.smoothBrakePedal < 0.0f) xdata.smoothBrakePedal = 0.0f;
 				}
 			}
-			if (!vehicle->m_nVehicleFlags.bEngineOn) {
+			if (!vehicle->bEngineOn) {
 				for (int i = 0; i < 2; i++)
 				{
 					// this way will not just save memory but mainly keep adapted for Tuning Mod exhaust position updates
@@ -1056,36 +1144,41 @@ public:
 						isDoubleExhaust = true;
 					}
 					else {
-						isDoubleExhaust = vehicle->m_pHandlingData->m_nModelFlags.m_bDoubleExhaust;
+						isDoubleExhaust = vehicle->m_pHandlingData->m_bDoubleExhaust;
 					}
 
 					if (xdata.flags.bBackfireIsUpdated == false)
 					{
 						xdata.flags.bBackfireIsUpdated = true;
-						CVehicleModelInfo* vehModelInfo = (CVehicleModelInfo*)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
+						CVehicleModelInfo* vehModelInfo = (vehicle && vehicle->m_nModelIndex >= 0 && vehicle->m_nModelIndex < CModelInfo::ms_modelInfoCount) ? (CVehicleModelInfo*)CModelInfo::ms_modelInfoPtrs[vehicle->m_nModelIndex] : nullptr;
 						if (vehModelInfo) {
-							RwV3d exhaustPos;
-							RwV3d exhaustPosAdditional;
+							RwV3d exhaustPos = { 0.0f, 0.0f, 0.0f };
+							RwV3d exhaustPosAdditional = { 0.0f, 0.0f, 0.0f };
 							bool useAdditionalExhaustPos = false;
 							RwMatrix* vehicleMatrix = (RwMatrix*)vehicle->m_matrix;
 
 							if (vehicle->m_nModelIndex == eModelID::MODEL_NRG500 && (vehicleExtra0 == 0 || vehicleExtra0 == 1)) {
-								exhaustPosAdditional = GetVehicleDummyPosAdapted(vehicle, 11)->ToRwV3d();
-								useAdditionalExhaustPos = true;
+								CVector* pAdditional = GetVehicleDummyPosAdapted(vehicle, 11);
+								if (pAdditional) {
+									exhaustPosAdditional = *(RwV3d*)pAdditional;
+									useAdditionalExhaustPos = true;
+								}
 							}
 
 							CVector* resultDummyPos = GetVehicleDummyPosAdapted(vehicle, 6);
-							exhaustPos.x = resultDummyPos->x;
-							exhaustPos.y = resultDummyPos->y;
-							exhaustPos.z = resultDummyPos->z;
-
-							FxSystemBP_c* blueprint = g_fxMan.FindFxSystemBP("backfire");
-							if (blueprint == nullptr)
-							{
-								blueprint = g_fxMan.FindFxSystemBP("gunflash");
+							if (resultDummyPos) {
+								exhaustPos.x = resultDummyPos->x;
+								exhaustPos.y = resultDummyPos->y;
+								exhaustPos.z = resultDummyPos->z;
 							}
 
-							FxSystemBP_c* blueprintHigh = g_fxMan.FindFxSystemBP("backfire_high"); 
+							FxSystemBP_c* blueprint = g_fxMan.FindFxSystemBP(const_cast<char*>("backfire"));
+							if (blueprint == nullptr)
+							{
+								blueprint = g_fxMan.FindFxSystemBP(const_cast<char*>("gunflash"));
+							}
+
+							FxSystemBP_c* blueprintHigh = g_fxMan.FindFxSystemBP(const_cast<char*>("backfire_high")); 
 							if (blueprintHigh == nullptr)
 							{
 								blueprintHigh = blueprint;
@@ -1213,7 +1306,7 @@ public:
 			// Process material stuff (before render)
 			if (xdata.taxiSignMaterial)
 			{
-				if (reinterpret_cast<CAutomobile*>(vehicle)->taxiAvaliable & 1)
+				if (reinterpret_cast<CAutomobile*>(vehicle)->m_nAutomobileFlags.bTaxiLight)
 				{
 					resetMats.push_back(std::make_pair(reinterpret_cast<unsigned int *>(&xdata.taxiSignMaterial->surfaceProps.ambient), *reinterpret_cast<unsigned int *>(&xdata.taxiSignMaterial->surfaceProps.ambient)));
 					xdata.taxiSignMaterial->surfaceProps.ambient = 10.0f;
@@ -1265,7 +1358,7 @@ public:
 			}
 
 
-			if (vehicle->m_nVehicleFlags.bEngineOn)
+			if (vehicle->bEngineOn)
 			{
 				// Process gear
 				if (!xdata.gearFrame.empty()) ProcessRotatePart(vehicle, xdata.gearFrame, true);
@@ -1282,7 +1375,7 @@ public:
 			// Process brake pedal
 			if (!xdata.brakepedalFrame.empty()) ProcessPedal(vehicle, xdata.brakepedalFrame, 2);
 
-			if (vehicle->m_fHealth > 0 && !vehicle->m_nVehicleFlags.bEngineBroken && !vehicle->m_nVehicleFlags.bIsDrowning)
+			if (vehicle->m_fHealth > 0 && !vehicle->bEngineBroken && !vehicle->bIsDrowning)
 			{
 				// Process anims
 				if (!xdata.anims.empty()) ProcessAnims(vehicle, xdata.anims);
@@ -1956,7 +2049,7 @@ public:
 						reinterpret_cast<CAutomobile*>(vehicle)->m_swingingChassis.m_nDoorState = eDoorState::DOOR_NOTHING;
 						CVisibilityPlugins::SetFrameHierarchyId(frame, 1);
 						// some peoples uses 'body' instead of 'chassis' to disable it without changing the handling flag
-						vehicle->m_pHandlingData->m_nHandlingFlags.m_bSwingingChassis = false;
+						vehicle->m_pHandlingData->m_bSwingingChassis = false;
 						vehicle->m_nHandlingFlags.bSwingingChassis = false;
 						if (useLog) lg << "Error fixed: Using '" << name << "' as chassis for vehicle id " << vehicle->m_nModelIndex << "\n";
 						noChassis = false;
@@ -2046,8 +2139,12 @@ CColModel* SetNewCol(CVehicle* vehicle)
 		return nullptr;
 	}
 
-	CColModel* originalColModel = CModelInfo::GetModelInfo(vehicle->m_nModelIndex)->m_pColModel;
-	*newCol = *originalColModel;
+	int modelIndex = vehicle ? vehicle->m_nModelIndex : -1;
+	CBaseModelInfo* minfo = (modelIndex >= 0 && modelIndex < CModelInfo::ms_modelInfoCount) ? CModelInfo::ms_modelInfoPtrs[modelIndex] : nullptr;
+	if (reinterpret_cast<uintptr_t>(minfo) >= 0x10000 && minfo->m_pColModel)
+	{
+		*newCol = *minfo->m_pColModel;
+	}
 	return newCol;
 }
 
@@ -2062,7 +2159,10 @@ CVector *GetVehicleDummyPosAdapted(CVehicle* vehicle, int dummyId) {
 				return &tempDummyPosResult;
 			}
 		}
-		CVehicleModelInfo* vehModelInfo = (CVehicleModelInfo*)CModelInfo::GetModelInfo(vehicle->m_nModelIndex);
+		CVehicleModelInfo* vehModelInfo = nullptr;
+		if (vehicle->m_nModelIndex >= 0 && vehicle->m_nModelIndex < CModelInfo::ms_modelInfoCount) {
+			vehModelInfo = (CVehicleModelInfo*)CModelInfo::ms_modelInfoPtrs[vehicle->m_nModelIndex];
+		}
 		if (vehModelInfo) {
 			return &vehModelInfo->m_pVehicleStruct->m_avDummyPos[dummyId];
 		}
@@ -2106,6 +2206,7 @@ void LogVehicleModelWithText(string str1, int vehicleModel, string str2)
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
+	if (frame == nullptr) return nullptr;
 	//lg << "addupgrade " << GetFrameNodeName(frame) << std::endl;
 	if (RwFrame * newFrame = frame->child)  CustomRwFrameForAllChildren_AddUpgrade_Recurse(newFrame, callback, data);
 	return frame;
@@ -2113,6 +2214,7 @@ RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade(RwFrame *frame, RwFrame 
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade_Recurse(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
+	if (frame == nullptr) return nullptr;
 	if (!FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade) FRAME_EXTENSION(frame)->flags.bNeverRender = true;
 
 	if (RwFrame * newFrame = frame->child)  CustomRwFrameForAllChildren_AddUpgrade_Recurse(newFrame, callback, data);
@@ -2122,6 +2224,7 @@ RwFrame *__cdecl CustomRwFrameForAllChildren_AddUpgrade_Recurse(RwFrame *frame, 
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
+	if (frame == nullptr) return nullptr;
 	// Similar to RwFrameForAllChildren
 	RwFrameForAllChildren(frame, (RwFrameCallBack)CustomRwFrameForAllChildren_RemoveUpgrade_Recurse, data);
 	return frame;
@@ -2129,6 +2232,7 @@ RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade(RwFrame *frame, RwFra
 
 RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(RwFrame *frame, RwFrame *(__cdecl *callback)(RwFrame *, void *), void *data)
 {
+	if (frame == nullptr) return nullptr;
 	if (FRAME_EXTENSION(frame)->flags.bDestroyOnRemoveUpgrade) {
 		RwFrameForAllObjects(frame, RemoveObjectsCB, data);
 	}
@@ -2145,6 +2249,7 @@ RwFrame *__cdecl CustomRwFrameForAllChildren_RemoveUpgrade_Recurse(RwFrame *fram
 
 RwFrame *__cdecl CustomRwFrameForAllObjects_Upgrades(RwFrame *frame, RpAtomicCallBack callback, void *data)
 {
+	if (frame == nullptr) return nullptr;
 	if (!rwLinkListEmpty(&frame->objectList))
 	{
 		RwObjectHasFrame * atomic;

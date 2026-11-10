@@ -2,6 +2,7 @@
 #include "plugin.h"
 #include "MatrixBackup.h"
 #include <time.h>
+#include <type_traits>
 
 // Mod funcs
 #include "Footpegs.h"
@@ -10,6 +11,12 @@
 using namespace plugin;
 using namespace std;
 using namespace injector;
+
+template <typename T, typename U>
+inline auto Random(T min, U max) {
+	using Common = std::common_type_t<T, U>;
+	return plugin::RandomNumberInRange<Common>(static_cast<Common>(min), static_cast<Common>(max));
+}
 
 extern unsigned int FramePluginOffset;
 
